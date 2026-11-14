@@ -1,0 +1,115 @@
+name: Cadence · compiler et vérifier sans signature
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'App/**'
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Shared/**'
+      - 'Widgets/**'
+      - 'Config/**'
+      - 'Resources/**'
+      - 'Scripts/**'
+      - 'project.yml'
+      - 'Package.swift'
+      - '.github/workflows/build-unsigned-ipa.yml'
+  workflow_dispatch:
+    inputs:
+      free_quota_verified:
+        description: 'Quota stockage artefacts (et calcul si privé) vérifié ; usage payant bloqué dans Billing'
+        type: boolean
+        default: false
+      include_shared_variant:
+        description: 'Compiler aussi la variante App Group expérimentale (ne garantit pas sa signature)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cadence-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    # Runner standard public gratuit. Push public : aucun artefact/cache Actions.
+    # Les binaires/rapports vont dans une release BROUILLON, sans publication.
+    # Un dépôt privé exige un lancement manuel avec quota vérifié et variable explicite.
+    if: >-
+      github.event.repository.private == false ||
+      (github.event_name == 'workflow_dispatch' && inputs.free_quota_verified &&
+       vars.CADENCE_PRIVATE_FREE_CI == 'true')
+    permissions:
+      contents: write
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      INCLUDE_SHARED: ${{ inputs.include_shared_variant && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Vérifier le SDK et générer le projet
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/reports
+          xcodebuild -version | tee dist/reports/xcode-version.txt
+          xcodebuild -showsdks > dist/reports/sdks.txt
+          xcrun swift --version > dist/reports/swift-version.txt
+          python3 - <<'PY'
+          import re, subprocess
+          version = subprocess.check_output(['xcodebuild', '-version'], text=True)
+          assert int(re.search(r'Xcode (\d+)', version).group(1)) >= 26, 'SDK Xcode 26 ou récent requis'
+          PY
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen --version | tee dist/reports/xcodegen-version.txt
+          xcodegen generate --spec project.yml
+      - name: Tester le noyau métier sur macOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s Scripts -p 'test_*.py' 2>&1 | tee dist/reports/diagnostic-tests.log
+          swift test 2>&1 | tee dist/reports/core-tests.log
+      - name: Compiler les IPA pour appareil physique
+        shell: bash
+        run: bash Scripts/build_unsigned.sh
+      - name: Tester en simulateur et capturer le rendu natif
+        shell: bash
+        run: bash Scripts/test_simulator.sh
+      - name: Joindre les IPA, rapports et captures réels
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.free_quota_verified
+        uses: actions/upload-artifact@v7
+        with:
+          name: Cadence-unsigned-${{ github.run_number }}
+          path: |
+            dist/*.ipa
+            dist/reports/
+            dist/screenshots/
+            dist/*.xcresult/
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Préparer un brouillon de livraison sans stockage Actions
+        if: always() && !cancelled() && github.event.repository.private == false
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RESULT: ${{ job.status }}
+        run: bash Scripts/publish_draft_release.sh
+      - name: Résumer la vérification
+        if: always()
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ job.status }}
+        run: |
+          {
+            echo '## Cadence'
+            echo "Résultat du job : $BUILD_RESULT"
+            echo 'Les IPA sont non signés. Aucune installation iPhone ou signature gratuite n’a été vérifiée par ce job.'
+            echo 'Les captures de simulateur, si présentes, proviennent de simctl ; les images bundle sont des inventaires générés.'
+            echo 'Un succès de compilation ne valide ni App Groups, ni Sideloadly, ni Live Activity sur appareil réel.'
+            echo 'Sur dépôt public, consulter la release brouillon CI correspondante pour les fichiers. Aucun artefact Actions n’est téléversé sur push.'
+          } >> "$GITHUB_STEP_SUMMARY"

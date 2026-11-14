@@ -1,0 +1,14 @@
+{
+  "selected": "atelier-liquid-glass",
+  "selectedIsProvisional": false,
+  "appNameProvisional": "Cadence",
+  "language": "fr-FR",
+  "layout": "Native Apple iOS 26+ Liquid Glass; iOS 17-25 standard fallback",
+  "modes": [
+    "cours",
+    "revision"
+  ],
+  "calendarIntegration": "EventKit iOS calendars, Google when available in Apple Calendar",
+  "importAndManual": true,
+  "reference": "designs/ATELIER_LIQUID_GLASS_3_ECRANS.png"
+}

@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-14",
+  "swiftSyntaxParser": "tree-sitter-swift (analyse syntaxique, sans vérification des types Apple)",
+  "swiftFiles": 27,
+  "errors": [],
+  "yamlJSONPlistAndPythonSyntax": "OK",
+  "appIcon": "1024x1024 RGB, rendu du SVG original du kit",
+  "diagnosticPythonTests": {
+    "executed": 3,
+    "passed": 3
+  },
+  "swiftCoreTestsLocal": "Non exécutés : WSL ERROR_TIMEOUT avant démarrage du compilateur",
+  "xcodeCompilation": "En attente de GitHub Actions",
+  "physicalDeviceTests": "Non exécutés"
+}
