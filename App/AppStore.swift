@@ -92,7 +92,7 @@ final class AppStore: ObservableObject {
     func pause() { performMutation { _ = try CadenceEngine.pause(state: &$0) } }
     func resume() { performMutation { _ = try CadenceEngine.resume(state: &$0) } }
     func finish() { performMutation { _ = try CadenceEngine.finish(state: &$0) } }
-    func saveSubject(_ subject: Subject) { performMutation { try CadenceEngine.updateSubject(state: &$0, subject: subject) } }
+    func saveSubject(_ subject: CadenceCore.Subject) { performMutation { try CadenceEngine.updateSubject(state: &$0, subject: subject) } }
     func deleteSubject(_ id: UUID) { performMutation { try CadenceEngine.deleteSubject(state: &$0, subjectID: id) } }
 
     func saveSession(_ session: StudySession, allowOverlap: Bool = false) {
