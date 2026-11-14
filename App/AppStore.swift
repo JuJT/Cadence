@@ -127,6 +127,7 @@ final class AppStore: ObservableObject {
     func setOccurrenceStatus(_ id: UUID, status: CourseStatus) { performMutation { try CadenceEngine.setStatus(state: &$0, occurrenceID: id, status: status) } }
     func confirmOccurrence(_ id: UUID, seconds: Double? = nil) { performMutation { try CadenceEngine.confirm(state: &$0, occurrenceID: id, seconds: seconds) } }
     func linkSession(sessionID: UUID, occurrenceID: UUID) { performMutation { try CadenceEngine.link(state: &$0, sessionID: sessionID, occurrenceID: occurrenceID) } }
+    func unlinkSession(occurrenceID: UUID) { performMutation { try CadenceEngine.unlink(state: &$0, occurrenceID: occurrenceID) } }
 
     func acceptCalendarChanges(_ id: UUID) {
         performMutation { try CalendarReconciler.acceptChanges(state: &$0, occurrenceID: id) }

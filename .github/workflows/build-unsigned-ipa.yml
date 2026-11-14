@@ -47,7 +47,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 35
     env:
-      INCLUDE_SHARED: ${{ inputs.include_shared_variant && 'true' || 'false' }}
+      INCLUDE_SHARED: ${{ (github.event_name == 'push' || inputs.include_shared_variant) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -78,6 +78,7 @@ jobs:
         shell: bash
         run: bash Scripts/build_unsigned.sh
       - name: Tester en simulateur et capturer le rendu natif
+        timeout-minutes: 15
         shell: bash
         run: bash Scripts/test_simulator.sh
       - name: Joindre les IPA, rapports et captures réels
@@ -89,6 +90,7 @@ jobs:
             dist/*.ipa
             dist/reports/
             dist/screenshots/
+            dist/test-attachments/
             dist/*.xcresult/
           retention-days: 3
           if-no-files-found: warn

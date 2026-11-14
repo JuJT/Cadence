@@ -5,8 +5,8 @@
 | Sources | Projet SwiftUI/XcodeGen, moteur, tests et intégrations écrits |
 | Syntaxe locale | Analyse Swift tree-sitter, YAML, JSON, plists et scripts ; détail dans `Verification/local-checks.json` |
 | Diagnostic IPA | 3 tests Python exécutés et réussis sur Windows |
-| Tests métier Swift | 33 tests XCTest écrits ; exécution locale impossible, WSL a renvoyé ERROR_TIMEOUT avant le lancement du compilateur |
-| Compilation Xcode / IPA appareil | En attente de GitHub Actions dans JuJT/Cadence |
+| Tests métier Swift | 33 tests exécutés sans échec sur macOS au premier run ; un 34e test de limite de sauvegarde ajouté, à vérifier au prochain run |
+| Compilation Xcode / IPA appareil | En cours dans JuJT/Cadence ; première collision de nom Combine corrigée |
 | Tests et captures simulateur | Non exécutés à ce stade |
 | Installé et testé sur iPhone | Non effectué |
 | Signature gratuite, widget, Live Activity, Raccourcis | Implémentés, fonctionnement réel non validé |
@@ -14,7 +14,7 @@
 
 Le dépôt demandé est [JuJT/Cadence](https://github.com/JuJT/Cadence). Il ne contenait qu’un README lors de sa lecture initiale. Aucune donnée scolaire réelle ni secret Apple n’est ajouté au projet.
 
-L’écriture du connecteur GitHub a été refusée par GitHub (403, « Resource not accessible by integration »). Git local ne disposait pas d’une connexion. Une authentification officielle GitHub CLI a été préparée ; l’autorisation dans le navigateur de l’utilisateur reste nécessaire avant l’envoi et la compilation. Les sources ne sont pas encore présentes dans le dépôt distant à ce stade.
+Le connecteur a refusé l’écriture ; l’utilisateur a ensuite autorisé GitHub CLI dans le navigateur officiel. Les sources ont été envoyées dans le dépôt et GitHub Actions a réellement généré le projet Xcode, compilé le noyau et exécuté ses 33 tests sans échec au [premier run](https://github.com/JuJT/Cadence/actions/runs/43611288275). La première compilation de l’application a révélé un nom ambigu avec Combine, corrigé dans le commit suivant. Le résultat du run complet suivant reste à vérifier.
 
 L’essai de compilation locale sous Ubuntu WSL a été interrompu après une erreur de délai du service WSL. Aucun paquet système n’a été installé et aucun service n’a été modifié. Une toolchain Swift provisoire peut rester dans `/var/tmp/cadence-swift` de cette distribution ; elle ne fait pas partie du livrable.
 

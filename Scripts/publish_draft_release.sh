@@ -13,7 +13,7 @@ mkdir -p dist/reports
 shopt -s nullglob
 assets=(dist/*-unsigned.ipa)
 report_paths=()
-for path in dist/reports dist/screenshots dist/*.xcresult; do
+for path in dist/reports dist/screenshots dist/test-attachments dist/*.xcresult; do
   if [[ -d "$path" ]]; then report_paths+=("${path#dist/}"); fi
 done
 if (( ${#report_paths[@]} > 0 )); then

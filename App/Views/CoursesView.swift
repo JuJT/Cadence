@@ -106,6 +106,7 @@ struct CourseDetailView: View {
     @State private var showEdit = false
     @State private var showLink = false
     @State private var showConfirm = false
+    @State private var showUnlinkConfirmation = false
     @State private var confirmedMinutes = 60.0
     private var occurrence: CourseOccurrence? { store.state.occurrences.first { $0.id == occurrenceID } }
     var body: some View {
@@ -144,6 +145,8 @@ struct CourseDetailView: View {
                         Section("Séance associée") {
                             NavigationLink { SessionEditorView(session: linked) } label: { SessionRow(session: linked) }
                             Text("La durée de cette séance remplace l’estimation du calendrier.").font(.footnote).foregroundStyle(.secondary)
+                            Button("Retirer l’association", systemImage: "link") { showUnlinkConfirmation = true }
+                                .accessibilityIdentifier("course.unlink")
                         }
                     }
                     Section {
@@ -156,6 +159,12 @@ struct CourseDetailView: View {
                 }
                 .sheet(isPresented: $showEdit) { NavigationStack { OccurrenceEditorView(occurrence: course) } }
                 .sheet(isPresented: $showLink) { NavigationStack { SessionLinkView(occurrence: course) } }
+                .confirmationDialog("Retirer l’association de cette séance ?", isPresented: $showUnlinkConfirmation, titleVisibility: .visible) {
+                    Button("Retirer l’association", role: .destructive) { store.unlinkSession(occurrenceID: course.id) }
+                    Button("Conserver l’association", role: .cancel) { }
+                } message: {
+                    Text("La séance, sa durée et ses notes sont conservées. Le créneau du calendrier sera marqué « Ignoré » pour éviter de rétablir son estimation. Vous pourrez associer la séance à un autre cours.")
+                }
                 .sheet(isPresented: $showConfirm) {
                     NavigationStack {
                         Form {

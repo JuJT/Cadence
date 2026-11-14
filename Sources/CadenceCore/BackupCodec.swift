@@ -15,7 +15,11 @@ public enum BackupCodec {
         let data = try encoder.encode(state)
         var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         object["exportedAt"] = ISO8601DateFormatter().string(from: exportedAt)
-        return try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        let payload = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        guard payload.count <= maximumBytes else {
+            throw CadenceError.invalidBackup("La sauvegarde dépasse 20 Mo. Réduisez les notes avant d’enregistrer ; les données précédentes sont conservées.")
+        }
+        return payload
     }
 
     public static func decode(_ data: Data) throws -> CadenceState {

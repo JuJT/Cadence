@@ -364,6 +364,26 @@ final class CadenceCoreTests: XCTestCase {
         XCTAssertEqual(restored.sessions[0].id, value.sessions[0].id)
     }
 
+    func testWriterRejectsOversizedBackupAndLargeAcceptedBackupRemainsReadable() throws {
+        var value = state()
+        let notes = String(repeating: "x", count: BackupCodec.maximumBytes / 2)
+        try CadenceEngine.addManual(state: &value, subjectID: value.subjects[0].id, kind: .revision, start: base, end: base.addingTimeInterval(30), notes: notes)
+        try BackupCodec.validate(value)
+        let payload = try BackupCodec.encode(value)
+        XCTAssertLessThanOrEqual(payload.count, BackupCodec.maximumBytes)
+        let restored = try BackupCodec.decode(payload)
+        XCTAssertEqual(restored.sessions[0].notes, notes)
+        XCTAssertEqual(restored.sessions[0].id, value.sessions[0].id)
+
+        value.sessions[0].notes = String(repeating: "x", count: BackupCodec.maximumBytes)
+        try BackupCodec.validate(value)
+        XCTAssertThrowsError(try BackupCodec.encode(value)) { error in
+            guard let cadenceError = error as? CadenceError, case .invalidBackup = cadenceError else {
+                return XCTFail("Une sauvegarde trop grande doit être refusée avant l’écriture.")
+            }
+        }
+    }
+
     func testMalformedBackupCannotIntroduceDanglingLinksOverlappingSegmentsOrMultipleTimers() throws {
         var value = state()
         let subjectID = value.subjects[0].id
