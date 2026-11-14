@@ -188,7 +188,14 @@ public enum CalendarReconciler {
         }
         if !identified.isEmpty { return identified }
         if let external = event.externalIdentifier, !external.isEmpty {
-            let externalMatches = candidates.filter { occurrences[$0].externalIdentifier == external && sameOccurrence(occurrences[$0]) }
+            let externalMatches = candidates.filter {
+                let old = occurrences[$0]
+                // External identifiers can collide. If the old Apple identifier still exists
+                // in this snapshot, both events are present and must stay distinct.
+                let oldStillPresent = old.eventIdentifier != event.eventIdentifier
+                    && incomingIDs.contains(old.calendarIdentifier + "\u{1F}" + old.eventIdentifier)
+                return !oldStillPresent && old.externalIdentifier == external && sameOccurrence(old)
+            }
             if !externalMatches.isEmpty { return externalMatches }
         }
         // An ID still present elsewhere in this snapshot represents a distinct occurrence, not a resync.

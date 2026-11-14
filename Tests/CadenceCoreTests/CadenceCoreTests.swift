@@ -271,6 +271,15 @@ final class CadenceCoreTests: XCTestCase {
         XCTAssertEqual(value.occurrences.count, 2)
     }
 
+    func testCollidingExternalIdentifiersDoNotMergeEventsPresentTogether() {
+        var value = state(auto: true)
+        let one = event(value, id: "one", external: "shared-external-id")
+        let two = event(value, id: "two", external: "shared-external-id")
+        for _ in 0..<20 { sync(&value, [one, two]) }
+        XCTAssertEqual(value.occurrences.count, 2)
+        XCTAssertEqual(Set(value.occurrences.map(\.eventIdentifier)), ["one", "two"])
+    }
+
     func testAmbiguousFallbackNeedsReviewAndDoesNotAddNewCredit() {
         var value = state(auto: true)
         let one = event(value, id: "one", external: nil)
