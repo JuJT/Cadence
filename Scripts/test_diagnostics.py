@@ -6,6 +6,7 @@ import zipfile
 from pathlib import Path
 
 from inspect_ipa import inspect, signed_entitlements
+from collect_test_screenshots import collect
 
 
 def macho(entitlements=None):

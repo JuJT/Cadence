@@ -46,8 +46,8 @@ final class SystemIntegrationService {
     }
 
     private func reconcileActivity(state: CadenceState) async {
-        defer { onDiagnosticChange?() }
         #if CADENCE_EXTENSIONS
+        defer { onDiagnosticChange?() }
         let existing = Activity<SessionActivityAttributes>.activities
         guard state.settings.liveActivityEnabled, let session = state.activeSession else {
             for activity in existing { await activity.end(nil, dismissalPolicy: .immediate) }
@@ -81,6 +81,8 @@ final class SystemIntegrationService {
                 lastActivityError = "Impossible de créer la Live Activity : \(error.localizedDescription)"
             }
         }
+        #else
+        onDiagnosticChange?()
         #endif
     }
 }

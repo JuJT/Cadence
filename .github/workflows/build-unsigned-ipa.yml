@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: bash Scripts/build_unsigned.sh
       - name: Tester en simulateur et capturer le rendu natif
-        timeout-minutes: 15
+        timeout-minutes: 20
         shell: bash
         run: bash Scripts/test_simulator.sh
       - name: Joindre les IPA, rapports et captures réels
@@ -111,7 +111,7 @@ jobs:
             echo '## Cadence'
             echo "Résultat du job : $BUILD_RESULT"
             echo 'Les IPA sont non signés. Aucune installation iPhone ou signature gratuite n’a été vérifiée par ce job.'
-            echo 'Les captures de simulateur, si présentes, proviennent de simctl ; les images bundle sont des inventaires générés.'
+            echo 'Les captures de simulateur proviennent des pièces jointes XCTest après navigation dans les vrais onglets ; les images bundle sont des inventaires générés.'
             echo 'Un succès de compilation ne valide ni App Groups, ni Sideloadly, ni Live Activity sur appareil réel.'
             echo 'Sur dépôt public, consulter la release brouillon CI correspondante pour les fichiers. Aucun artefact Actions n’est téléversé sur push.'
           } >> "$GITHUB_STEP_SUMMARY"
