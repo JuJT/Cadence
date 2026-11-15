@@ -1,6 +1,6 @@
 # Compiler puis installer depuis Windows
 
-Les quatre IPA ont été compilées avec succès et leurs empreintes SHA-256 vérifiées. Elles sont fournies dans le dossier de livraison `IPA` et dans le brouillon de release `ci-4` du dépôt JuJT/Cadence. Une IPA **non signée** doit encore être signée et installée avec Sideloadly ; aucune installation physique n’est déclarée validée. Voir [le rapport de vérification](VERIFICATION.md).
+La livraison actuelle est **Cadenza 0.2.0 pour iPhone**. Installer `IPA/Cadenza-iPhone-0.2.0.ipa` par-dessus l’app existante, avec le même compte et les mêmes options Sideloadly. La signature Apple reste obligatoire. Le [rapport de vérification](VERIFICATION.md) précise le run, les empreintes et les tests réellement exécutés. Le dépôt, les schémas et les identifiants techniques conservent leur nom Cadence.
 
 Pour le premier essai, utilisez directement l’IPA fournie et passez à la section **2 · Premier essai Sideloadly**. La section suivante sert aux prochaines compilations.
 
@@ -8,8 +8,8 @@ Pour le premier essai, utilisez directement l’IPA fournie et passez à la sect
 
 1. Le dépôt fourni est [JuJT/Cadence](https://github.com/JuJT/Cadence). Le contenu du dossier Cadence se place à sa racine ; le workflow est dans `.github/workflows/`. Aucune note réelle, sauvegarde personnelle ni information Apple ne doit y être ajoutée.
 2. Sur ce dépôt **public**, les changements de code sur `main` déclenchent un runner standard `macos-26`, gratuit. Aucun cache ni artefact Actions n’est téléversé sur un push : les sorties sont attachées à une **release brouillon `ci-numéro-du-run`**, accessible aux personnes autorisées à gérer le dépôt. GitHub Releases n’utilise pas le stockage des artefacts Actions ; les fichiers sont limités à moins de 2 GiB chacun, sans quota de taille totale de release ni de bande passante annoncé par GitHub.
-3. Onglet **Actions → Cadence · compiler et vérifier sans signature** pour suivre le run. Un lancement manuel est aussi possible ; laisser « quota vérifié » décoché conserve le chemin public via release brouillon, sans artefact Actions. Cocher cette option active en plus un artefact Actions conservé 3 jours : le faire uniquement après vérification du quota de stockage et blocage de tout usage payant dans Billing. Pour un dépôt privé, un lancement manuel avec cette vérification, le quota de calcul suffisant et la variable `CADENCE_PRIVATE_FREE_CI=true` est obligatoire. Le workflow n’interroge pas la facturation du propriétaire.
-4. Sur push, le job teste le noyau puis compile les **quatre** variantes : `CadenceSpike`, `Cadence`, `CadenceExtensions` et `CadenceShared`. En lancement manuel, la case App Group permet de choisir la quatrième. Il teste la version complète en simulateur iPhone, exporte les pièces jointes XCTest réelles et capture ses écrans. Si un simulateur iPad est disponible, il teste le même binaire en paysage puis capture Accueil et Statistiques ; sinon `ipad-status.txt` annonce cette limite, sans fabriquer d’image. Les pièces jointes des deux `.xcresult` sont exportées séparément dans `test-attachments/iphone` et `test-attachments/ipad`. Le résumé du job contient le lien vers la release brouillon et ses fichiers. Un échec peut aussi laisser un brouillon contenant des rapports ou des IPA partielles ; son titre et ses notes annoncent le résultat du run. Leur présence ne signifie pas réussite. Les mises à jour de documentation seules ne relancent pas la compilation. Un seul run à la fois, durée maximum 35 minutes ; aucune release n’est publiée automatiquement.
+3. Onglet **Actions → Cadenza · compiler et vérifier sans signature** pour suivre le run. Un lancement manuel est aussi possible ; laisser « quota vérifié » décoché conserve le chemin public via release brouillon, sans artefact Actions. Cocher cette option active en plus un artefact Actions conservé 3 jours : le faire uniquement après vérification du quota de stockage et blocage de tout usage payant dans Billing. Pour un dépôt privé, un lancement manuel avec cette vérification, le quota de calcul suffisant et la variable `CADENCE_PRIVATE_FREE_CI=true` est obligatoire. Le workflow n’interroge pas la facturation du propriétaire.
+4. Sur push, le job teste le noyau et les scripts puis compile les **quatre** variantes : `CadenceSpike`, `Cadence`, `CadenceExtensions` et `CadenceShared`, toutes pour iPhone uniquement. Il teste la version complète en simulateur iPhone clair et sombre, exporte les pièces jointes XCTest réelles et capture ses écrans. Le résumé du job contient le lien vers la release brouillon et ses fichiers. Un échec peut laisser un brouillon contenant des rapports ou des IPA partielles ; leur présence ne signifie pas réussite. Les mises à jour de documentation seules ne relancent pas la compilation. Un seul run à la fois, durée maximum 45 minutes ; aucune release n’est publiée automatiquement.
 
 Le runner vérifie Xcode ≥ 26, sans figer un chemin Xcode qui deviendrait obsolète. Il ne reçoit aucun certificat, profil, mot de passe Apple ou secret de signature.
 
@@ -17,7 +17,7 @@ Le runner vérifie Xcode ≥ 26, sans figer un chemin Xcode qui deviendrait obso
 |---|---|
 | `CadenceSpike-unsigned.ipa` | Premier test minimal : minuteur, Live Activity, widget d’ouverture et Raccourcis |
 | `Cadence-unsigned.ipa` | Application complète autonome, sans extension ni App Group |
-| `CadenceExtensions-unsigned.ipa` | Application complète + Live Activity + widget d’ouverture, sans App Group |
+| `CadenceExtensions-unsigned.ipa` | Application complète + Live Activity + quatre widgets, résumé via Keychain Sharing ; livrée sous `Cadenza-iPhone-0.2.0.ipa` |
 | `CadenceShared-unsigned.ipa` | Option expérimentale : snapshot widget partagée, uniquement si le profil final autorise l’App Group |
 
 Les quatre variantes utilisent **le même bundle ID `com.cadence.study`**, pour remplacer la même installation. Elles ne sont pas destinées à être installées côte à côte. Conserver la même identité lors de la resignature ; sauvegarder avant chaque remplacement.
@@ -30,7 +30,7 @@ Les quatre variantes utilisent **le même bundle ID `com.cadence.study`**, pour 
 4. Garder le bundle ID stable. Conserver l’extension pour tester la faisabilité. Si la signature de l’extension bloque, essayer `Cadence-unsigned.ipa` comme solution autonome, puis noter le message d’erreur nettoyé de toute information personnelle.
 5. Sur l’iPhone, autoriser le profil développeur si demandé par Réglages. Exécuter les six tests de [SPIKE_IPHONE.md](SPIKE_IPHONE.md). Ne conclure à un succès que sur le résultat observé.
 
-Sideloadly peut supprimer des extensions : si cette option est activée, widgets et Live Activities de Cadence ne peuvent pas être validés. La présence d’un dossier `.appex` dans l’IPA unsigned ne prouve pas sa conservation après resignature.
+Sideloadly peut supprimer des extensions : si cette option est activée, widgets et Live Activities de Cadenza ne peuvent pas être validés. La présence d’un dossier `.appex` dans l’IPA unsigned ne prouve pas sa conservation après resignature. Le [guide des widgets](WIDGETS_WINDOWS.md) détaille le contrôle du partage.
 
 ## 3. Application complète et renouvellement
 
@@ -38,7 +38,7 @@ Après le test minimal, installer la variante adaptée **par-dessus**, avec le m
 
 Avec le compte gratuit, Sideloadly annonce une validité de 7 jours et propose un daemon d’auto-renouvellement. Son fonctionnement dépend du PC, de l’appareil et de leur connexion. Vérifier l’état avant échéance ; l’automatisation ne garantit pas une disponibilité permanente.
 
-Pour un iPad administré par l’établissement, obtenir l’autorisation de l’établissement et respecter le MDM. La variante autonome ne contourne aucune restriction. L’application Watch dédiée est reportée en P2 ; un éventuel relais système de Live Activity reste à tester sur la Watch.
+La version iPad est abandonnée. L’application Watch dédiée n’est pas incluse ; un éventuel relais système de Live Activity reste à tester sur la Watch.
 
 ## Diagnostic local d’un IPA
 

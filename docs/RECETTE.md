@@ -1,6 +1,6 @@
 # Recette et limites de validation
 
-Les tests matériels restent « À faire » tant qu’un retour utilisateur ou une preuve pertinente n’est pas reçu. Un workflow réussi ne les valide pas.
+Le programme d’essai initial a été validé par l’utilisateur sur son iPhone. Ce retour ne valide pas automatiquement la nouvelle version Cadenza 0.2.0 ni le nouveau partage des widgets. Le rapport `VERIFICATION.md` distingue la CI et les vérifications après resignature. La version iPad est abandonnée.
 
 | Niveau | Vérification | Résultat attendu | État initial |
 |---|---|---|---|
@@ -16,16 +16,14 @@ Les tests matériels restent « À faire » tant qu’un retour utilisateur ou u
 | Noyau | Événement supprimé, séance conservée | Notes et durée maintenues | Voir VERIFICATION.md |
 | CI | Compilation device et inventaire IPA | App arm64 et extension selon variante | Réussi : quatre IPA |
 | Simulateur iPhone | Navigation et minuteur sans Calendrier | Démarrer, pause, reprise, fin ; trois onglets accessibles | Réussi |
-| Simulateurs | Captures natives | Images XCTest en clair/sombre et iPad paysage | Neuf images contrôlées |
+| Simulateur iPhone | Captures natives | Images XCTest en clair/sombre et grandes polices | Voir VERIFICATION.md |
 | iPhone | Refuser Calendrier | Création manuelle entièrement utilisable | À faire |
 | iPhone | Choisir calendrier Google visible dans Apple | Import sans connexion Google supplémentaire | À faire |
 | iPhone | App fermée pendant session / pause | Restauration correcte | À faire |
 | iPhone | Widget et Live Activity / Island | Présence après resignature et durée correcte | À faire |
 | iPhone | Raccourcis : démarrer, pause, reprendre, fin, totaux | Actions visibles, retours réels | À faire |
 | iPhone | Renouveler par-dessus l’app | Données conservées | À faire |
-| iPhone/iPad | Sombre, gros texte, réduire transparence/mouvement | Commandes lisibles et accessibles | À faire |
-| Simulateur iPad | Vue en colonnes et rotation | Navigation en paysage | Réussi ; installation physique à faire |
-| iPad MDM | Installation autorisée par l’établissement | Dépend du MDM | Non garanti |
+| iPhone | Sombre, gros texte, réduire transparence/mouvement | Commandes lisibles et accessibles | Parcours simulateur + contrôle physique selon réglages personnels |
 | Watch | Live Activity relayée dans Smart Stack | Dépend de watchOS et de la signature | À faire |
 
 Le guide [SPIKE_IPHONE.md](SPIKE_IPHONE.md) réduit la première validation à six essais. L’application watchOS dédiée n’est pas incluse dans la V1.

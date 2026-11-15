@@ -1,0 +1,15 @@
+Cadence.app/
+  AppIcon60x60@2x.png
+  AppIcon76x76@2x~ipad.png
+  Assets.car
+  Cadence
+  Info.plist
+  Metadata.appintents/
+  Metadata.appintents/extract.actionsdata
+  Metadata.appintents/nlu/
+  Metadata.appintents/nlu/94c7a091f9185c76e82a675a50ee00d4.version
+  Metadata.appintents/nlu/nlu.lzfse
+  Metadata.appintents/root.ssu.yaml
+  Metadata.appintents/version.json
+  PkgInfo
+  PrivacyInfo.xcprivacy

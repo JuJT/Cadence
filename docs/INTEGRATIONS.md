@@ -8,9 +8,9 @@ Le chrono actif affiché par SwiftUI part d’une date virtuelle égale à `main
 
 `NSSupportsLiveActivities` est activé uniquement dans les variantes avec extension. Toute erreur ActivityKit reste un diagnostic local ; elle n’efface ni ne termine les séances. Une activité peut expirer après 8 heures, même si une séance dure davantage. Aucun push distant, compte ou serveur n’est utilisé.
 
-## WidgetKit et App Groups
+## WidgetKit et partage du résumé
 
-Dans `CadenceExtensions`, aucun entitlement App Group n’est demandé. Le widget propose d’ouvrir Cadence et annonce l’indisponibilité des données partagées. Il n’invente pas de totaux.
+Dans `CadenceExtensions`, aucun entitlement App Group n’est demandé. L’app et l’extension demandent un groupe Keychain Sharing commun pour lire un résumé borné, sans la base complète ni les notes. Les widgets Aujourd’hui, Ma semaine, Prochain cours et Temps d’étude utilisent ces données réelles. Un reçu écrit uniquement après lecture réussie par l’extension permet de distinguer publication et lecture. Sans accès, le widget propose de relier ses données, sans inventer de totaux. Voir [WIDGETS_WINDOWS.md](WIDGETS_WINDOWS.md).
 
 Dans `CadenceShared`, l’app et l’extension demandent `group.com.cadence.study`. Ce nom est une configuration à conserver cohérente avec les entitlements effectivement provisionnés lors de la signature. Si le conteneur n’est pas accessible, l’app garde son stockage privé et le widget revient à l’ouverture. Le mode partagé publie une snapshot atomique : cours mesurés/confirmés, cours estimés, révisions, prochaine occurrence et matière active, sans notes. L’heure d’actualisation est affichée ; une snapshot d’un jour précédent n’est jamais présentée comme le total d’aujourd’hui. La fréquence de rafraîchissement reste décidée par WidgetKit.
 
@@ -26,6 +26,6 @@ Les actions ne sont pas exécutées comme un service silencieux dans le widget. 
 
 ## OS, Watch et accès
 
-Minimum iOS/iPadOS 17. Les contrôles natifs Liquid Glass sont conditionnés à iOS 26 dans les vues ; les versions précédentes ont des contrôles standards. Les captures CI vérifient uniquement le simulateur installé sur le runner, pas tous les OS compatibles. Les App Groups, Live Activities et Raccourcis doivent être testés avec la signature finale. L’app Watch dédiée reste P2. L’iPad scolaire dépend de son MDM et de l’autorisation de l’établissement.
+Minimum iOS 17, iPhone uniquement ; la version iPad est abandonnée. Les contrôles natifs Liquid Glass sont conditionnés à iOS 26 dans les vues ; les versions précédentes ont des contrôles standards. Les captures CI vérifient uniquement le simulateur installé sur le runner, pas tous les OS compatibles. Le partage des widgets, les Live Activities et les Raccourcis doivent être testés avec la signature finale. L’app Watch dédiée reste hors de cette livraison.
 
 Références Apple vérifiées le 14 novembre 2026 : [Live Activities](https://developer.apple.com/documentation/activitykit/displaying-live-data-with-live-activities), [AppShortcutsProvider](https://developer.apple.com/documentation/appintents/appshortcutsprovider), [ouvrir l’app depuis un intent](https://developer.apple.com/documentation/appintents/appintent/openappwhenrun), [App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups).

@@ -1,0 +1,1 @@
+Contrôle ciblé de Nouvelle séance, du formulaire et de la confirmation de fin. Les autres parcours ne sont pas exécutés par ce run.

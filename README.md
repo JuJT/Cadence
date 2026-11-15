@@ -1,14 +1,16 @@
-# Cadence — Atelier Liquid Glass
+# Cadenza — Atelier Liquid Glass pour iPhone
 
-Application native SwiftUI iPhone/iPad, interface française, iOS 17 minimum. Cours et révisions séparés, données locales, intégration Calendrier en lecture uniquement, sans serveur ni compte applicatif.
+Application native SwiftUI pour iPhone, interface française, iOS 17 minimum. Cours et révisions séparés, données locales, intégration Calendrier en lecture uniquement, sans serveur ni compte applicatif. La version iPad est abandonnée. Les noms techniques du projet Cadence et les identifiants de stockage restent stables pour préserver les mises à jour.
 
-**Livraison du 15 novembre 2026 : quatre IPA non signées compilées avec Xcode 26.6 ; 34 tests métier, 6 tests de scripts et parcours iPhone/iPad en simulateur réussis. Neuf captures natives sont fournies. La signature gratuite et l’installation physique sur iPhone restent à valider.** Le statut détaillé fait foi dans [VERIFICATION.md](docs/VERIFICATION.md).
+La version **0.2.0** refait les écrans avec un fond à halos, des cartes translucides, un minuteur circulaire et une nouvelle icône. Quatre widgets présentent les durées du jour, la semaine, le prochain cours et le temps d’étude. Le statut de compilation et les limites matérielles sont consignés dans [VERIFICATION.md](docs/VERIFICATION.md), les choix et composants dans [REFONTE_DESIGN_0.2.0.md](docs/REFONTE_DESIGN_0.2.0.md).
+
+Voir la [galerie des captures natives et des maquettes de référence](Verification/Cadenza-0.2.0/APERCU_DESIGN.html).
 
 ## Commencer depuis Windows
 
 1. Ouvrir [le guide Windows](docs/INSTALLATION_WINDOWS.md). Le projet est généré sur GitHub Actions avec XcodeGen ; aucun Mac personnel ni secret Apple n’est requis par la CI.
-2. Utiliser d’abord la variante **CadenceSpike** et suivre [les six essais iPhone](docs/SPIKE_IPHONE.md). Elle teste les capacités de signature avant de choisir une variante complète.
-3. Utiliser **CadenceExtensions** si les extensions sont installables, ou **Cadence** pour le mode autonome. **CadenceShared** est une expérience facultative ; elle requiert des droits App Group réellement accordés par le profil signé.
+2. Pour mettre à jour l’app déjà testée, installer **Cadenza-iPhone-0.2.0.ipa** avec Sideloadly, le même compte et les mêmes options, par-dessus l’installation existante. Le programme d’essai **CadenceSpike** reste disponible pour un nouvel appareil ; voir [les six essais iPhone](docs/SPIKE_IPHONE.md).
+3. Le fichier principal correspond au schéma **CadenceExtensions** : app complète, widgets et Live Activity. **Cadence** reste le mode autonome ; **CadenceShared** est l’option App Group, qui requiert des droits effectivement provisionnés. Le [guide des widgets](docs/WIDGETS_WINDOWS.md) explique la vérification après resignature.
 4. Sauvegarder régulièrement le JSON dans Fichiers. Renouveler la signature par-dessus la même application et garder le même identifiant de bundle. La conservation des données au renouvellement doit être testée sur l’appareil.
 
 Tous les schémas partagent le même identifiant d’application : **ils se remplacent sur l’iPhone**. Une sauvegarde doit précéder le passage d’une variante à l’autre. Le mode autonome conserve son propre stockage et ne dépend pas du conteneur d’un widget.
@@ -24,9 +26,9 @@ Le workflow `.github/workflows/build-unsigned-ipa.yml` compile les changements d
 - Statistiques natives Charts, ventilation des cours confirmés/mesurés, des cours estimés et des révisions.
 - Sauvegarde JSON versionnée, restauration validée et export CSV français.
 - App Intents et App Shortcuts réels ouvrant l’application ; widgets et Live Activities avec repli explicite si le partage n’est pas disponible.
-- Navigation iPad à colonnes, mode sombre système, Dynamic Type et composants Liquid Glass sur iOS 26 avec repli iOS 17.
+- Apparence Système/Claire/Sombre, Dynamic Type et composants Liquid Glass sur iOS 26 avec repli iOS 17.
 
-L’application Watch dédiée reste en P2, après preuve de signature. L’installation sur un iPad administré dépend des règles de l’établissement. La présence d’une extension compilée ne prouve pas sa signature ni son fonctionnement avec un Apple ID gratuit.
+L’application Watch dédiée reste hors de cette livraison. La présence d’une extension compilée ne prouve pas sa signature ni son fonctionnement après resignature. Les rapports et références historiques peuvent encore mentionner l’ancien nom ou l’iPad ; la configuration actuelle cible uniquement l’iPhone.
 
 ## Structure
 

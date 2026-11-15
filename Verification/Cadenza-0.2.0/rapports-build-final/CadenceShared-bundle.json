@@ -1,0 +1,48 @@
+{
+  "kind": "inventaire-du-bundle-compilé-non-signé",
+  "app": {
+    "path": "Cadence.app",
+    "bundleID": "com.cadence.study",
+    "executable": "Cadence",
+    "minimumOS": "17.0",
+    "platformInspection": "/Users/runner/work/_temp/CadenceDevice/CadenceShared/Build/Products/Release-iphoneos/Cadence.app/Cadence:\nLoad command 11\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOS\n    minos 17.0\n      sdk 26.5\n   ntools 1\n     tool LD\n  version 1267.0\n",
+    "provisionProfilePresent": false
+  },
+  "extensions": [
+    {
+      "path": "Cadence.app/PlugIns/CadenceWidgets.appex",
+      "bundleID": "com.cadence.study.widgets",
+      "executable": "CadenceWidgets",
+      "minimumOS": "17.0",
+      "platformInspection": "/Users/runner/work/_temp/CadenceDevice/CadenceShared/Build/Products/Release-iphoneos/Cadence.app/PlugIns/CadenceWidgets.appex/CadenceWidgets:\nLoad command 11\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOS\n    minos 17.0\n      sdk 26.5\n   ntools 1\n     tool LD\n  version 1267.0\n",
+      "provisionProfilePresent": false
+    }
+  ],
+  "tree": [
+    "Cadence.app/",
+    "  AppIcon60x60@2x.png",
+    "  AppIcon76x76@2x~ipad.png",
+    "  Assets.car",
+    "  Cadence",
+    "  CadenceSigningIntent.plist",
+    "  Info.plist",
+    "  Metadata.appintents/",
+    "  Metadata.appintents/extract.actionsdata",
+    "  Metadata.appintents/nlu/",
+    "  Metadata.appintents/nlu/94c7a091f9185c76e82a675a50ee00d4.version",
+    "  Metadata.appintents/nlu/nlu.lzfse",
+    "  Metadata.appintents/root.ssu.yaml",
+    "  Metadata.appintents/version.json",
+    "  PkgInfo",
+    "  PlugIns/",
+    "  PlugIns/CadenceWidgets.appex/",
+    "  PlugIns/CadenceWidgets.appex/CadenceWidgets",
+    "  PlugIns/CadenceWidgets.appex/Info.plist",
+    "  PlugIns/CadenceWidgets.appex/PrivacyInfo.xcprivacy",
+    "  PlugIns/CadenceWidgets.appex/_CodeSignature/",
+    "  PrivacyInfo.xcprivacy",
+    "  _CodeSignature/",
+    "  _CodeSignature/CodeResources"
+  ],
+  "hardwareValidation": "NON EFFECTUÉE"
+}

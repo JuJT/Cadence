@@ -28,7 +28,7 @@ Un C en ruban de verre bleu remplace le livre générique ; un pli discret évoq
 
 ## Widgets
 
-Aujourd’hui, Ma semaine, Prochain cours et Temps d’étude utilisent un résumé réel publié par Cadence. La variante Extensions ajoute le partage de trousseau autorisé par iOS ; App Group reste une autre variante. La conservation effective des droits pendant la resignature Sideloadly et la lecture sur l’iPhone se vérifient avec le reçu d’extension dans le diagnostic. Le guide [WIDGETS_WINDOWS.md](WIDGETS_WINDOWS.md) détaille ce contrôle. Aucun chiffre fictif n’est affiché si le partage est indisponible.
+Aujourd’hui, Ma semaine, Prochain cours et Temps d’étude utilisent un résumé réel publié par Cadenza. La variante Extensions ajoute le partage de trousseau autorisé par iOS ; App Group reste une autre variante. La conservation effective des droits pendant la resignature Sideloadly et la lecture sur l’iPhone se vérifient avec le reçu d’extension dans le diagnostic. Le guide [WIDGETS_WINDOWS.md](WIDGETS_WINDOWS.md) détaille ce contrôle. Aucun chiffre fictif n’est affiché si le partage est indisponible.
 
 ## Vérification du rendu
 

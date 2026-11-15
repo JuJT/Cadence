@@ -1,0 +1,48 @@
+{
+  "ipa": "CadenceShared-unsigned.ipa",
+  "bundles": [
+    {
+      "path": "Payload/Cadence.app",
+      "bundleID": "com.cadence.study",
+      "supportsLiveActivities": true,
+      "signedExecutableEntitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.cadence.study"
+        ]
+      },
+      "profileEntitlements": null,
+      "profileExpiration": "absent",
+      "warnings": [
+        "Profil absent : normal pour IPA unsigned ; installation non validée.",
+        "App Groups de l’exécutable et du profil différents : ne pas attendre de partage widget fiable."
+      ]
+    },
+    {
+      "path": "Payload/Cadence.app/PlugIns/CadenceWidgets.appex",
+      "bundleID": "com.cadence.study.widgets",
+      "supportsLiveActivities": false,
+      "signedExecutableEntitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.cadence.study"
+        ]
+      },
+      "profileEntitlements": null,
+      "profileExpiration": "absent",
+      "warnings": [
+        "Profil absent : normal pour IPA unsigned ; installation non validée.",
+        "App Groups de l’exécutable et du profil différents : ne pas attendre de partage widget fiable."
+      ]
+    }
+  ],
+  "extensionCount": 1,
+  "keychainSharing": {
+    "extensionAndAppPresent": true,
+    "commonCadenceGroupInExecutableSignatures": false,
+    "templateMetadataOnly": false,
+    "commonGroupPermittedByEveryProfile": false,
+    "readyForPhysicalReadTest": false,
+    "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
+  },
+  "signatureCryptographicallyVerified": false,
+  "hardwareValidation": "NON EFFECTUÉE"
+}

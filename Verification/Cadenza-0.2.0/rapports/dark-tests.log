@@ -1,0 +1,121 @@
+Command line invocation:
+    /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/xcodebuild -project Cadence.xcodeproj -scheme CadenceExtensions -configuration Debug -destination "platform=iOS Simulator,id=D26ED71E-9D97-4E79-B376-C104ABB9517A" -derivedDataPath /Users/runner/work/_temp/CadenceSimulator -resultBundlePath dist/CadenceDarkUITests.xcresult -parallel-testing-enabled NO "-only-testing:CadenceUITests/CadenceUITests/testDarkStatistics" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  Cadence: /Users/runner/work/Cadence/Cadence
+
+Writing result bundle at path:
+	/Users/runner/work/Cadence/Cadence/dist/CadenceDarkUITests.xcresult
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:D26ED71E-9D97-4E79-B376-C104ABB9517A, OS:26.5, name:iPhone Air }
+{ platform:iOS Simulator, arch:x86_64, id:D26ED71E-9D97-4E79-B376-C104ABB9517A, OS:26.5, name:iPhone Air }
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (5 targets)
+    Target 'CadenceUITests' in project 'Cadence'
+        ➜ Explicit dependency on target 'CadenceExtensions' in project 'Cadence'
+    Target 'CadenceExtensions' in project 'Cadence'
+        ➜ Explicit dependency on target 'CadenceKeychainWidgets' in project 'Cadence'
+        ➜ Explicit dependency on target 'CadenceCore' in project 'Cadence'
+    Target 'CadenceCore' in project 'Cadence'
+        ➜ Explicit dependency on target 'CadenceCore' in project 'Cadence'
+    Target 'CadenceCore' in project 'Cadence' (no dependencies)
+    Target 'CadenceKeychainWidgets' in project 'Cadence' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ClangStatCache /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk /Users/runner/work/_temp/CadenceSimulator/SDKStatCaches.noindex/iphonesimulator26.5-23F81a-688ef53f1462e2c8f657fdc38a81448ff45c64a1807a658693f2a61704f17a36.sdkstatcache
+    cd /Users/runner/work/Cadence/Cadence/Cadence.xcodeproj
+    /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk -o /Users/runner/work/_temp/CadenceSimulator/SDKStatCaches.noindex/iphonesimulator26.5-23F81a-688ef53f1462e2c8f657fdc38a81448ff45c64a1807a658693f2a61704f17a36.sdkstatcache
+
+Copy /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PlugIns/CadenceWidgets.appex /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/CadenceWidgets.appex (in target 'CadenceExtensions' from project 'Cadence' at path '/Users/runner/work/Cadence/Cadence/Cadence.xcodeproj')
+    cd /Users/runner/work/Cadence/Cadence
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -exclude Headers -exclude PrivateHeaders -exclude Modules -exclude \*.tbd -resolve-src-symlinks -remove-static-executable /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/CadenceWidgets.appex /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PlugIns
+
+ProcessInfoPlistFile /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Info.plist /Users/runner/work/Cadence/Cadence/Config/CadenceExtensions-Info.plist (in target 'CadenceExtensions' from project 'Cadence' at path '/Users/runner/work/Cadence/Cadence/Cadence.xcodeproj')
+    cd /Users/runner/work/Cadence/Cadence
+    builtin-infoPlistUtility /Users/runner/work/Cadence/Cadence/Config/CadenceExtensions-Info.plist -producttype com.apple.product-type.application -genpkginfo /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /Users/runner/work/_temp/CadenceSimulator/Build/Intermediates.noindex/Cadence.build/Debug-iphonesimulator/CadenceExtensions.build/assetcatalog_generated_info.plist -scanforprivacyfile /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PlugIns/CadenceWidgets.appex -o /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Info.plist
+
+CopySwiftLibs /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app (in target 'CadenceExtensions' from project 'Cadence' at path '/Users/runner/work/Cadence/Cadence/Cadence.xcodeproj')
+    cd /Users/runner/work/Cadence/Cadence
+    builtin-swiftStdLibTool --copy --verbose --scan-executable /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Cadence.debug.dylib --scan-folder /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Frameworks --scan-folder /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PlugIns --scan-folder /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/SystemExtensions --scan-folder /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Extensions --platform iphonesimulator --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.6.109.0.6io4Wc/Metal.xctoolchain --toolchain /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/work/_temp/CadenceSimulator/Build/Intermediates.noindex/Cadence.build/Debug-iphonesimulator/CadenceExtensions.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+Ignoring --strip-bitcode because --sign was not passed
+
+ValidateEmbeddedBinary /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PlugIns/CadenceWidgets.appex (in target 'CadenceExtensions' from project 'Cadence' at path '/Users/runner/work/Cadence/Cadence/Cadence.xcodeproj')
+    cd /Users/runner/work/Cadence/Cadence
+    /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/embeddedBinaryValidationUtility /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/PlugIns/CadenceWidgets.appex -info-plist-path /Users/runner/work/_temp/CadenceSimulator/Build/Products/Debug-iphonesimulator/Cadence.app/Info.plist
+
+Resolve Package Graph
+
+Resolve Package Graph
+
+2026-11-15 21:30:37.479327+0000 CadenceUITests-Runner[33486:95207] [Default] Running tests...
+2026-11-15 21:30:37.611978+0000 CadenceUITests-Runner[33486:95561] [General] Failed to send CA Event for app launch measurements for ca_event_type: 0 event_name: com.apple.app_launch_measurement.FirstFramePresentationMetric
+    t =      nans Interface orientation changed to Portrait
+2026-11-15 21:30:39.131117+0000 CadenceUITests-Runner[33486:95562] [General] Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+Test Suite 'Selected tests' started at 2026-11-15 21:30:39.204.
+Test Suite 'CadenceUITests.xctest' started at 2026-11-15 21:30:39.205.
+Test Suite 'CadenceUITests' started at 2026-11-15 21:30:39.206.
+Test Case '-[CadenceUITests.CadenceUITests testDarkStatistics]' started.
+    t =     0.00s Start Test at 2026-11-15 21:30:39.208
+    t =     0.15s Set Up
+    t =     0.17s Open com.cadence.study
+    t =     0.18s     Launch com.cadence.study
+2026-11-15 21:30:40.883 xcodebuild[32075:91508] [MT] IDELaunchParametersSnapshot: The operation couldn’t be completed. (DebuggerLLDB.DebuggerVersionStore.StoreError error 0.)
+2026-11-15 21:30:40.883 xcodebuild[32075:91508] [MT] IDELaunchParametersSnapshot: no debugger version
+objc[33486]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x10af08310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10ae6c398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+Resolve Package Graph
+
+    t =     7.76s         Setting up automation session
+    t =    10.03s         Wait for com.cadence.study to idle
+    t =    14.85s Waiting 8.0s for "Statistiques" Button to exist
+    t =    15.89s     Checking `Expect predicate `existsNoRetry == 1` for object "Statistiques" Button`
+    t =    15.90s         Checking existence of `"Statistiques" Button`
+    t =    16.52s Tap "Statistiques" Button
+    t =    16.52s     Wait for com.cadence.study to idle
+    t =    16.53s     Find the "Statistiques" Button
+    t =    16.73s     Check for interrupting elements affecting "Statistiques" Button
+    t =    16.94s     Synthesize event
+    t =    17.32s     Wait for com.cadence.study to idle
+    t =    20.34s Waiting 4.0s for "Statistiques" NavigationBar to exist
+    t =    21.38s     Checking `Expect predicate `existsNoRetry == 1` for object "Statistiques" NavigationBar`
+    t =    21.39s         Checking existence of `"Statistiques" NavigationBar`
+    t =    22.61s Added attachment named 'statistiques-sombre'
+    t =    22.62s Tear Down
+Test Case '-[CadenceUITests.CadenceUITests testDarkStatistics]' passed (22.929 seconds).
+Test Suite 'CadenceUITests' passed at 2026-11-15 21:31:02.138.
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.929 (22.932) seconds
+Test Suite 'CadenceUITests.xctest' passed at 2026-11-15 21:31:02.138.
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.929 (22.933) seconds
+Test Suite 'Selected tests' passed at 2026-11-15 21:31:02.139.
+	 Executed 1 test, with 0 failures (0 unexpected) in 22.929 (22.935) seconds
+2026-11-15 21:31:03.011 xcodebuild[32075:91508] [MT] IDETestOperationsObserverDebug: 32.624 elapsed -- Testing started completed.
+2026-11-15 21:31:03.011 xcodebuild[32075:91508] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-11-15 21:31:03.011 xcodebuild[32075:91508] [MT] IDETestOperationsObserverDebug: 32.624 sec, +32.624 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/runner/work/Cadence/Cadence/dist/CadenceDarkUITests.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

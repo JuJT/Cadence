@@ -1,4 +1,30 @@
-# Vérification de Cadence 0.1.1 — 15 novembre 2026
+# Vérification de Cadenza 0.2.0 — 15 novembre 2026
+
+Les quatre variantes finales 0.2.0 (build 3) sont compilées par [GitHub Actions](https://github.com/JuJT/Cadence/actions/runs/43766146783), commit `5e7b98e89a7b887c20914fd2d98d7f4a3e9b0144`.
+
+| Contrôle | Résultat |
+|---|---|
+| Noyau métier inchangé | 36 tests Swift réussis |
+| Scripts de diagnostic et captures | 8 tests Python réussis |
+| Résumé widgets | Ancien format décodé, sérialisation complète, taille bornée, estimations séparées et valeurs invalides : réussis |
+| IPA appareil | Quatre variantes arm64 pour iPhone uniquement, nom Cadenza, même identifiant d’app, nouvelle icône 1024 × 1024 opaque |
+| Intégrité locale | CRC et SHA-256 des quatre IPA comparés aux empreintes du runner : conformes |
+| Parcours XCTest complets | 7 réussis sur iPhone : navigation, calendrier, séance, vitrine, grandes polices, composants widgets et sombre ; [run complet](https://github.com/JuJT/Cadence/actions/runs/43762368393) |
+| Recontrôle après ciblage iPhone | Quatre IPA reconstruites, noms et familles de chaque app/extension contrôlés ; parcours Nouvelle séance, formulaire et fin relancé avec succès |
+| Captures natives | 20 images et provenance conservées dans `Verification/Cadenza-0.2.0` |
+| Partage des données widgets | Groupe commun présent dans les métadonnées des exécutables Extensions ; droits Apple réels après Sideloadly non validés par la CI |
+
+Les captures `vitrine-*` utilisent des données fictives isolées uniquement dans le simulateur. Les captures `widgets-apercu-*` montrent les composants SwiftUI réellement utilisés par les widgets, pas des widgets installés sur SpringBoard. Elles permettent de contrôler la mise en page sans représenter une preuve de signature ou de lecture du trousseau sur iPhone. La Dynamic Island et la lecture réelle des widgets restent à essayer sur l’appareil.
+
+Les sept parcours complets et les captures de présentation proviennent du commit `9d8194a1b95f7169bbb3d25d2a3f3c0a0a398f57`. Les sources `App`, `Shared`, `Widgets`, `Sources` et `Tests` sont identiques dans le commit final. Le dernier ajustement impose la famille iPhone dans chaque cible XcodeGen et vérifie les Info.plist réellement compilés. Les captures préfixées `final-` et `rapports-build-final` proviennent de cette reconstruction ; la provenance exacte figure dans chaque entrée du rapport JSON.
+
+La variante Extensions contient une signature ad-hoc de métadonnées, sans certificat ni profil Apple, pour conserver les capacités demandées à la resignature. Elle ne s’installe pas directement et le diagnostic indique volontairement `templateMetadataOnly: true`, `readyForPhysicalReadTest: false`. La disponibilité de Keychain Sharing et la conservation du groupe par Sideloadly sont des conditions distinctes ; voir [WIDGETS_WINDOWS.md](WIDGETS_WINDOWS.md). Un reçu de lecture n’est écrit que par l’extension après une lecture effective.
+
+Le détail de la refonte, des composants et des fichiers est dans [REFONTE_DESIGN_0.2.0.md](REFONTE_DESIGN_0.2.0.md). Les données, alias et calculs de CadenceCore sont conservés.
+
+---
+
+## Historique — Cadence 0.1.1
 
 Les quatre IPA finales 0.1.1 (build 2) sont compilées par le [run GitHub Actions 43719744499](https://github.com/JuJT/Cadence/actions/runs/43719744499), commit `34649464e895545be455644e69f593b4aa7fd638`. Ce dernier passage raccourcit uniquement le titre du formulaire pour supprimer sa troncature, puis réexécute les tests métier/scripts et le parcours de séance. La [régression complète précédente](https://github.com/JuJT/Cadence/actions/runs/43717867275), commit `aab667e7bda356940d5ed7a88c2e893cdbe9d4aa`, avait déjà validé l’ensemble des modifications fonctionnelles et les cinq parcours iPhone/iPad.
 
