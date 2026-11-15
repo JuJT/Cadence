@@ -92,26 +92,32 @@ struct HomeView: View {
 }
 
 private struct NewSessionSheet: View {
+    private enum FormRoute: Hashable {
+        case revision, course
+        var kind: SessionKind { self == .revision ? .revision : .course }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @State private var detent: PresentationDetent = .medium
+    @State private var path: [FormRoute] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
-                    NavigationLink {
-                        NewSessionView(kind: .revision, onComplete: { dismiss() })
-                            .onAppear { detent = .large }
+                    Button {
+                        path.append(.revision)
                     } label: {
                         choice("Révision", subtitle: "Travailler une matière ou ajouter une révision passée.", symbol: SessionKind.revision.symbol, color: Atelier.revision)
                     }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("session.choose.revision")
-                    NavigationLink {
-                        NewSessionView(kind: .course, onComplete: { dismiss() })
-                            .onAppear { detent = .large }
+                    Button {
+                        path.append(.course)
                     } label: {
                         choice("Cours", subtitle: "Chronométrer un cours ou saisir une durée réalisée.", symbol: SessionKind.course.symbol, color: Atelier.blue)
                     }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("session.choose.course")
                 } header: {
                     Text("Quel type de séance souhaitez-vous ajouter ?")
@@ -122,10 +128,16 @@ private struct NewSessionSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
             }
-            .onAppear { detent = .medium }
+            .navigationDestination(for: FormRoute.self) { route in
+                NewSessionView(kind: route.kind, onComplete: { dismiss() })
+            }
         }
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
+        .presentationBackground(Color(uiColor: .systemGroupedBackground))
+        .onChange(of: path) { _, routes in
+            detent = routes.isEmpty ? .medium : .large
+        }
     }
 
     private func choice(_ title: String, subtitle: String, symbol: String, color: Color) -> some View {
@@ -137,8 +149,13 @@ private struct NewSessionSheet: View {
                 Text(title).font(.headline).foregroundStyle(.primary)
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
             }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 }
 

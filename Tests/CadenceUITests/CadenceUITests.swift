@@ -46,7 +46,12 @@ final class CadenceUITests: XCTestCase {
         capture(app, name: "nouvelle-seance-feuille")
         revision.tap()
         let start = app.buttons["Démarrer"]
-        XCTAssertTrue(start.waitForExistence(timeout: 3))
+        guard start.waitForExistence(timeout: 5) else {
+            capture(app, name: "echec-ouverture-formulaire")
+            XCTFail("Le choix Révision doit ouvrir le formulaire de nouvelle séance.")
+            return
+        }
+        capture(app, name: "nouvelle-seance-formulaire")
         start.tap()
         XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
         app.buttons["session.finish"].tap()
