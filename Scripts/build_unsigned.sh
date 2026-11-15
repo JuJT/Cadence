@@ -13,6 +13,19 @@ for scheme in "${schemes[@]}"; do
     CODE_SIGN_IDENTITY='' build 2>&1 | tee "dist/reports/$scheme-build.log"
   app="$derived/Build/Products/Release-iphoneos/Cadence.app"
   test -d "$app"
+  # XcodeGen target presets can override project-level device families.
+  # Check the compiled bundles before publishing an iPhone-only delivery.
+  python3 - "$app" <<'PY'
+import plistlib, sys
+from pathlib import Path
+app = Path(sys.argv[1])
+for bundle in [app, *sorted((app / 'PlugIns').glob('*.appex'))]:
+    info = plistlib.loads((bundle / 'Info.plist').read_bytes())
+    assert info.get('UIDeviceFamily') == [1], (bundle.name, info.get('UIDeviceFamily'))
+    assert info.get('CFBundleDisplayName') == 'Cadenza', bundle.name
+    assert info.get('CFBundleName') == 'Cadenza', bundle.name
+print('Cadenza: compiled app and extensions target iPhone only.')
+PY
   if [[ "$scheme" == "CadenceExtensions" || "$scheme" == "CadenceShared" ]]; then
     signing_source="Config/CadenceKeychain.entitlements"
     if [[ "$scheme" == "CadenceShared" ]]; then signing_source="Config/CadenceShared.entitlements"; fi

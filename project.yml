@@ -38,6 +38,7 @@ targets:
         embed: true
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: Cadence
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) CADENCE_SPIKE CADENCE_EXTENSIONS'
@@ -78,6 +79,7 @@ targets:
       - package: CadenceCore
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: Cadence
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited)'
@@ -114,6 +116,7 @@ targets:
         embed: true
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: Cadence
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) CADENCE_EXTENSIONS CADENCE_KEYCHAIN_SHARED'
@@ -135,6 +138,7 @@ targets:
         embed: true
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: Cadence
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) CADENCE_EXTENSIONS CADENCE_SHARED_GROUP'
@@ -157,6 +161,7 @@ targets:
         buildPhase: resources
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: CadenceWidgets
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study.widgets
         SKIP_INSTALL: YES
@@ -179,6 +184,7 @@ targets:
     sources: *widgetSources
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: CadenceWidgets
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study.widgets
         SKIP_INSTALL: YES
@@ -198,6 +204,7 @@ targets:
     sources: *widgetSources
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_NAME: CadenceWidgets
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study.widgets
         SKIP_INSTALL: YES
@@ -218,6 +225,7 @@ targets:
       - target: CadenceExtensions
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: CadenceExtensions
