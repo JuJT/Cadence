@@ -72,7 +72,7 @@ struct CadenceGlassStyle: ViewModifier {
     var radius: CGFloat = CadenceRadius.card
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.accessibilityContrast) private var contrast
+    @Environment(\.colorSchemeContrast) private var contrast
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
