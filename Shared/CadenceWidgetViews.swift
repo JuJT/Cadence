@@ -110,10 +110,15 @@ struct WidgetHeading: View {
 
 struct SnapshotStamp: View {
     let date: Date
+    private var formattedDate: String {
+        let locale = Locale(identifier: "fr_FR")
+        if Calendar.current.isDateInToday(date) {
+            return date.formatted(.dateTime.hour().minute().locale(locale))
+        }
+        return date.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(locale))
+    }
     var body: some View {
-        Text("Actualisé " + (Calendar.current.isDateInToday(date)
-             ? date.formatted(.dateTime.hour().minute().locale(Locale(identifier: "fr_FR")))
-             : date.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(Locale(identifier: "fr_FR")))))
+        Text("Actualisé " + formattedDate)
             .font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
     }
 }
@@ -189,10 +194,12 @@ struct WeekWidgetView: View {
         .widgetURL(URL(string: "cadence://statistiques"))
     }
     private func weekTotal(_ days: [WidgetDaySummary]) -> some View {
-        Text(CompactDuration.text(days.reduce(0) { $0 + $1.measured }))
+        let seconds: Double = days.reduce(0.0) { $0 + $1.measured }
+        let duration: String = CompactDuration.text(seconds)
+        return Text(duration)
             .font(.system(size: family == .systemSmall ? 23 : 22, weight: .semibold, design: .rounded))
             .lineLimit(1).minimumScaleFactor(0.75)
-            .accessibilityLabel("Mesuré et confirmé cette semaine : " + CompactDuration.text(days.reduce(0) { $0 + $1.measured }))
+            .accessibilityLabel("Mesuré et confirmé cette semaine : " + duration)
     }
     private func legend(_ title: String, color: Color) -> some View {
         HStack(spacing: 3) { Circle().fill(color).frame(width: 4, height: 4); Text(title) }
@@ -206,40 +213,91 @@ struct WeekMiniBars: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 7) {
             ForEach(days) { day in
-                VStack(spacing: 3) {
-                    GeometryReader { proxy in
-                        VStack(spacing: 0) {
-                            Rectangle().fill(Color.secondary.opacity(0.4)).frame(height: proxy.size.height * CGFloat(day.estimated / peak))
-                            Rectangle().fill(WidgetPalette.violet).frame(height: proxy.size.height * CGFloat(day.revisions / peak))
-                            Rectangle().fill(WidgetPalette.blue).frame(height: proxy.size.height * CGFloat(day.courses / peak))
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                        .background(Color.primary.opacity(0.04))
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                    }
-                    Text(day.date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: "fr_FR"))))
-                        .font(.system(size: 9)).foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(day.date.formatted(.dateTime.weekday(.wide).locale(Locale(identifier: "fr_FR")))
-                    + ", cours " + CompactDuration.text(day.courses) + ", révisions " + CompactDuration.text(day.revisions)
-                    + ", estimés " + CompactDuration.text(day.estimated))
+                WeekWidgetDayBar(day: day, peak: peak)
             }
         }
     }
 }
 
+private struct WeekWidgetDayBar: View {
+    let day: WidgetDaySummary
+    let peak: Double
+    private let dayLabel: String
+    private let accessibilitySummary: String
+
+    init(day: WidgetDaySummary, peak: Double) {
+        self.day = day
+        self.peak = peak
+        let locale = Locale(identifier: "fr_FR")
+        dayLabel = day.date.formatted(.dateTime.weekday(.narrow).locale(locale))
+        let fullDay = day.date.formatted(.dateTime.weekday(.wide).locale(locale))
+        let courses = "cours " + CompactDuration.text(day.courses)
+        let revisions = "révisions " + CompactDuration.text(day.revisions)
+        let estimated = "estimés " + CompactDuration.text(day.estimated)
+        accessibilitySummary = [fullDay, courses, revisions, estimated].joined(separator: ", ")
+    }
+
+    var body: some View {
+        VStack(spacing: 3) {
+            GeometryReader { proxy in
+                WeekWidgetBarSegments(day: day, peak: peak, height: proxy.size.height)
+            }
+            Text(dayLabel).font(.system(size: 9)).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+}
+
+private struct WeekWidgetBarSegments: View {
+    private let estimatedHeight: CGFloat
+    private let revisionHeight: CGFloat
+    private let courseHeight: CGFloat
+
+    init(day: WidgetDaySummary, peak: Double, height: CGFloat) {
+        let denominator: Double = max(1, peak)
+        let estimatedRatio: Double = max(0, day.estimated) / denominator
+        let revisionRatio: Double = max(0, day.revisions) / denominator
+        let courseRatio: Double = max(0, day.courses) / denominator
+        estimatedHeight = height * CGFloat(estimatedRatio)
+        revisionHeight = height * CGFloat(revisionRatio)
+        courseHeight = height * CGFloat(courseRatio)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(Color.secondary.opacity(0.4)).frame(height: estimatedHeight)
+            Rectangle().fill(WidgetPalette.violet).frame(height: revisionHeight)
+            Rectangle().fill(WidgetPalette.blue).frame(height: courseHeight)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(Color.primary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 3))
+    }
+}
+
 struct NextCourseWidgetView: View {
     let entry: TodayEntry
+    private var heading: String {
+        guard let course = entry.upcomingCourse else { return "Prochain cours" }
+        return course.start <= entry.date ? "Cours en cours" : "Prochain cours"
+    }
+    private func emptyMessage(snapshot: WidgetSnapshot, courses: [WidgetCourseSummary]) -> String {
+        let isCurrent = Calendar.current.isDate(snapshot.updatedAt, inSameDayAs: entry.date)
+        return courses.isEmpty && isCurrent ? "Aucun cours à venir" : "Calendrier à actualiser"
+    }
+    private func courseDate(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: "fr_FR")))
+    }
     var body: some View {
         Group {
             if let snapshot = entry.snapshot, let courses = snapshot.upcomingCourses {
                 VStack(alignment: .leading, spacing: 8) {
-                    WidgetHeading(title: entry.upcomingCourse.map { $0.start <= entry.date ? "Cours en cours" : "Prochain cours" } ?? "Prochain cours", symbol: "calendar")
+                    WidgetHeading(title: heading, symbol: "calendar")
                     Spacer(minLength: 0)
                     if let course = entry.upcomingCourse {
                         Text(course.title).font(.title3.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.8)
-                        Text(course.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: "fr_FR"))))
+                        Text(courseDate(course.start))
                             .font(.caption).foregroundStyle(.secondary)
                         HStack(spacing: 4) {
                             Text(course.start, style: .time)
@@ -247,7 +305,7 @@ struct NextCourseWidgetView: View {
                             Text(course.end, style: .time)
                         }.font(.subheadline.weight(.medium)).foregroundStyle(WidgetPalette.blue).monospacedDigit()
                     } else {
-                        Text(courses.isEmpty && Calendar.current.isDate(snapshot.updatedAt, inSameDayAs: entry.date) ? "Aucun cours à venir" : "Calendrier à actualiser")
+                        Text(emptyMessage(snapshot: snapshot, courses: courses))
                             .font(.headline).lineLimit(2)
                         Text("Ouvrir mes cours").font(.caption).foregroundStyle(.secondary)
                     }
