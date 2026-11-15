@@ -13,7 +13,11 @@ struct NewSessionView: View {
     @State private var minutes = 30.0
     @State private var occurrenceID: UUID?
     @State private var confirmOverlap = false
-    init(kind: SessionKind, startAsTimer: Bool = true) { _kind = State(initialValue: kind); _timer = State(initialValue: startAsTimer) }
+    private let onComplete: (() -> Void)?
+    init(kind: SessionKind, startAsTimer: Bool = true, onComplete: (() -> Void)? = nil) {
+        _kind = State(initialValue: kind); _timer = State(initialValue: startAsTimer)
+        self.onComplete = onComplete
+    }
     private var matchingOccurrences: [CourseOccurrence] {
         guard kind == .course, let subjectID else { return [] }
         return store.state.occurrences.filter {
@@ -51,7 +55,7 @@ struct NewSessionView: View {
                     Picker("Associer au calendrier", selection: $occurrenceID) {
                         Text("Cours supplémentaire distinct").tag(nil as UUID?)
                         ForEach(matchingOccurrences) { occurrence in
-                            Text(occurrence.title + " · " + occurrence.start.cadenceFormatted(date: .abbreviated, time: .shortened)).tag(Optional(occurrence.id))
+                            Text(occurrence.displayTitle(in: store.state.subjects) + " · " + occurrence.start.cadenceFormatted(date: .abbreviated, time: .shortened)).tag(Optional(occurrence.id))
                         }
                     }
                 } header: { Text("Éviter un double comptage") } footer: {
@@ -69,22 +73,27 @@ struct NewSessionView: View {
             ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) { Button(timer ? "Démarrer" : "Ajouter") { if overlapping { confirmOverlap = true } else { save(allowOverlap: false) } }.disabled(subjectID == nil || (!timer && (!minutes.isFinite || minutes <= 0 || minutes > 1440 || start.addingTimeInterval(minutes * 60) > .now)) || (timer && store.state.activeSession != nil)) }
         }
-        .confirmationDialog("Ce cours chevauche un cours du calendrier. Enregistrer une séance supplémentaire distincte ?", isPresented: $confirmOverlap, titleVisibility: .visible) {
+        .alert("Ajouter un cours distinct ?", isPresented: $confirmOverlap) {
             Button("Oui, ajouter un cours distinct") { save(allowOverlap: true) }
             Button("Revenir pour associer les séances", role: .cancel) { }
+        } message: {
+            Text("Ce cours chevauche un cours existant. Associez les séances si elles correspondent au même cours, ou confirmez une séance supplémentaire distincte.")
         }
     }
     private func save(allowOverlap: Bool) {
         guard let subjectID else { return }
         if timer {
             store.start(kind: kind, subjectID: subjectID, topic: topic, occurrenceID: occurrenceID)
-            if store.errorMessage == nil { store.route = "revision"; dismiss() }
+            if store.errorMessage == nil { store.route = "revision"; complete() }
         } else {
             let end = start.addingTimeInterval(minutes * 60)
             let session = StudySession(subjectID: subjectID, kind: kind, origin: .manual, topic: topic, notes: notes, startedAt: start, endedAt: end, activeSegments: [TimeSegment(start: start, end: end)], linkedOccurrenceID: occurrenceID)
             store.saveSession(session, allowOverlap: allowOverlap || occurrenceID != nil)
-            if store.errorMessage == nil { dismiss() }
+            if store.errorMessage == nil { complete() }
         }
+    }
+    private func complete() {
+        if let onComplete { onComplete() } else { dismiss() }
     }
 }
 
@@ -136,13 +145,15 @@ struct SessionEditorView: View {
         }
         .navigationTitle("Modifier la séance").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { if hasNewOverlap { overlapConfirmation = true } else { save(allowOverlap: false) } }.disabled(subjectID == nil || (!isActive && (!minutes.isFinite || minutes < 0 || minutes > 1440 || start.addingTimeInterval(minutes * 60) > .now))) } }
-        .confirmationDialog("Supprimer définitivement cette séance ?", isPresented: $deleteConfirmation, titleVisibility: .visible) {
+        .alert("Supprimer définitivement cette séance ?", isPresented: $deleteConfirmation) {
             Button("Supprimer la séance", role: .destructive) { store.deleteSession(session.id); if store.errorMessage == nil { dismiss() } }
             Button("Conserver", role: .cancel) { }
         }
-        .confirmationDialog("Confirmer une séance distincte malgré le chevauchement ?", isPresented: $overlapConfirmation, titleVisibility: .visible) {
+        .alert("Enregistrer une séance distincte ?", isPresented: $overlapConfirmation) {
             Button("Enregistrer séparément") { save(allowOverlap: true) }
             Button("Revenir", role: .cancel) { }
+        } message: {
+            Text("Cette modification crée un chevauchement avec un autre cours. Confirmez pour conserver les séances séparément.")
         }
     }
     private func save(allowOverlap: Bool) {

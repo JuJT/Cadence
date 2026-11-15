@@ -54,7 +54,7 @@ struct SettingsView: View {
                 pendingRestore = data; showRestoreConfirmation = true
             } catch { store.errorMessage = "Lecture de sauvegarde impossible : \(error.localizedDescription)" }
         }
-        .confirmationDialog("Remplacer les données de Cadence par cette sauvegarde ?", isPresented: $showRestoreConfirmation, titleVisibility: .visible) {
+        .alert("Remplacer les données de Cadence par cette sauvegarde ?", isPresented: $showRestoreConfirmation) {
             Button("Restaurer et remplacer", role: .destructive) { if let data = pendingRestore { store.restoreBackup(data) }; pendingRestore = nil }
             Button("Annuler", role: .cancel) { pendingRestore = nil }
         } message: { Text("Exportez d’abord vos données actuelles si vous souhaitez les conserver.") }
@@ -145,7 +145,7 @@ struct CalendarSettingsView: View {
         .navigationTitle("Calendriers").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Terminé") { dismiss() } } }
         .onAppear { keywords = store.state.settings.excludedKeywords.joined(separator: ", ") }
-        .confirmationDialog("Désactiver les prochains imports ?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
+        .alert("Désactiver les prochains imports ?", isPresented: $confirmDisconnect) {
             Button("Désactiver") { var settings = store.state.settings; settings.calendarEnabled = false; store.updateSettings(settings) }
             Button("Annuler", role: .cancel) { }
         } message: { Text("Votre historique et vos séances restent conservés.") }
@@ -218,7 +218,7 @@ private struct SubjectEditorView: View {
                 if subject == nil { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } } }
                 ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { save() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
             }
-            .confirmationDialog("Supprimer cette matière ?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .alert("Supprimer cette matière ?", isPresented: $confirmDelete) {
                 Button("Supprimer ou archiver", role: .destructive) { if let subject { store.deleteSubject(subject.id); if store.errorMessage == nil { dismiss() } } }
                 Button("Annuler", role: .cancel) { }
             }

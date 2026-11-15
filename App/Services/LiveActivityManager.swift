@@ -35,7 +35,7 @@ final class SystemIntegrationService {
                 courseEstimated: totals.courseEstimated, revisions: totals.revisions,
                 activeSubject: active.flatMap { session in state.subjects.first { $0.id == session.subjectID }?.name },
                 activeKind: active?.kind.label, isPaused: active?.isPaused ?? false,
-                nextCourseTitle: next?.title, nextCourseStart: next?.start)
+                nextCourseTitle: next?.displayTitle(in: state.subjects), nextCourseStart: next?.start)
             if SharedSnapshotStore.write(snapshot) { WidgetCenter.shared.reloadAllTimelines() }
         }
         let previous = pending

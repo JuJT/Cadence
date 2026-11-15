@@ -145,6 +145,15 @@ public struct CourseOccurrence: Codable, Identifiable, Equatable, Sendable {
         self.identityUncertain = identityUncertain
     }
     public var accountingStatus: CourseStatus { status == .needsReview ? previousStatus ?? .needsReview : status }
+
+    /// Display the assigned subject while retaining the source title for review and matching.
+    public func displayTitle(in subjects: [Subject]) -> String {
+        if let subjectID, let subject = subjects.first(where: { $0.id == subjectID }) {
+            let name = subject.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !name.isEmpty { return name }
+        }
+        return title
+    }
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {

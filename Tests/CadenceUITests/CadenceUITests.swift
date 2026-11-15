@@ -2,6 +2,65 @@ import XCTest
 
 final class CadenceUITests: XCTestCase {
     @MainActor
+    func testCourseDateNavigationAndSubjectNames() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--uitesting-courses"]
+        app.launch()
+        app.tabBars.buttons["Cours"].tap()
+        let previous = app.buttons["courses.previous"]
+        let next = app.buttons["courses.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        app.segmentedControls.buttons["Jour"].tap()
+        XCTAssertTrue(app.staticTexts["Français"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["FRANCAIS - PROF. EXEMPLE"].exists)
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Anglais"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Français"].exists)
+        XCTAssertFalse(app.staticTexts["ANGLAIS - PROF. EXEMPLE - [GROUPE-TEST]"].exists)
+        capture(app, name: "cours-jour-matiere")
+        previous.tap()
+        XCTAssertTrue(app.staticTexts["Français"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Anglais"].exists)
+        app.segmentedControls.buttons["Semaine"].tap()
+        XCTAssertTrue(app.staticTexts["Français"].waitForExistence(timeout: 3))
+        next.tap()
+        XCTAssertTrue(app.staticTexts["SVT"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Français"].exists)
+        previous.tap()
+        XCTAssertTrue(app.staticTexts["Français"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testNewSessionSheetAndCancellation() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting"]
+        app.launch()
+        let choice = app.buttons["session.new"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        choice.tap()
+        let revision = app.buttons["session.choose.revision"]
+        XCTAssertTrue(revision.waitForExistence(timeout: 4))
+        XCTAssertGreaterThan(revision.frame.midY, app.windows.firstMatch.frame.height * 0.4)
+        // Une feuille contient le choix ; aucune bulle de confirmation ancrée.
+        XCTAssertEqual(app.alerts.count, 0)
+        capture(app, name: "nouvelle-seance-feuille")
+        revision.tap()
+        let start = app.buttons["Démarrer"]
+        XCTAssertTrue(start.waitForExistence(timeout: 3))
+        start.tap()
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        app.buttons["session.finish"].tap()
+        let confirmation = app.alerts.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
+        capture(app, name: "terminer-seance-alerte")
+        confirmation.buttons["Annuler"].tap()
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 3))
+        app.buttons["session.finish"].tap()
+        app.alerts.buttons["Terminer et enregistrer"].tap()
+        XCTAssertTrue(app.buttons["session.start"].waitForExistence(timeout: 4))
+    }
+
+    @MainActor
     func testIPadLandscapeLayout() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting"]

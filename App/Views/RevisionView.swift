@@ -30,9 +30,11 @@ struct RevisionView: View {
         }
         .navigationTitle(store.state.activeSession?.kind == .course ? "Cours en cours" : "Révision")
         .onAppear { if subjectID == nil { subjectID = store.state.settings.defaultSubjectID ?? store.state.subjects.first(where: { !$0.isArchived })?.id } }
-        .confirmationDialog("Terminer la séance et enregistrer sa durée ?", isPresented: $showFinish, titleVisibility: .visible) {
+        .alert("Terminer la séance ?", isPresented: $showFinish) {
             Button("Terminer et enregistrer") { store.finish() }
-            Button("Continuer la séance", role: .cancel) { }
+            Button("Annuler", role: .cancel) { }
+        } message: {
+            Text("La durée suivie sera enregistrée dans votre historique.")
         }
         .sheet(isPresented: $showManual) { NavigationStack { NewSessionView(kind: .revision, startAsTimer: false) } }
     }

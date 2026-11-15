@@ -15,6 +15,42 @@ final class CadenceCoreTests: XCTestCase {
         Statistics.totals(state: state, in: DateInterval(start: base.addingTimeInterval(-86400), duration: 86400 * 10), now: now ?? base.addingTimeInterval(86400 * 9))
     }
 
+    func testCourseDisplayUsesAssignedSubjectAndKeepsSourceTitle() {
+        var english = subject("Anglais", aliases: ["ANGLAIS"])
+        let rawTitle = "ANGLAIS - PROF. TEST - [1-AGL-G7] - <14> 14AGLG7"
+        var course = CourseOccurrence(calendarIdentifier: "calendar-1", eventIdentifier: "english", title: rawTitle, start: base, end: base.addingTimeInterval(3600), subjectID: english.id)
+        XCTAssertEqual(course.displayTitle(in: [english]), "Anglais")
+        english.name = "Anglais approfondi"
+        english.isArchived = true
+        XCTAssertEqual(course.displayTitle(in: [english]), "Anglais approfondi")
+        XCTAssertEqual(course.title, rawTitle)
+
+        english.name = " \n "
+        XCTAssertEqual(course.displayTitle(in: [english]), rawTitle)
+        XCTAssertEqual(course.displayTitle(in: []), rawTitle)
+        course.subjectID = nil
+        XCTAssertEqual(course.displayTitle(in: [english]), rawTitle)
+    }
+
+    func testFrenchAliasesDisplayFrenchWithoutRewritingCalendarEvents() throws {
+        let french = subject("Français", aliases: ["FRANCAIS", "ACCOMPAGNEMT. PERSO.", "VIE DE CLASSE"])
+        var value = CadenceState(subjects: [french])
+        let titles = ["ACCOMPAGNEMT. PERSO. - PROF. TEST", "VIE DE CLASSE - PROF. TEST"]
+        let inputs = titles.enumerated().map { index, title in
+            event(value, id: "french-\(index)", external: "french-\(index)", title: title)
+        }
+        sync(&value, inputs)
+        XCTAssertEqual(value.occurrences.count, 2)
+        for course in value.occurrences {
+            XCTAssertEqual(course.subjectID, french.id)
+            XCTAssertEqual(course.displayTitle(in: value.subjects), "Français")
+            XCTAssertTrue(titles.contains(course.title))
+        }
+        let restored = try BackupCodec.decode(BackupCodec.encode(value))
+        XCTAssertEqual(Set(restored.occurrences.map(\.title)), Set(titles))
+        XCTAssertEqual(restored.subjects[0].aliases, french.aliases)
+    }
+
     func testOnlyOneActiveSessionAndRepeatedTransitionsAreIdempotent() throws {
         var value = state()
         let subjectID = value.subjects[0].id

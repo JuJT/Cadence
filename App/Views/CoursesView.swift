@@ -17,12 +17,12 @@ struct CoursesView: View {
     }
     private var occurrences: [CourseOccurrence] {
         store.state.occurrences.filter {
-            (interval == nil || interval!.contains($0.start)) && (search.isEmpty || $0.title.localizedStandardContains(search))
+            includes($0.start) && (search.isEmpty || $0.displayTitle(in: store.state.subjects).localizedStandardContains(search) || $0.title.localizedStandardContains(search))
         }.sorted { $0.start < $1.start }
     }
     private var manualSessions: [StudySession] {
         store.state.sessions.filter {
-            $0.kind == .course && $0.linkedOccurrenceID == nil && (interval == nil || interval!.contains($0.startedAt)) &&
+            $0.kind == .course && $0.linkedOccurrenceID == nil && includes($0.startedAt) &&
             (search.isEmpty || $0.topic.localizedStandardContains(search) || (Atelier.subject($0.subjectID, in: store.state)?.name.localizedStandardContains(search) ?? false))
         }.sorted { $0.startedAt < $1.startedAt }
     }
@@ -35,11 +35,22 @@ struct CoursesView: View {
                 Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }.pickerStyle(.segmented)
                 if mode != "Liste" {
                     HStack {
-                        Button("Précédent", systemImage: "chevron.left") { shift(-1) }.labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+                        Button { shift(-1) } label: {
+                            Image(systemName: "chevron.left").frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(mode == "Semaine" ? "Semaine précédente" : "Jour précédent")
+                        .accessibilityIdentifier("courses.previous")
                         Spacer()
                         DatePicker("Date", selection: $date, displayedComponents: .date).labelsHidden()
+                            .accessibilityIdentifier("courses.date")
                         Spacer()
-                        Button("Suivant", systemImage: "chevron.right") { shift(1) }.labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+                        Button { shift(1) } label: {
+                            Image(systemName: "chevron.right").frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(mode == "Semaine" ? "Semaine suivante" : "Jour suivant")
+                        .accessibilityIdentifier("courses.next")
                     }
                 }
             }.listRowBackground(Color.clear)
@@ -78,6 +89,10 @@ struct CoursesView: View {
         .sheet(isPresented: $showNew) { NavigationStack { NewSessionView(kind: .course) } }
         .sheet(isPresented: $showCalendar) { NavigationStack { CalendarSettingsView() } }
     }
+    private func includes(_ start: Date) -> Bool {
+        guard let interval else { return true }
+        return start >= interval.start && start < interval.end
+    }
     private func shift(_ direction: Int) { date = Calendar.current.date(byAdding: .day, value: direction * (mode == "Semaine" ? 7 : 1), to: date) ?? date }
 }
 
@@ -88,7 +103,7 @@ struct CourseRow: View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 3).fill(Color(cadenceHex: Atelier.subject(occurrence.subjectID, in: store.state)?.colorHex ?? "#2776F8")).frame(width: 4)
             VStack(alignment: .leading, spacing: 5) {
-                Text(occurrence.title).font(.headline)
+                Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline)
                 Text(occurrence.start.cadenceFormatted(date: .omitted, time: .shortened) + " – " + occurrence.end.cadenceFormatted(date: .omitted, time: .shortened))
                     .font(.subheadline).foregroundStyle(.secondary)
                 Label(occurrence.calendarName, systemImage: "calendar").font(.caption).foregroundStyle(.secondary)
@@ -114,7 +129,13 @@ struct CourseDetailView: View {
             if let course = occurrence {
                 List {
                     Section {
-                        HStack { SubjectMark(subject: Atelier.subject(course.subjectID, in: store.state)); VStack(alignment: .leading, spacing: 5) { Text(course.title).font(.title3.bold()); Text(Atelier.subject(course.subjectID, in: store.state)?.name ?? "Matière à classer").foregroundStyle(.secondary) } }
+                        HStack {
+                            SubjectMark(subject: Atelier.subject(course.subjectID, in: store.state))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(course.displayTitle(in: store.state.subjects)).font(.title3.bold())
+                                if course.subjectID == nil { Text("Matière à classer").foregroundStyle(.secondary) }
+                            }
+                        }
                         LabeledContent("Date", value: course.start.cadenceFormatted(date: .complete, time: .omitted))
                         LabeledContent("Horaire", value: course.start.cadenceFormatted(date: .omitted, time: .shortened) + " – " + course.end.cadenceFormatted(date: .omitted, time: .shortened))
                         LabeledContent("Provenance", value: "Calendrier · " + course.calendarName)
@@ -125,12 +146,17 @@ struct CourseDetailView: View {
                     Section("Suivi du cours") {
                         Button("Chronométrer ce cours", systemImage: "play.fill") {
                             guard let subject = course.subjectID else { showEdit = true; return }
-                            store.start(kind: .course, subjectID: subject, topic: course.title, occurrenceID: course.id)
+                            store.start(kind: .course, subjectID: subject, occurrenceID: course.id)
                             store.route = "revision"
                         }.disabled(store.state.activeSession != nil || course.linkedSessionID != nil)
                         Button("Confirmer une durée", systemImage: "checkmark.circle") { confirmedMinutes = (course.confirmedSeconds ?? course.end.timeIntervalSince(course.start)) / 60; showConfirm = true }.disabled(course.subjectID == nil || course.linkedSessionID != nil || course.end > .now)
                         Button("Associer à une séance manuelle", systemImage: "link") { showLink = true }.disabled(course.linkedSessionID != nil)
                         Button("Modifier la matière ou l’horaire", systemImage: "pencil") { showEdit = true }
+                    }
+                    Section {
+                        DisclosureGroup("Détails du calendrier") {
+                            Text(course.title).font(.subheadline).foregroundStyle(.secondary).textSelection(.enabled)
+                        }
                     }
                     if let pendingStart = course.pendingStart {
                         Section("Modification du calendrier à examiner") {
@@ -159,7 +185,7 @@ struct CourseDetailView: View {
                 }
                 .sheet(isPresented: $showEdit) { NavigationStack { OccurrenceEditorView(occurrence: course) } }
                 .sheet(isPresented: $showLink) { NavigationStack { SessionLinkView(occurrence: course) } }
-                .confirmationDialog("Retirer l’association de cette séance ?", isPresented: $showUnlinkConfirmation, titleVisibility: .visible) {
+                .alert("Retirer l’association de cette séance ?", isPresented: $showUnlinkConfirmation) {
                     Button("Retirer l’association", role: .destructive) { store.unlinkSession(occurrenceID: course.id) }
                     Button("Conserver l’association", role: .cancel) { }
                 } message: {

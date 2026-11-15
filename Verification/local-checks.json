@@ -1,5 +1,6 @@
 {
-  "date": "2026-11-14",
+  "date": "2026-11-15",
+  "generatedAtUTC": "2026-11-15T12:57:45.018730+00:00",
   "swiftSyntaxParser": "tree-sitter-swift (analyse syntaxique, sans vérification des types Apple)",
   "swiftFiles": 27,
   "errors": [],
@@ -13,7 +14,7 @@
     "executed": 3,
     "passed": 3
   },
-  "swiftCoreTestsLocal": "Non exécutés : WSL ERROR_TIMEOUT avant démarrage du compilateur",
+  "swiftCoreTestsLocal": "Non exécutés localement ; tests du noyau et compilation Apple délégués à la CI macOS",
   "scope": "Vérifications locales uniquement ; résultats Xcode dans docs/VERIFICATION.md",
   "physicalDeviceTests": "Non exécutés"
 }

@@ -38,6 +38,22 @@ final class AppStore: ObservableObject {
             if uiTesting {
                 var initial = CadenceState.initial()
                 initial.settings.onboardingCompleted = true
+                if ProcessInfo.processInfo.arguments.contains("--uitesting-courses") {
+                    // Données fictives, isolées du stockage normal et exclues des appareils physiques.
+                    let calendar = Calendar.current
+                    let today = calendar.startOfDay(for: Date())
+                    let examples = [(0, "Français", "FRANCAIS - PROF. EXEMPLE"),
+                                    (1, "Anglais", "ANGLAIS - PROF. EXEMPLE - [GROUPE-TEST]"),
+                                    (7, "SVT", "SCIENCES VIE & TERRE - PROF. EXEMPLE")]
+                    initial.occurrences = examples.compactMap { offset, name, title in
+                        guard let subject = initial.subjects.first(where: { $0.name == name }),
+                              let day = calendar.date(byAdding: .day, value: offset, to: today),
+                              let start = calendar.date(byAdding: .hour, value: 8, to: day) else { return nil }
+                        return CourseOccurrence(calendarIdentifier: "test-calendar", eventIdentifier: "test-\(offset)",
+                            calendarName: "Calendrier de test", title: title, start: start,
+                            end: start.addingTimeInterval(3600), subjectID: subject.id)
+                    }
+                }
                 self.state = initial
             } else {
                 self.state = try repository.load()

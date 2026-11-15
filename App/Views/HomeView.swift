@@ -5,8 +5,6 @@ import CadenceCore
 struct HomeView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showNewSession = false
-    @State private var showChoice = false
-    @State private var newKind: SessionKind = .revision
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let totals = Statistics.totals(state: store.state, in: Atelier.day(context.date), now: context.date)
@@ -44,7 +42,7 @@ struct HomeView: View {
                             HStack {
                                 SubjectMark(subject: Atelier.subject(next.subjectID, in: store.state))
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(next.title).font(.headline).foregroundStyle(.primary)
+                                    Text(next.displayTitle(in: store.state.subjects)).font(.headline).foregroundStyle(.primary)
                                     Text(next.start.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).locale(Locale(identifier: "fr_FR"))) + " · " + next.start.cadenceFormatted(date: .omitted, time: .shortened)).font(.subheadline).foregroundStyle(.secondary)
                                 }
                                 Spacer(); Image(systemName: "chevron.right").foregroundStyle(.secondary)
@@ -52,7 +50,8 @@ struct HomeView: View {
                         }
                     }.buttonStyle(.plain)
                 }
-                ProminentAction(title: "Nouvelle séance", symbol: "play.fill") { showChoice = true }
+                ProminentAction(title: "Nouvelle séance", symbol: "play.fill") { showNewSession = true }
+                    .accessibilityIdentifier("session.new")
                 HStack { Text("Historique récent").font(.title3.bold()); Spacer(); NavigationLink("Tout voir") { HistoryView() }.font(.subheadline) }
                 if store.state.sessions.isEmpty {
                     EmptyCard(title: "Une première séance ?", symbol: "timer", description: "Démarrez une révision ou ajoutez un cours pour retrouver votre suivi ici.")
@@ -68,12 +67,7 @@ struct HomeView: View {
             }
         }
         .navigationTitle("Cadence")
-        .confirmationDialog("Nouvelle séance", isPresented: $showChoice, titleVisibility: .visible) {
-            Button("Révision") { newKind = .revision; showNewSession = true }
-            Button("Cours") { newKind = .course; showNewSession = true }
-            Button("Annuler", role: .cancel) { }
-        }
-        .sheet(isPresented: $showNewSession) { NavigationStack { NewSessionView(kind: newKind) } }
+        .sheet(isPresented: $showNewSession) { NewSessionSheet() }
     }
     private var syncDescription: String {
         guard store.state.settings.calendarEnabled else { return "Calendrier facultatif · suivi manuel disponible" }
@@ -94,6 +88,57 @@ struct HomeView: View {
                 SectorMark(angle: .value("Révisions", totals.revisions), innerRadius: .ratio(0.74), angularInset: 2).foregroundStyle(Atelier.revision)
             } else { SectorMark(angle: .value("Aucune séance", 1), innerRadius: .ratio(0.74)).foregroundStyle(Color.secondary.opacity(0.15)) }
         }.accessibilityElement(children: .ignore).accessibilityLabel("Cours : \(Atelier.duration(totals.courseMeasured + totals.courseEstimated)), révisions : \(Atelier.duration(totals.revisions))")
+    }
+}
+
+private struct NewSessionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var detent: PresentationDetent = .medium
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    NavigationLink {
+                        NewSessionView(kind: .revision, onComplete: { dismiss() })
+                            .onAppear { detent = .large }
+                    } label: {
+                        choice("Révision", subtitle: "Travailler une matière ou ajouter une révision passée.", symbol: SessionKind.revision.symbol, color: Atelier.revision)
+                    }
+                    .accessibilityIdentifier("session.choose.revision")
+                    NavigationLink {
+                        NewSessionView(kind: .course, onComplete: { dismiss() })
+                            .onAppear { detent = .large }
+                    } label: {
+                        choice("Cours", subtitle: "Chronométrer un cours ou saisir une durée réalisée.", symbol: SessionKind.course.symbol, color: Atelier.blue)
+                    }
+                    .accessibilityIdentifier("session.choose.course")
+                } header: {
+                    Text("Quel type de séance souhaitez-vous ajouter ?")
+                }
+            }
+            .navigationTitle("Nouvelle séance")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
+            }
+            .onAppear { detent = .medium }
+        }
+        .presentationDetents([.medium, .large], selection: $detent)
+        .presentationDragIndicator(.visible)
+    }
+
+    private func choice(_ title: String, subtitle: String, symbol: String, color: Color) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: symbol)
+                .font(.title2).foregroundStyle(color).frame(width: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 12)
     }
 }
 
