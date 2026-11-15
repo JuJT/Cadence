@@ -25,6 +25,10 @@ on:
         description: 'Compiler aussi la variante App Group expérimentale (ne garantit pas sa signature)'
         type: boolean
         default: false
+      session_presentation_only:
+        description: 'Recontrôle ciblé du formulaire après un changement limité à son en-tête'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,6 +52,7 @@ jobs:
     timeout-minutes: 35
     env:
       INCLUDE_SHARED: ${{ (github.event_name == 'push' || inputs.include_shared_variant) && 'true' || 'false' }}
+      ONLY_SESSION_PRESENTATION: ${{ inputs.session_presentation_only && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v7
         with:

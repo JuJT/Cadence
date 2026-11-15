@@ -4,6 +4,8 @@ Les flèches du calendrier disposent chacune de leur propre zone de clic et d’
 
 Les cours classés affichent le nom de leur matière dans la liste, le détail, le prochain cours et les sélecteurs d’association. Les titres du calendrier restent conservés dans les données et consultables dans « Détails du calendrier ». Les cours sans matière conservent leur titre pour permettre leur classement. Les alias personnels et la synchronisation existante restent conservés : Accompagnement personnalisé et Vie de classe peuvent ainsi tous deux apparaître sous Français.
 
+Après la première association et l’import confirmé, les calendriers activés sont relus au lancement, au retour au premier plan et lors des changements signalés par Calendrier pendant que l’app s’exécute. Aucun import hebdomadaire manuel n’est nécessaire. La source doit elle-même être à jour dans Calendrier Apple ; une mise à jour permanente pendant que Cadence est suspendue n’est pas garantie par iOS.
+
 « Nouvelle séance » ouvre une feuille native avec le choix Cours/Révision, puis le formulaire dans la même feuille. La confirmation de fin et les autres confirmations binaires utilisent une alerte centrée avec une action d’annulation.
 
 La Dynamic Island réserve une colonne au chronomètre et place la matière sous la zone caméra, avec des marges et un lien d’ouverture plus courts. Le rendu exact reste à contrôler sur l’iPhone après mise à jour.

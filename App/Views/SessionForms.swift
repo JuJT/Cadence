@@ -65,7 +65,7 @@ struct NewSessionView: View {
             if !timer { Section("Notes (facultatif)") { TextEditor(text: $notes).frame(minHeight: 100).accessibilityLabel("Notes de séance") } }
             if timer && store.state.activeSession != nil { Section { Label("Une séance est déjà active. Terminez-la avant d’en démarrer une nouvelle.", systemImage: "exclamationmark.circle").foregroundStyle(.orange) } }
         }
-        .navigationTitle(kind == .course ? "Nouveau cours" : "Nouvelle révision").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(kind.label).navigationBarTitleDisplayMode(.inline)
         .onAppear { subjectID = store.state.settings.defaultSubjectID ?? store.state.subjects.first(where: { !$0.isArchived })?.id }
         .onChange(of: kind) { _, _ in occurrenceID = nil }
         .onChange(of: subjectID) { _, _ in occurrenceID = nil }

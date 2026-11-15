@@ -42,6 +42,12 @@ xcrun simctl status_bar "$simulator_id" override --time '9:41' --batteryState ch
 # Aide exacte du SDK exécuté; API moderne documentée depuis Xcode 16, sans --legacy.
 xcrun xcresulttool export attachments --help > dist/reports/xcresult-attachments-help.txt 2>&1
 xcrun simctl ui "$simulator_id" appearance light
+if [[ "${ONLY_SESSION_PRESENTATION:-false}" == "true" ]]; then
+  run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
+    -only-testing:CadenceUITests/CadenceUITests/testNewSessionSheetAndCancellation
+  printf '%s\n' 'Contrôle ciblé de Nouvelle séance, du formulaire et de la confirmation de fin. Les autres parcours ne sont pas exécutés par ce run.' > dist/reports/simulator-status.txt
+  exit 0
+fi
 run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
   -skip-testing:CadenceUITests/CadenceUITests/testIPadLandscapeLayout \
   -skip-testing:CadenceUITests/CadenceUITests/testDarkStatistics
