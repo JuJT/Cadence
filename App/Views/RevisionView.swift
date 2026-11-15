@@ -9,12 +9,14 @@ struct RevisionView: View {
     @State private var showFinish = false
     @State private var showManual = false
     var body: some View {
-        AtelierPage {
+        ScrollViewReader { scrollProxy in
+            AtelierPage {
             if let active = store.state.activeSession {
-                timer(active)
+                timer(active).id("revision.content.top")
             } else {
                 Text("Un moment pour vous concentrer.")
                     .font(.title3).foregroundStyle(.secondary).padding(.bottom, 4)
+                    .id("revision.content.top")
                 AtelierCard {
                     Label("Votre prochaine révision", systemImage: "books.vertical")
                         .font(.headline)
@@ -45,6 +47,11 @@ struct RevisionView: View {
                         .font(.subheadline.weight(.medium)).padding(.vertical, 4)
                 }
             }
+            }
+            .onChange(of: store.state.activeSession?.id) { _, _ in
+                // La nouvelle mise en page ne doit pas hériter du défilement du formulaire.
+                scrollProxy.scrollTo("revision.content.top", anchor: .top)
+            }
         }
         .navigationTitle(store.state.activeSession.map { $0.kind == .course ? "Cours en cours" : "Révision en cours" } ?? "Révision")
         .navigationBarTitleDisplayMode(store.state.activeSession == nil ? .large : .inline)
@@ -62,9 +69,10 @@ struct RevisionView: View {
         VStack(spacing: 24) {
             SessionDial(session: active, subject: Atelier.subject(active.subjectID, in: store.state))
                 .frame(maxWidth: .infinity).padding(.top, 8)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) { controls(active) }
+            if dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: 12) { controls(active) }
+            } else {
+                HStack(spacing: 12) { controls(active) }
             }
             AtelierCard {
                 HStack(spacing: 12) {
@@ -184,7 +192,7 @@ private struct SessionDial: View {
     private func dialContent(now: Date) -> some View {
         VStack(spacing: 12) {
             Image(systemName: subject?.symbol ?? "book.closed")
-                .font(.system(.title2, design: .rounded, weight: .medium))
+                .font(.system(size: 26, weight: .medium, design: .rounded))
                 .foregroundStyle(Atelier.blue).frame(width: 52, height: 52)
                 .background(Atelier.blue.opacity(colorScheme == .dark ? 0.15 : 0.09), in: RoundedRectangle(cornerRadius: 17))
                 .overlay(RoundedRectangle(cornerRadius: 17).stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.7), lineWidth: 1))

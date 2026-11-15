@@ -73,11 +73,11 @@ struct RootView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 if section == .accueil {
-                    ToolbarItem(placement: .topBarLeading) {
-                        HStack(spacing: 7) {
-                            Image("CadenceMark").resizable().frame(width: 24, height: 24).clipShape(RoundedRectangle(cornerRadius: 7)).accessibilityHidden(true)
-                            Text("Cadence").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
-                        }.accessibilityElement(children: .combine)
+                    if #available(iOS 26.0, *) {
+                        ToolbarItem(placement: .topBarLeading) { brandMark }
+                            .sharedBackgroundVisibility(.hidden)
+                    } else {
+                        ToolbarItem(placement: .topBarLeading) { brandMark }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -85,6 +85,13 @@ struct RootView: View {
                 }
             }
         }
+    }
+    private var brandMark: some View {
+        HStack(spacing: 7) {
+            Image("CadenceMark").resizable().frame(width: 24, height: 24)
+                .clipShape(RoundedRectangle(cornerRadius: 7)).accessibilityHidden(true)
+            Text("Cadence").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
+        }.fixedSize(horizontal: true, vertical: false).accessibilityElement(children: .combine)
     }
 }
 

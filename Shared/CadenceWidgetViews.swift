@@ -292,11 +292,14 @@ struct NextCourseWidgetView: View {
     var body: some View {
         Group {
             if let snapshot = entry.snapshot, let courses = snapshot.upcomingCourses {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     WidgetHeading(title: heading, symbol: "calendar")
-                    Spacer(minLength: 0)
                     if let course = entry.upcomingCourse {
-                        Text(course.title).font(.title3.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.8)
+                        Text(course.title)
+                            .font(.headline).lineLimit(2).minimumScaleFactor(0.75)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(1)
                         Text(courseDate(course.start))
                             .font(.caption).foregroundStyle(.secondary)
                         HStack(spacing: 4) {
@@ -316,6 +319,7 @@ struct NextCourseWidgetView: View {
                 WidgetUnavailable(title: "Prochain cours", symbol: "calendar", lastUpdate: entry.snapshot?.updatedAt)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .widgetURL(URL(string: "cadence://cours"))
     }
 }

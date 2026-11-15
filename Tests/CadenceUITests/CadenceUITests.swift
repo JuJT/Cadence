@@ -246,7 +246,12 @@ final class CadenceUITests: XCTestCase {
         for _ in 0..<10 {
             if isVisibleForTap(element, in: app) { return true }
             guard surface.exists else { return false }
-            if element.exists && element.frame.midY < surface.frame.minY + 30 {
+            let window = app.windows.firstMatch.frame
+            let navigation = app.navigationBars.allElementsBoundByIndex.filter {
+                $0.frame.intersects(window) && ($0.isHittable || $0.buttons.allElementsBoundByIndex.contains { $0.isHittable })
+            }.max { $0.frame.minY < $1.frame.minY }
+            let visibleTop = max(surface.frame.minY, navigation?.frame.maxY ?? window.minY)
+            if element.exists && element.frame.midY <= visibleTop {
                 surface.swipeDown()
             } else {
                 surface.swipeUp()
@@ -258,9 +263,21 @@ final class CadenceUITests: XCTestCase {
     @MainActor
     private func isVisibleForTap(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         guard element.exists, element.isHittable else { return false }
-        let tabs = app.tabBars.firstMatch
-        // Un contrôle peut exister alors que son centre reste sous la barre flottante.
-        return !tabs.exists || element.frame.midY < tabs.frame.minY
+        let window = app.windows.firstMatch.frame
+        let navigation = app.navigationBars.allElementsBoundByIndex.filter {
+            $0.frame.intersects(window) && ($0.isHittable || $0.buttons.allElementsBoundByIndex.contains { $0.isHittable })
+        }.max { $0.frame.minY < $1.frame.minY }
+        // Démarrer dans un formulaire est un vrai bouton de barre de navigation.
+        // Les actions du contenu, même déclarées hittables, doivent rester en dessous.
+        if let navigation, navigation.buttons.allElementsBoundByIndex.contains(where: {
+            $0.isHittable && $0.label == element.label && $0.frame == element.frame
+        }) { return true }
+        let visibleTop = navigation?.frame.maxY ?? window.minY
+        let tabs = app.tabBars.allElementsBoundByIndex.first {
+            $0.frame.intersects(window) && $0.buttons.allElementsBoundByIndex.contains { $0.isHittable }
+        }
+        let visibleBottom = tabs?.frame.minY ?? window.maxY
+        return element.frame.midY > visibleTop && element.frame.midY < visibleBottom
     }
 
     @MainActor
