@@ -1,0 +1,27 @@
+{
+  "screenshots": [
+    {
+      "label": "terminer-seance-alerte_0_EA15C353-A9C5-4E5A-8FF0-92035487F4F4.png",
+      "source": "iphone/3F923A7E-2CDF-42F1-B755-CBF01DE10E28.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/terminer-seance-alerte_0_ea15c353-a9c5-4e5a-8ff0-92035487f4f4.png",
+      "sha256": "d437c25be7a04c395b2f751a83a626ba824bd8e08d1f26f88e16200837a465ae"
+    },
+    {
+      "label": "nouvelle-seance-formulaire_0_41514337-CFAC-4E64-8BF6-D5009DB1564F.png",
+      "source": "iphone/DD28892B-4C7F-430B-BB7A-1608E2F0A0E8.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/nouvelle-seance-formulaire_0_41514337-cfac-4e64-8bf6-d5009db1564f.png",
+      "sha256": "d71bedee5810b38cfc564572d7bfeb884e06597cc2efb0ce207239eb9098f17d"
+    },
+    {
+      "label": "nouvelle-seance-feuille_0_6BEE3EFF-10AA-4D6F-93A5-C47E40025B6B.png",
+      "source": "iphone/F16A9CB2-5BC8-423A-84CC-2D9B28D96077.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/nouvelle-seance-feuille_0_6bee3eff-10aa-4d6f-93a5-c47e40025b6b.png",
+      "sha256": "9ce2a5df5fb3d371581086e8931118de834dbdb08ac4c7d1794c3e02ddbfad8b"
+    }
+  ],
+  "warnings": [],
+  "provenance": "pièces jointes XCTest réellement exportées; fichiers copiés sans modification"
+}

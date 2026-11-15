@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-15",
+  "version": "0.1.1",
+  "run": "https://github.com/JuJT/Cadence/actions/runs/43719744499",
+  "commit": "34649464e895545be455644e69f593b4aa7fd638",
+  "conclusion": "success",
+  "xcode": "Xcode 26.6\nBuild version 17F113",
+  "tests": {
+    "metierSwift": 36,
+    "scriptsPython": 6,
+    "parcoursXCTestFinalCible": 1,
+    "parcoursXCTestRegressionPrecedente": 5
+  },
+  "controleFinal": "Titre du formulaire raccourci pour supprimer sa troncature entre les commandes. Quatre IPA reconstruites, noyau/scripts et parcours de création-annulation-fin réexécutés.",
+  "regressionComplete": {
+    "run": "https://github.com/JuJT/Cadence/actions/runs/43717867275",
+    "commit": "aab667e7bda356940d5ed7a88c2e893cdbe9d4aa",
+    "conclusion": "success",
+    "captures": "captures/",
+    "nombreCaptures": 13
+  },
+  "capturesFinales": {
+    "dossier": "captures-en-tete/",
+    "nombreCaptures": 3
+  },
+  "ipas": [
+    {
+      "fichier": "CadenceSpike-unsigned.ipa",
+      "version": "0.1.1",
+      "build": "2",
+      "sha256": "555650f1c419a1ec0de999e7448b7ab60c3a46c7d484a24eb23769359fbcf6ff",
+      "octets": 1066665,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ]
+    },
+    {
+      "fichier": "Cadence-unsigned.ipa",
+      "version": "0.1.1",
+      "build": "2",
+      "sha256": "8b8e5f94c5fceb39b4a33ee36137b3c759b9b4df5fa57ed129c242455ce74794",
+      "octets": 1001025,
+      "extensions": []
+    },
+    {
+      "fichier": "CadenceExtensions-unsigned.ipa",
+      "version": "0.1.1",
+      "build": "2",
+      "sha256": "2cb051b32bac519eb7aed83223a66a8897d97b95a73a6087f486721a765b8bb3",
+      "octets": 1097470,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ]
+    },
+    {
+      "fichier": "CadenceShared-unsigned.ipa",
+      "version": "0.1.1",
+      "build": "2",
+      "sha256": "33131b27d186c6a6b43341e22d5b3fe322666b85b4aae671835dee31c5095284",
+      "octets": 1100805,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ]
+    }
+  ],
+  "installationIPhone": "Nouvelle version non installée ni vérifiée physiquement par la CI",
+  "historiqueIPhone": "L’utilisateur a indiqué que les tests du Spike antérieur fonctionnaient et a fourni des captures de la version complète.",
+  "limites": "Dynamic Island et widgets modifiés : contrôle physique après mise à jour requis. App Group expérimental, droits de signature non garantis."
+}

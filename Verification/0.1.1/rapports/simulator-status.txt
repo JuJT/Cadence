@@ -1,0 +1,1 @@
+Navigation vérifiée par XCTest dans les vrais onglets; images exportées depuis les pièces jointes des tests. Voir screenshot-index.json pour leur provenance. Aucun test physique iPhone/iPad.

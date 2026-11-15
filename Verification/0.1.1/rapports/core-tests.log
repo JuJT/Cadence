@@ -1,0 +1,102 @@
+Building for debugging...
+[0/7] /Users/runner/work/Cadence/Cadence/.build/arm64-apple-macosx/debug/CadencePackageTests.derived/runner.swift
+[1/7] Write sources
+[4/7] Write swift-version-7974D3F7F03D5E95.txt
+[6/12] Compiling CadenceCore CalendarReconciler.swift
+[7/12] Compiling CadenceCore Models.swift
+[8/13] Emitting module CadenceCore
+[9/13] Compiling CadenceCore BackupCodec.swift
+[10/13] Compiling CadenceCore CadenceEngine.swift
+[11/13] Compiling CadenceCore Statistics.swift
+[12/15] Emitting module CadenceCoreTests
+[13/15] Compiling CadenceCoreTests CadenceCoreTests.swift
+[14/17] Compiling CadencePackageTests runner.swift
+[15/17] Emitting module CadencePackageTests
+[15/17] Write Objects.LinkFileList
+[16/17] Linking CadencePackageTests
+Build complete! (22.78s)
+Test Suite 'All tests' started at 2026-11-15 13:14:17.869.
+Test Suite 'CadencePackageTests.xctest' started at 2026-11-15 13:14:17.871.
+Test Suite 'CadenceCoreTests' started at 2026-11-15 13:14:17.871.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAcknowledgedMissingSourceDoesNotReopenReview]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAcknowledgedMissingSourceDoesNotReopenReview]' passed (0.002 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAliasBoundariesPrecedenceAndDiacritics]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAliasBoundariesPrecedenceAndDiacritics]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAmbiguousFallbackNeedsReviewAndDoesNotAddNewCredit]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAmbiguousFallbackNeedsReviewAndDoesNotAddNewCredit]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAutoCreditNeedsExplicitConsentAndLaterRefreshWorks]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testAutoCreditNeedsExplicitConsentAndLaterRefreshWorks]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testClockMovingBackwardsRejectsTransitionWithoutChangingState]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testClockMovingBackwardsRejectsTransitionWithoutChangingState]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testCollidingExternalIdentifiersDoNotMergeEventsPresentTogether]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testCollidingExternalIdentifiersDoNotMergeEventsPresentTogether]' passed (0.002 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testCourseDisplayUsesAssignedSubjectAndKeepsSourceTitle]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testCourseDisplayUsesAssignedSubjectAndKeepsSourceTitle]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testCSVQuotesAccentsNewlinesAndFormulaPrefixes]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testCSVQuotesAccentsNewlinesAndFormulaPrefixes]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDeletedEventKeepsConfirmedCreditAndMeasuredNotes]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDeletedEventKeepsConfirmedCreditAndMeasuredNotes]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDeletedUnconfirmedEstimateIsCancelledAndDisabledCalendarPreservesHistory]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDeletedUnconfirmedEstimateIsCancelledAndDisabledCalendarPreservesHistory]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDeleteLinkedSessionDoesNotResurrectEstimate]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDeleteLinkedSessionDoesNotResurrectEstimate]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDistinctIdenticalTimeEventsAreNeverSilentlyMerged]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDistinctIdenticalTimeEventsAreNeverSilentlyMerged]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDSTUsesActualElapsedSecondsAndLocalDayBoundaries]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testDSTUsesActualElapsedSecondsAndLocalDayBoundaries]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testFrenchAliasesDisplayFrenchWithoutRewritingCalendarEvents]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testFrenchAliasesDisplayFrenchWithoutRewritingCalendarEvents]' passed (0.003 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testJSONRoundTripPreservesSubmillisecondDurationsAndNotes]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testJSONRoundTripPreservesSubmillisecondDurationsAndNotes]' passed (0.002 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testKeepPersonalOverrideSurvivesIdenticalSourceSnapshot]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testKeepPersonalOverrideSurvivesIdenticalSourceSnapshot]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testLegacyV1MigrationKeepsUUIDNotesAndSeconds]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testLegacyV1MigrationKeepsUUIDNotesAndSeconds]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMalformedBackupCannotIntroduceDanglingLinksOverlappingSegmentsOrMultipleTimers]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMalformedBackupCannotIntroduceDanglingLinksOverlappingSegmentsOrMultipleTimers]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testManualOverlapRequiresLinkOrExplicitDistinctConfirmation]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testManualOverlapRequiresLinkOrExplicitDistinctConfirmation]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMarkAbsentOrIgnoredRemovesEstimate]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMarkAbsentOrIgnoredRemovesEstimate]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMeasuredSessionPreservedWhenEventChangesAndAcceptSurvivesResync]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMeasuredSessionPreservedWhenEventChangesAndAcceptSurvivesResync]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMeasurementReplacesEstimateAndRevisionRemainsSeparate]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMeasurementReplacesEstimateAndRevisionRemainsSeparate]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMidnightSplitsTenMinutesOnEachDay]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testMidnightSplitsTenMinutesOnEachDay]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testOnlyOneActiveSessionAndRepeatedTransitionsAreIdempotent]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testOnlyOneActiveSessionAndRepeatedTransitionsAreIdempotent]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testPausedSessionSurvivesJSONAndDoesNotAccumulateBackgroundTime]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testPausedSessionSurvivesJSONAndDoesNotAccumulateBackgroundTime]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testPersonalScheduleOverrideDoesNotConflictWithUnchangedSource]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testPersonalScheduleOverrideDoesNotConflictWithUnchangedSource]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testRecurringOccurrencesUseAnchorAndMovedExceptionRemainsOne]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testRecurringOccurrencesUseAnchorAndMovedExceptionRemainsOne]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testResyncIdentifierChangesReconcileViaExternalIDOrConservativeFingerprint]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testResyncIdentifierChangesReconcileViaExternalIDOrConservativeFingerprint]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testRevisionAllDayExcludedAndUnselectedCalendarsDoNotImportAsCourses]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testRevisionAllDayExcludedAndUnselectedCalendarsDoNotImportAsCourses]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testRunningSessionRecoversElapsedFromTimestamps]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testRunningSessionRecoversElapsedFromTimestamps]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testSecondSessionCannotLinkToSameOccurrenceOrLinkRevision]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testSecondSessionCannotLinkToSameOccurrenceOrLinkRevision]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testSubjectDeletionArchivesReferencedSubjectAndPreventsNewTimer]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testSubjectDeletionArchivesReferencedSubjectAndPreventsNewTimer]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testSubjectTotalsSumToOverallTotalWithConfirmedTimeAcrossMidnight]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testSubjectTotalsSumToOverallTotalWithConfirmedTimeAcrossMidnight]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testTwentyImportsAreIdempotentAndFutureClassesCountZero]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testTwentyImportsAreIdempotentAndFutureClassesCountZero]' passed (0.001 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testUnknownAndAmbiguousSubjectsAreNotGuessed]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testUnknownAndAmbiguousSubjectsAreNotGuessed]' passed (0.000 seconds).
+Test Case '-[CadenceCoreTests.CadenceCoreTests testWriterRejectsOversizedBackupAndLargeAcceptedBackupRemainsReadable]' started.
+Test Case '-[CadenceCoreTests.CadenceCoreTests testWriterRejectsOversizedBackupAndLargeAcceptedBackupRemainsReadable]' passed (0.754 seconds).
+Test Suite 'CadenceCoreTests' passed at 2026-11-15 13:14:18.653.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.777 (0.782) seconds
+Test Suite 'CadencePackageTests.xctest' passed at 2026-11-15 13:14:18.653.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.777 (0.782) seconds
+Test Suite 'All tests' passed at 2026-11-15 13:14:18.653.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.777 (0.784) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
