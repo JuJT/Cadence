@@ -10,8 +10,8 @@ settings:
     SWIFT_VERSION: '5.0'
     IPHONEOS_DEPLOYMENT_TARGET: '17.0'
     TARGETED_DEVICE_FAMILY: '1,2'
-    MARKETING_VERSION: '0.1.1'
-    CURRENT_PROJECT_VERSION: '2'
+    MARKETING_VERSION: '0.2.0'
+    CURRENT_PROJECT_VERSION: '3'
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: minimal
     CODE_SIGN_STYLE: Automatic
@@ -108,13 +108,14 @@ targets:
     sources: *appSources
     dependencies:
       - package: CadenceCore
-      - target: CadenceWidgets
+      - target: CadenceKeychainWidgets
         embed: true
     settings:
       base:
         PRODUCT_NAME: Cadence
         PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) CADENCE_EXTENSIONS'
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) CADENCE_EXTENSIONS CADENCE_KEYCHAIN_SHARED'
+        CODE_SIGN_ENTITLEMENTS: Config/CadenceKeychain.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: Config/CadenceExtensions-Info.plist
@@ -187,6 +188,23 @@ targets:
       properties:
         <<: *widgetInfo
         CadenceAppGroupIdentifier: group.com.cadence.study
+  CadenceKeychainWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources: *widgetSources
+    settings:
+      base:
+        PRODUCT_NAME: CadenceWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.cadence.study.widgets
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) CADENCE_KEYCHAIN_SHARED'
+        CODE_SIGN_ENTITLEMENTS: Config/CadenceKeychain.entitlements
+        LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks'
+    info:
+      path: Config/CadenceKeychainWidgets-Info.plist
+      properties: *widgetInfo
   CadenceUITests:
     type: bundle.ui-testing
     platform: iOS

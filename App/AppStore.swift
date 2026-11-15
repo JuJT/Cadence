@@ -54,6 +54,9 @@ final class AppStore: ObservableObject {
                             end: start.addingTimeInterval(3600), subjectID: subject.id)
                     }
                 }
+                if ProcessInfo.processInfo.arguments.contains("--uitesting-showcase") {
+                    Self.populateShowcase(&initial)
+                }
                 self.state = initial
             } else {
                 self.state = try repository.load()
@@ -76,6 +79,40 @@ final class AppStore: ObservableObject {
             Task { @MainActor [weak self] in await self?.refreshCalendars() }
         }
     }
+
+    #if targetEnvironment(simulator)
+    /// Explicit XCTest fixture, never compiled into the iPhone executable.
+    private static func populateShowcase(_ state: inout CadenceState) {
+        let calendar = Calendar.current
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
+        let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? today
+        state.settings.calendarEnabled = true
+        state.settings.selectedCalendarIDs = ["showcase-calendar"]
+        state.settings.lastCalendarSync = now
+        let rows = [("Mathématiques", 8, 0, 60), ("Histoire-Géographie", 9, 0, 60),
+                    ("Français", 10, 15, 60), ("Physique-Chimie", 14, 0, 120), ("SVT", 16, 15, 60)]
+        for offset in 0...7 {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: weekStart) else { continue }
+            for (index, row) in rows.enumerated() {
+                guard let subject = state.subjects.first(where: { $0.name == row.0 }),
+                      let start = calendar.date(bySettingHour: row.1, minute: row.2, second: 0, of: day) else { continue }
+                state.occurrences.append(CourseOccurrence(calendarIdentifier: "showcase-calendar", eventIdentifier: "showcase-\(offset)-\(index)", calendarName: "Emploi du temps", title: row.0.uppercased() + " - GROUPE DE DÉMONSTRATION", start: start, end: start.addingTimeInterval(Double(row.3 * 60)), subjectID: subject.id))
+            }
+            if day < today, let subject = state.subjects.first {
+                let start = day.addingTimeInterval(9 * 3600)
+                let duration = Double([120, 155, 95, 180, 135, 75, 160][offset % 7] * 60)
+                state.sessions.append(StudySession(subjectID: subject.id, kind: .revision, origin: .manual, topic: "Présentation en simulateur", startedAt: start, endedAt: start.addingTimeInterval(duration), activeSegments: [TimeSegment(start: start, end: start.addingTimeInterval(duration))]))
+            }
+        }
+        if let maths = state.subjects.first, let french = state.subjects.first(where: { $0.name == "Français" }) {
+            let courseStart = now.addingTimeInterval(-260 * 60)
+            let revisionStart = now.addingTimeInterval(-75 * 60)
+            state.sessions.append(StudySession(subjectID: maths.id, kind: .course, origin: .manual, startedAt: courseStart, endedAt: revisionStart, activeSegments: [TimeSegment(start: courseStart, end: revisionStart)]))
+            state.sessions.append(StudySession(subjectID: french.id, kind: .revision, origin: .manual, topic: "Lecture", startedAt: revisionStart, endedAt: now, activeSegments: [TimeSegment(start: revisionStart, end: now)]))
+        }
+    }
+    #endif
 
     /// Valider et persister une copie AVANT de publier l'état à l'interface.
     @discardableResult

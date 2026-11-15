@@ -6,13 +6,11 @@ import WidgetKit
 struct CadenceWidgetBundle: WidgetBundle {
     var body: some Widget {
         TodayWidget()
+        WeekWidget()
+        NextCourseWidget()
+        AccessoryStudyWidget()
         SessionLiveActivity()
     }
-}
-
-struct TodayEntry: TimelineEntry {
-    let date: Date
-    let snapshot: WidgetSnapshot?
 }
 
 struct TodayProvider: TimelineProvider {
@@ -31,58 +29,11 @@ struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "CadenceAujourdHui", provider: TodayProvider()) { entry in
             TodayWidgetView(entry: entry)
-                .containerBackground(.background, for: .widget)
+                .containerBackground(for: .widget) { WidgetCanvas() }
         }
         .configurationDisplayName("Cadence aujourd’hui")
-        .description("Cours et révisions. Sans partage autorisé, ouvre simplement Cadence.")
+        .description("Vos durées de cours et de révision du jour, séparées des estimations.")
         .supportedFamilies([.systemSmall, .systemMedium])
-    }
-}
-
-struct TodayWidgetView: View {
-    let entry: TodayEntry
-    @Environment(\.widgetFamily) private var family
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Cadence", systemImage: "book.closed.fill")
-                .font(.headline).foregroundStyle(.blue).lineLimit(1).minimumScaleFactor(0.85)
-            if let value = entry.snapshot, Calendar.current.isDate(value.updatedAt, inSameDayAs: entry.date) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Cours · \(CompactDuration.text(value.courseMeasured))")
-                        Text("Estimés · \(CompactDuration.text(value.courseEstimated))").foregroundStyle(.secondary)
-                        Text("Révisions · \(CompactDuration.text(value.revisions))")
-                    }.lineLimit(1).minimumScaleFactor(0.85)
-                    if family == .systemMedium {
-                        Spacer(minLength: 12)
-                        VStack(alignment: .leading, spacing: 3) {
-                            if let subject = value.activeSubject {
-                                Text(value.isPaused ? "En pause" : "En cours").font(.caption).foregroundStyle(.secondary)
-                                Text(subject).font(.headline).lineLimit(2).minimumScaleFactor(0.85)
-                            } else if let course = value.nextCourseTitle, let start = value.nextCourseStart {
-                                Text("Prochain cours").font(.caption).foregroundStyle(.secondary)
-                                Text(course).lineLimit(2).minimumScaleFactor(0.85)
-                                Text(start, style: .time)
-                            }
-                        }.frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }.font(.caption)
-                Text("Actualisé à \(value.updatedAt.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.85)
-            } else {
-                Spacer(minLength: 0)
-                Text(family == .systemSmall ? "Vos cours et révisions" : "Retrouvez vos cours et vos révisions dans l’app.")
-                    .font(family == .systemSmall ? .subheadline : .body)
-                    .lineLimit(2).minimumScaleFactor(0.9)
-                Label("Ouvrir Cadence", systemImage: "arrow.up.right")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.blue)
-                    .lineLimit(1).minimumScaleFactor(0.85)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .widgetURL(URL(string: "cadence://accueil"))
-        .accessibilityElement(children: .combine)
     }
 }
 

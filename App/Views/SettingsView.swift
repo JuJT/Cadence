@@ -12,8 +12,16 @@ struct SettingsView: View {
     @State private var showImporter = false
     @State private var showRestoreConfirmation = false
     @State private var pendingRestore: Data?
+    @AppStorage("cadence.appearance") private var appearance = "system"
     var body: some View {
         List {
+            Section("Apparence") {
+                Picker("Ambiance", selection: $appearance) {
+                    Text("Système").tag("system")
+                    Text("Claire").tag("light")
+                    Text("Sombre").tag("dark")
+                }
+            }
             Section("Votre organisation") {
                 NavigationLink { CalendarSettingsView() } label: { Label("Calendriers et emploi du temps", systemImage: "calendar") }
                 NavigationLink { SubjectsView() } label: { Label("Matières et mots-clés", systemImage: "books.vertical") }
@@ -39,6 +47,7 @@ struct SettingsView: View {
             }
             Section { Text("Cadence · Atelier Liquid Glass\nDonnées locales · iOS 17 et versions ultérieures").font(.footnote).foregroundStyle(.secondary) }
         }
+        .cadenceListStyle()
         .navigationTitle("Réglages")
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fermer") { dismiss() } } }
         .fileExporter(isPresented: $showExporter, document: exportDocument, contentType: exportType, defaultFilename: exportName) { result in
@@ -142,6 +151,7 @@ struct CalendarSettingsView: View {
                 } footer: { Text("iOS ne garantit pas les actualisations en arrière-plan. Le planning est rapproché à la réouverture de Cadence.") }
             }
         }
+        .cadenceListStyle()
         .navigationTitle("Calendriers").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Terminé") { dismiss() } } }
         .onAppear { keywords = store.state.settings.excludedKeywords.joined(separator: ", ") }
@@ -180,7 +190,7 @@ struct SubjectsView: View {
                 }
             }
             Section { Text("Les mots-clés servent à proposer une matière lors d’un import. Si plusieurs matières correspondent, le cours reste à vérifier.").font(.footnote).foregroundStyle(.secondary) }
-        }.navigationTitle("Matières")
+        }.cadenceListStyle().navigationTitle("Matières")
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Nouvelle matière", systemImage: "plus") { showNew = true } } }
             .sheet(isPresented: $showNew) { NavigationStack { SubjectEditorView(subject: nil) } }
     }
@@ -213,7 +223,7 @@ private struct SubjectEditorView: View {
             }
             Section { TextField("Ex. MATH, Maths", text: $aliases, axis: .vertical).lineLimit(2...5) } header: { Text("Mots-clés du calendrier") } footer: { Text("Séparez les alias par une virgule. Le nom complet de la matière est également reconnu.") }
             if subject != nil { Section { Button("Supprimer la matière", role: .destructive) { confirmDelete = true } } footer: { Text("Une matière déjà utilisée sera archivée pour préserver son historique.") } }
-        }.navigationTitle(subject == nil ? "Nouvelle matière" : "Modifier la matière").navigationBarTitleDisplayMode(.inline)
+        }.cadenceListStyle().navigationTitle(subject == nil ? "Nouvelle matière" : "Modifier la matière").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if subject == nil { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } } }
                 ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { save() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
@@ -250,6 +260,6 @@ private struct IntegrationsHelpView: View {
             Section("Signature gratuite") {
                 Text("Une installation avec un Apple ID gratuit doit généralement être renouvelée après sept jours. Gardez le même identifiant d’app et sauvegardez vos données avant toute réinstallation.")
             }
-        }.navigationTitle("Intégrations").navigationBarTitleDisplayMode(.inline)
+        }.cadenceListStyle().navigationTitle("Intégrations").navigationBarTitleDisplayMode(.inline)
     }
 }

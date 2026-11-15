@@ -4,7 +4,7 @@ final class CadenceUITests: XCTestCase {
     @MainActor
     func testCourseDateNavigationAndSubjectNames() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--uitesting-courses"]
+        app.launchArguments = testArguments(["--uitesting-courses"])
         app.launch()
         app.tabBars.buttons["Cours"].tap()
         let previous = app.buttons["courses.previous"]
@@ -33,14 +33,13 @@ final class CadenceUITests: XCTestCase {
     @MainActor
     func testNewSessionSheetAndCancellation() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        app.launchArguments = testArguments()
         app.launch()
         let choice = app.buttons["session.new"]
-        XCTAssertTrue(choice.waitForExistence(timeout: 5))
-        choice.tap()
+        tap(choice, in: app)
         let revision = app.buttons["session.choose.revision"]
         XCTAssertTrue(revision.waitForExistence(timeout: 4))
-        XCTAssertGreaterThan(revision.frame.midY, app.windows.firstMatch.frame.height * 0.4)
+        XCTAssertTrue(revision.isHittable)
         // Une feuille contient le choix ; aucune bulle de confirmation ancrée.
         XCTAssertEqual(app.alerts.count, 0)
         capture(app, name: "nouvelle-seance-feuille")
@@ -52,23 +51,23 @@ final class CadenceUITests: XCTestCase {
             return
         }
         capture(app, name: "nouvelle-seance-formulaire")
-        start.tap()
+        tap(start, in: app)
         XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
-        app.buttons["session.finish"].tap()
+        tap(app.buttons["session.finish"], in: app)
         let confirmation = app.alerts.firstMatch
         XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
         capture(app, name: "terminer-seance-alerte")
         confirmation.buttons["Annuler"].tap()
         XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 3))
-        app.buttons["session.finish"].tap()
+        tap(app.buttons["session.finish"], in: app)
         app.alerts.buttons["Terminer et enregistrer"].tap()
-        XCTAssertTrue(app.buttons["session.start"].waitForExistence(timeout: 4))
+        XCTAssertTrue(reveal(app.buttons["session.start"], in: app))
     }
 
     @MainActor
     func testIPadLandscapeLayout() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        app.launchArguments = testArguments()
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
         app.launch()
@@ -84,7 +83,7 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(courses.waitForExistence(timeout: 8))
         captureIPad(app, name: "ipad-accueil-paysage")
         courses.tap()
-        XCTAssertTrue(app.navigationBars["Cours"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.navigationBars["Emploi du temps"].waitForExistence(timeout: 4))
         captureIPad(app, name: "ipad-cours-paysage")
         let statistics = app.buttons["Statistiques"].firstMatch
         XCTAssertTrue(statistics.waitForExistence(timeout: 4))
@@ -97,7 +96,7 @@ final class CadenceUITests: XCTestCase {
     func testDarkStatistics() throws {
         // La CI applique le mode sombre au simulateur avant ce test séparé.
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        app.launchArguments = testArguments()
         app.launch()
         let stats = app.tabBars.buttons["Statistiques"]
         XCTAssertTrue(stats.waitForExistence(timeout: 8))
@@ -109,7 +108,7 @@ final class CadenceUITests: XCTestCase {
     @MainActor
     func testManualNavigationWithoutCalendarPermission() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting"]
+        app.launchArguments = testArguments()
         app.launch()
         let continueButton = app.buttons["Continuer"]
         if continueButton.waitForExistence(timeout: 8) {
@@ -122,35 +121,166 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(tabs.buttons["Cours"].waitForExistence(timeout: 8))
         capture(app, name: "accueil-clair")
         tabs.buttons["Cours"].tap()
-        XCTAssertTrue(app.navigationBars["Cours"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Emploi du temps"].waitForExistence(timeout: 3))
         capture(app, name: "cours-clair")
         tabs.buttons["Révision"].tap()
         XCTAssertTrue(app.navigationBars["Révision"].waitForExistence(timeout: 3))
         capture(app, name: "revision-clair")
         let start = app.buttons["session.start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 3))
-        start.tap()
+        tap(start, in: app)
         let pause = app.buttons["session.pause"]
         XCTAssertTrue(pause.waitForExistence(timeout: 3))
-        pause.tap()
+        tap(pause, in: app)
         let resume = app.buttons["session.resume"]
         XCTAssertTrue(resume.waitForExistence(timeout: 3))
-        resume.tap()
+        tap(resume, in: app)
         XCTAssertTrue(pause.waitForExistence(timeout: 3))
+        scrollToTop(app)
         capture(app, name: "revision-active")
-        app.buttons["session.finish"].tap()
+        tap(app.buttons["session.finish"], in: app)
         let finish = app.buttons["Terminer et enregistrer"]
         XCTAssertTrue(finish.waitForExistence(timeout: 3))
         finish.tap()
-        XCTAssertTrue(start.waitForExistence(timeout: 3))
+        XCTAssertTrue(reveal(start, in: app))
         tabs.buttons["Statistiques"].tap()
         XCTAssertTrue(app.navigationBars["Statistiques"].waitForExistence(timeout: 3))
         capture(app, name: "statistiques-clair")
     }
 
     @MainActor
+    func testShowcaseDesign() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-showcase"])
+        app.launch()
+        let tabs = app.tabBars
+        XCTAssertTrue(tabs.buttons["Cours"].waitForExistence(timeout: 8))
+        let context = XCTAttachment(string: "Captures natives du simulateur, avec les données fictives isolées de --uitesting-showcase. Les chiffres sont calculés par les mêmes vues et le même moteur que l’app. Aucune donnée de démonstration sur appareil physique.")
+        context.name = "vitrine-contexte"
+        context.lifetime = .keepAlways
+        add(context)
+        capture(app, name: "vitrine-accueil")
+
+        tabs.buttons["Cours"].tap()
+        XCTAssertTrue(app.navigationBars["Emploi du temps"].waitForExistence(timeout: 4))
+        app.segmentedControls.buttons["Jour"].tap()
+        tap(app.buttons["courses.next"], in: app)
+        XCTAssertTrue(app.staticTexts["Mathématiques"].firstMatch.waitForExistence(timeout: 4))
+        capture(app, name: "vitrine-emploi-du-temps")
+
+        tabs.buttons["Révision"].tap()
+        tap(app.buttons["session.start"], in: app)
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        scrollToTop(app)
+        capture(app, name: "vitrine-revision-active")
+
+        tabs.buttons["Statistiques"].tap()
+        XCTAssertTrue(app.navigationBars["Statistiques"].waitForExistence(timeout: 4))
+        capture(app, name: "vitrine-statistiques")
+
+        tabs.buttons["Révision"].tap()
+        tap(app.buttons["session.finish"], in: app)
+        let finish = app.alerts.buttons["Terminer et enregistrer"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 4))
+        finish.tap()
+        XCTAssertTrue(reveal(app.buttons["session.start"], in: app))
+    }
+
+    @MainActor
+    func testLargeTextSessionControls() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments([
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"
+        ])
+        app.launch()
+        let revisionTab = app.tabBars.buttons["Révision"]
+        XCTAssertTrue(revisionTab.waitForExistence(timeout: 8))
+        revisionTab.tap()
+        tap(app.buttons["session.start"], in: app)
+        tap(app.buttons["session.pause"], in: app)
+        XCTAssertTrue(app.buttons["session.resume"].waitForExistence(timeout: 4))
+        scrollToTop(app)
+        capture(app, name: "accessibilite-grand-texte")
+        tap(app.buttons["session.resume"], in: app)
+        tap(app.buttons["session.finish"], in: app)
+        let finish = app.alerts.buttons["Terminer et enregistrer"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 4))
+        finish.tap()
+        XCTAssertTrue(reveal(app.buttons["session.start"], in: app))
+    }
+
+    @MainActor
+    func testWidgetDesignPreview() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-widget-preview"])
+        app.launch()
+        let preview = app.descendants(matching: .any).matching(identifier: "widget.preview.screen").firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 8))
+        let context = XCTAttachment(string: "Aperçu SwiftUI natif des composants réels des widgets sur simulateur. Ce scénario ne représente pas l’écran d’accueil système de WidgetKit et ne valide pas les droits de partage de données sur un iPhone signé.")
+        context.name = "widgets-apercu-contexte"
+        context.lifetime = .keepAlways
+        add(context)
+        capture(app, name: "widgets-apercu-simulateur-haut")
+        let surface = scrollingSurface(in: app)
+        XCTAssertTrue(surface.exists)
+        if surface.exists { surface.swipeUp() }
+        capture(app, name: "widgets-apercu-simulateur-bas")
+    }
+
+    private func testArguments(_ extra: [String] = []) -> [String] {
+        ["--uitesting", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"] + extra
+    }
+
+    @MainActor
+    private func tap(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        guard reveal(element, in: app) else {
+            XCTFail("L’action doit rester accessible après défilement.", file: file, line: line)
+            return
+        }
+        element.tap()
+    }
+
+    @MainActor
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        _ = element.waitForExistence(timeout: 3)
+        let surface = scrollingSurface(in: app)
+        for _ in 0..<10 {
+            if isVisibleForTap(element, in: app) { return true }
+            guard surface.exists else { return false }
+            if element.exists && element.frame.midY < surface.frame.minY + 30 {
+                surface.swipeDown()
+            } else {
+                surface.swipeUp()
+            }
+        }
+        return isVisibleForTap(element, in: app)
+    }
+
+    @MainActor
+    private func isVisibleForTap(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        guard element.exists, element.isHittable else { return false }
+        let tabs = app.tabBars.firstMatch
+        // Un contrôle peut exister alors que son centre reste sous la barre flottante.
+        return !tabs.exists || element.frame.midY < tabs.frame.minY
+    }
+
+    @MainActor
+    private func scrollingSurface(in app: XCUIApplication) -> XCUIElement {
+        if app.scrollViews.firstMatch.exists { return app.scrollViews.firstMatch }
+        if app.collectionViews.firstMatch.exists { return app.collectionViews.firstMatch }
+        return app.tables.firstMatch
+    }
+
+    @MainActor
+    private func scrollToTop(_ app: XCUIApplication) {
+        let surface = scrollingSurface(in: app)
+        guard surface.exists else { return }
+        for _ in 0..<3 { surface.swipeDown() }
+    }
+
+    @MainActor
     private func capture(_ app: XCUIApplication, name: String) {
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        // Capture the complete native display, including presentation safe areas.
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = name
         screenshot.lifetime = .keepAlways
         add(screenshot)

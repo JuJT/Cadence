@@ -30,9 +30,10 @@ struct CoursesView: View {
         Set(occurrences.map { Calendar.current.startOfDay(for: $0.start) } + manualSessions.map { Calendar.current.startOfDay(for: $0.startedAt) }).sorted()
     }
     var body: some View {
-        List {
-            Section {
-                Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }.pickerStyle(.segmented)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 20) {
+                Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }
+                    .pickerStyle(.segmented).cadenceSegmentedStyle()
                 if mode != "Liste" {
                     HStack {
                         Button { shift(-1) } label: {
@@ -51,38 +52,50 @@ struct CoursesView: View {
                         .buttonStyle(.borderless)
                         .accessibilityLabel(mode == "Semaine" ? "Semaine suivante" : "Jour suivant")
                         .accessibilityIdentifier("courses.next")
-                    }
+                    }.padding(6).cadenceSurface(radius: 28)
                 }
-            }.listRowBackground(Color.clear)
             if days.isEmpty {
-                EmptyCard(title: "Aucun cours ici", symbol: "calendar", description: "Ajoutez un cours manuel ou choisissez les calendriers de votre emploi du temps.").listRowBackground(Color.clear)
+                EmptyCard(title: "Votre semaine se dessine ici", symbol: "calendar", description: "Liez votre emploi du temps ou ajoutez un cours pour retrouver votre journée, en un regard.")
             }
             ForEach(days, id: \.self) { day in
-                Section(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_FR")))) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_FR"))))
+                        .font(.headline).foregroundStyle(CadenceColors.ink)
                     ForEach(occurrences.filter { Calendar.current.isDate($0.start, inSameDayAs: day) }) { occurrence in
-                        NavigationLink { CourseDetailView(occurrenceID: occurrence.id) } label: { CourseRow(occurrence: occurrence) }
+                        HStack(alignment: .top, spacing: 10) {
+                            Text(occurrence.start.cadenceFormatted(date: .omitted, time: .shortened))
+                                .font(.caption.monospacedDigit()).foregroundStyle(CadenceColors.secondary)
+                                .frame(width: 43, alignment: .leading).padding(.top, 16)
+                            NavigationLink { CourseDetailView(occurrenceID: occurrence.id) } label: { CourseRow(occurrence: occurrence) }
+                                .buttonStyle(.plain)
+                        }
                     }
                     ForEach(manualSessions.filter { Calendar.current.isDate($0.startedAt, inSameDayAs: day) }) { session in
-                        NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session) }
+                        NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session).padding(12).cadenceSurface(radius: 18) }
+                            .buttonStyle(.plain)
                     }
-                }
+                }.padding(16).cadenceSurface()
             }
-            Section {
                 Button { showCalendar = true } label: {
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "calendar.badge.clock").font(.title2).foregroundStyle(Atelier.blue)
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(store.state.settings.calendarEnabled ? "Calendriers liés" : "Lier mon emploi du temps").font(.headline).foregroundStyle(.primary)
-                            Text(store.lastSyncAt.map { "Actualisé " + $0.cadenceFormatted(date: .abbreviated, time: .shortened) } ?? "Apple et Google déjà synchronisé sur l’iPhone")
+                            Text(store.state.settings.calendarEnabled ? "Cours synchronisés" : "Lier mon emploi du temps").font(.headline).foregroundStyle(CadenceColors.ink)
+                            Text(store.lastSyncAt.map { "Calendrier Apple · " + $0.cadenceFormatted(date: .omitted, time: .shortened) } ?? "Vos calendriers Apple et Google sur l’iPhone")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        Spacer(); Image(systemName: "chevron.right").foregroundStyle(.secondary)
-                    }.padding(.vertical, 6)
-                }
-                Text("Les cours à venir ne comptent pas dans vos durées. Les estimations restent séparées des séances mesurées ou confirmées.").font(.footnote).foregroundStyle(.secondary)
-            }
-        }
-        .navigationTitle("Cours")
+                        Spacer(minLength: 0)
+                        Image(systemName: store.state.settings.calendarEnabled ? "checkmark.circle.fill" : "chevron.right")
+                            .foregroundStyle(store.state.settings.calendarEnabled ? CadenceColors.positive : CadenceColors.secondary)
+                    }.padding(17).cadenceSurface()
+                }.buttonStyle(.plain)
+                SecondaryAction(title: "Ajouter un cours", symbol: "plus") { showNew = true }.accessibilityIdentifier("courses.add")
+                Text("Les cours à venir ne comptent pas dans vos durées. Les estimations restent séparées du temps mesuré.")
+                    .font(.caption).foregroundStyle(CadenceColors.secondary).padding(.horizontal, 4)
+            }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 24)
+                .frame(maxWidth: CadenceTheme.contentWidth).frame(maxWidth: .infinity)
+        }.background(CadenceBackground())
+        .navigationTitle("Emploi du temps")
         .searchable(text: $search, prompt: "Rechercher un cours")
         .refreshable { await store.refreshCalendars() }
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Ajouter un cours", systemImage: "plus") { showNew = true } } }
@@ -103,15 +116,17 @@ struct CourseRow: View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 3).fill(Color(cadenceHex: Atelier.subject(occurrence.subjectID, in: store.state)?.colorHex ?? "#2776F8")).frame(width: 4)
             VStack(alignment: .leading, spacing: 5) {
-                Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline)
+                Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline).foregroundStyle(CadenceColors.ink)
                 Text(occurrence.start.cadenceFormatted(date: .omitted, time: .shortened) + " – " + occurrence.end.cadenceFormatted(date: .omitted, time: .shortened))
                     .font(.subheadline).foregroundStyle(.secondary)
-                Label(occurrence.calendarName, systemImage: "calendar").font(.caption).foregroundStyle(.secondary)
+                Label(occurrence.calendarName, systemImage: "calendar").font(.caption2).foregroundStyle(CadenceColors.secondary).lineLimit(1)
                 if occurrence.sourceMissing { Label("N’apparaît plus dans le calendrier", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange) }
             }
             Spacer(minLength: 0)
             StatusBadge(title: occurrence.status.label, color: occurrence.status == .needsReview ? .orange : Atelier.blue)
-        }.padding(.vertical, 5).fixedSize(horizontal: false, vertical: true)
+        }.padding(12).fixedSize(horizontal: false, vertical: true)
+            .background(LinearGradient(colors: [Atelier.blue.opacity(0.10), Atelier.ice.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 17).strokeBorder(Atelier.ice.opacity(0.35), lineWidth: 0.75) }
     }
 }
 

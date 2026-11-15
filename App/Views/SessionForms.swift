@@ -65,6 +65,7 @@ struct NewSessionView: View {
             if !timer { Section("Notes (facultatif)") { TextEditor(text: $notes).frame(minHeight: 100).accessibilityLabel("Notes de séance") } }
             if timer && store.state.activeSession != nil { Section { Label("Une séance est déjà active. Terminez-la avant d’en démarrer une nouvelle.", systemImage: "exclamationmark.circle").foregroundStyle(.orange) } }
         }
+        .cadenceListStyle()
         .navigationTitle(kind.label).navigationBarTitleDisplayMode(.inline)
         .onAppear { subjectID = store.state.settings.defaultSubjectID ?? store.state.subjects.first(where: { !$0.isArchived })?.id }
         .onChange(of: kind) { _, _ in occurrenceID = nil }
@@ -143,6 +144,7 @@ struct SessionEditorView: View {
             Section { LabeledContent("Provenance", value: session.origin.label); if session.linkedOccurrenceID != nil { Label("Associée à un cours du calendrier", systemImage: "link") } }
             if !isActive { Section { Button("Supprimer la séance", role: .destructive) { deleteConfirmation = true } } }
         }
+        .cadenceListStyle()
         .navigationTitle("Modifier la séance").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { if hasNewOverlap { overlapConfirmation = true } else { save(allowOverlap: false) } }.disabled(subjectID == nil || (!isActive && (!minutes.isFinite || minutes < 0 || minutes > 1440 || start.addingTimeInterval(minutes * 60) > .now))) } }
         .alert("Supprimer définitivement cette séance ?", isPresented: $deleteConfirmation) {
@@ -184,6 +186,6 @@ struct HistoryView: View {
             Section { Picker("Type", selection: $kind) { Text("Tout").tag(nil as SessionKind?); Text("Cours").tag(Optional(SessionKind.course)); Text("Révisions").tag(Optional(SessionKind.revision)) }.pickerStyle(.segmented) }
             if sessions.isEmpty { EmptyCard(title: "Aucune séance", symbol: "clock.arrow.circlepath", description: "Vos séances enregistrées apparaîtront ici.") }
             ForEach(sessions) { session in NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session) } }
-        }.navigationTitle("Historique").searchable(text: $search, prompt: "Matière, chapitre ou notes")
+        }.cadenceListStyle().navigationTitle("Historique").searchable(text: $search, prompt: "Matière, chapitre ou notes")
     }
 }

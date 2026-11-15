@@ -9,6 +9,7 @@ import json
 import plistlib
 import struct
 import zipfile
+from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
 
 def signed_entitlements(executable):
@@ -54,8 +55,32 @@ def profile_contents(data):
 def selected_entitlements(values):
     if values is None:
         return None
-    return {key: values.get(key) for key in (
-        'application-identifier', 'com.apple.security.application-groups', 'get-task-allow') if key in values}
+    selected = {key: values.get(key) for key in (
+        'com.apple.security.application-groups', 'get-task-allow') if key in values}
+    if 'application-identifier' in values:
+        selected['application-identifier'] = 'présent (identifiant masqué)'
+    if 'keychain-access-groups' in values:
+        selected['keychain-access-groups'] = [
+            'groupe de résumé Cadence' if item.endswith('.com.cadence.study.widget-summary')
+            else 'autre groupe (identifiant masqué)' for item in values['keychain-access-groups']]
+    return selected
+
+
+def keychain_sharing_check(signed_values, profile_values):
+    """Compare actual signature/profile groups without printing identities or profiles."""
+    groups = [{item for item in (values or {}).get('keychain-access-groups', [])
+               if item.endswith('.com.cadence.study.widget-summary')} for values in signed_values]
+    common = set.intersection(*groups) if groups else set()
+    template = any(item.startswith('UNSIGNED00.') for group in groups for item in group)
+    allowed = bool(common) and len(profile_values) == len(groups) and any(
+        all(any(fnmatchcase(item, pattern) for pattern in (profile or {}).get('keychain-access-groups', []))
+            for profile in profile_values) for item in common)
+    return {'extensionAndAppPresent': len(groups) >= 2,
+            'commonCadenceGroupInExecutableSignatures': bool(common) and len(groups) >= 2,
+            'templateMetadataOnly': template,
+            'commonGroupPermittedByEveryProfile': allowed,
+            'readyForPhysicalReadTest': len(groups) >= 2 and bool(common) and allowed and not template,
+            'note': 'Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation.'}
 
 def inspect(ipa):
     with zipfile.ZipFile(ipa) as archive:
@@ -66,12 +91,16 @@ def inspect(ipa):
         if not roots:
             raise ValueError('Aucun bundle app dans cet IPA.')
         bundles = []
+        signature_values = []
+        profile_values = []
         for root in roots:
             info = plistlib.loads(archive.read(root + '/Info.plist'))
             executable_path = root + '/' + info['CFBundleExecutable']
             entitlement_values = signed_entitlements(archive.read(executable_path))
             profile_path = root + '/embedded.mobileprovision'
             profile = profile_contents(archive.read(profile_path)) if profile_path in names else None
+            signature_values.append(entitlement_values)
+            profile_values.append((profile or {}).get('Entitlements'))
             signed_groups = (entitlement_values or {}).get('com.apple.security.application-groups', [])
             provisioned_groups = (profile or {}).get('Entitlements', {}).get('com.apple.security.application-groups', [])
             warnings = []
@@ -89,6 +118,7 @@ def inspect(ipa):
                             'warnings': warnings})
         return {'ipa': Path(ipa).name, 'bundles': bundles,
                 'extensionCount': sum('.appex' in bundle['path'] for bundle in bundles),
+                'keychainSharing': keychain_sharing_check(signature_values, profile_values),
                 'signatureCryptographicallyVerified': False,
                 'hardwareValidation': 'NON EFFECTUÉE'}
 

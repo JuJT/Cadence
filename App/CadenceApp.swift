@@ -10,6 +10,17 @@ struct CadenceApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if targetEnvironment(simulator)
+            if ProcessInfo.processInfo.arguments.contains("--uitesting-widget-preview") {
+                WidgetDesignPreviewScreen().environment(\.locale, Locale(identifier: "fr_FR"))
+            } else { mainContent }
+            #else
+            mainContent
+            #endif
+        }
+    }
+
+    @ViewBuilder private var mainContent: some View {
             #if CADENCE_SPIKE
             SpikeView()
                 .environmentObject(store)
@@ -38,6 +49,5 @@ struct CadenceApp: App {
                     if phase == .active { Task { await store.foreground() } }
                 }
             #endif
-        }
     }
 }

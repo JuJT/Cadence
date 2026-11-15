@@ -17,6 +17,7 @@ struct RootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selected: CadenceSection = .accueil
     @State private var showSettings = false
+    @AppStorage("cadence.appearance") private var appearance = "system"
     var body: some View {
         Group {
             if horizontalSizeClass == .regular {
@@ -29,7 +30,7 @@ struct RootView: View {
                             }.listRowBackground(selected == section ? Atelier.blue.opacity(0.1) : Color.clear)
                         }
                         Button { showSettings = true } label: { Label("Réglages", systemImage: "gearshape") }
-                    }.navigationTitle("Cadence")
+                    }.navigationTitle("Cadence").cadenceListStyle()
                 } detail: { navigation(selected) }
             } else {
                 TabView(selection: $selected) {
@@ -39,7 +40,9 @@ struct RootView: View {
                 }
             }
         }
+        .background(CadenceBackground())
         .tint(Atelier.blue)
+        .preferredColorScheme(appearance == "light" ? .light : appearance == "dark" ? .dark : nil)
         .environment(\.locale, Locale(identifier: "fr_FR"))
         .sheet(isPresented: $showSettings) { NavigationStack { SettingsView() } }
         .fullScreenCover(isPresented: Binding(get: { !store.needsRecovery && !store.state.settings.onboardingCompleted }, set: { _ in })) {
@@ -66,7 +69,17 @@ struct RootView: View {
                 case .statistiques: StatisticsView()
                 }
             }
+            .background(CadenceBackground())
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
+                if section == .accueil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        HStack(spacing: 7) {
+                            Image("CadenceMark").resizable().frame(width: 24, height: 24).clipShape(RoundedRectangle(cornerRadius: 7)).accessibilityHidden(true)
+                            Text("Cadence").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
+                        }.accessibilityElement(children: .combine)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Réglages", systemImage: "gearshape") { showSettings = true }
                 }

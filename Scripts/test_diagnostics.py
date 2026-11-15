@@ -5,7 +5,8 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from inspect_ipa import inspect, signed_entitlements
+from inspect_ipa import inspect, signed_entitlements, keychain_sharing_check, selected_entitlements
+from prepare_signing_intent import prepare
 from collect_test_screenshots import collect
 
 
@@ -56,6 +57,23 @@ class DiagnosticTests(unittest.TestCase):
 
     def test_non_macho_never_claims_empty_valid_signature(self):
         self.assertIsNone(signed_entitlements(b'not-an-executable'))
+
+    def test_keychain_template_is_preserved_but_never_installable(self):
+        source = plistlib.dumps({'keychain-access-groups': ['$(AppIdentifierPrefix)com.cadence.study.widget-summary']})
+        template = prepare(source)
+        check = keychain_sharing_check([template, template], [None, None])
+        self.assertTrue(check['commonCadenceGroupInExecutableSignatures'])
+        self.assertTrue(check['templateMetadataOnly'])
+        self.assertFalse(check['readyForPhysicalReadTest'])
+
+    def test_re_signed_common_group_requires_every_profile_permission(self):
+        entitlements = {'keychain-access-groups': ['PRIVATEID1.com.cadence.study.widget-summary']}
+        permitted = {'keychain-access-groups': ['PRIVATEID1.*']}
+        denied = {'keychain-access-groups': ['OTHERTEAM.*']}
+        self.assertTrue(keychain_sharing_check([entitlements, entitlements], [permitted, permitted])['readyForPhysicalReadTest'])
+        self.assertFalse(keychain_sharing_check([entitlements, entitlements], [permitted, denied])['readyForPhysicalReadTest'])
+        self.assertFalse(keychain_sharing_check([entitlements, {'keychain-access-groups': ['OTHERTEAM.com.cadence.study.widget-summary']}], [permitted, permitted])['readyForPhysicalReadTest'])
+        self.assertNotIn('PRIVATEID1', str(selected_entitlements(entitlements)))
 
 
 if __name__ == '__main__':
