@@ -1,0 +1,27 @@
+{
+  "screenshots": [
+    {
+      "label": "ipad-statistiques-paysage_0_F4345474-A468-4551-A47B-CB75DF6866A6.png",
+      "source": "ipad/ADD4C91E-837C-4E67-9433-711FE0F33570.png",
+      "manifest": "ipad/manifest.json",
+      "output": "ipad/ipad-statistiques-paysage_0_f4345474-a468-4551-a47b-cb75df6866a6.png",
+      "sha256": "d30acaa4843d4d6eacdc93881dd8bb0f14c3159ef490fa1fa5ac3850b288459f"
+    },
+    {
+      "label": "ipad-cours-paysage_0_4C96458C-DF1E-46F7-9585-866F2D5B1997.png",
+      "source": "ipad/570AD73D-59C2-4B4F-8B05-C3FE6ADD99AB.png",
+      "manifest": "ipad/manifest.json",
+      "output": "ipad/ipad-cours-paysage_0_4c96458c-df1e-46f7-9585-866f2d5b1997.png",
+      "sha256": "bd59ca21c3ee0f904ab22a54d84ac22a9103d1e8afffd93ac31b066463266b70"
+    },
+    {
+      "label": "ipad-accueil-paysage_0_498882DA-EFA5-4AF6-A67B-E45B29BDC58F.png",
+      "source": "ipad/43192C78-BD85-45A3-A772-C212AAD14B8C.png",
+      "manifest": "ipad/manifest.json",
+      "output": "ipad/ipad-accueil-paysage_0_498882da-efa5-4af6-a67b-e45b29bdc58f.png",
+      "sha256": "bc0fa8db0a1b5663b5db8f32724150c4b859aeca0a913ea571d122aae8ff90c7"
+    }
+  ],
+  "warnings": [],
+  "provenance": "pièces jointes XCTest réellement exportées; fichiers copiés sans modification"
+}

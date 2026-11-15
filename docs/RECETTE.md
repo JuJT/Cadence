@@ -14,9 +14,9 @@ Les tests matériels restent « À faire » tant qu’un retour utilisateur ou u
 | Noyau | Alias ambigus / titre révision | À vérifier / non importé comme cours | Voir VERIFICATION.md |
 | Noyau | 60 min estimées puis mesure liée 45 min | 45 min mesurées et zéro estimation | Voir VERIFICATION.md |
 | Noyau | Événement supprimé, séance conservée | Notes et durée maintenues | Voir VERIFICATION.md |
-| CI | Compilation device et inventaire IPA | App arm64 et extension selon variante | Non exécuté |
-| Simulateur | Onboarding sans Calendrier et navigation | Cours, Révision, Statistiques accessibles | Non exécuté |
-| Simulateur | Captures natives | Images provenant de simctl / XCTest | Non exécuté |
+| CI | Compilation device et inventaire IPA | App arm64 et extension selon variante | Réussi : quatre IPA |
+| Simulateur iPhone | Navigation et minuteur sans Calendrier | Démarrer, pause, reprise, fin ; trois onglets accessibles | Réussi |
+| Simulateurs | Captures natives | Images XCTest en clair/sombre et iPad paysage | Neuf images contrôlées |
 | iPhone | Refuser Calendrier | Création manuelle entièrement utilisable | À faire |
 | iPhone | Choisir calendrier Google visible dans Apple | Import sans connexion Google supplémentaire | À faire |
 | iPhone | App fermée pendant session / pause | Restauration correcte | À faire |
@@ -24,7 +24,7 @@ Les tests matériels restent « À faire » tant qu’un retour utilisateur ou u
 | iPhone | Raccourcis : démarrer, pause, reprendre, fin, totaux | Actions visibles, retours réels | À faire |
 | iPhone | Renouveler par-dessus l’app | Données conservées | À faire |
 | iPhone/iPad | Sombre, gros texte, réduire transparence/mouvement | Commandes lisibles et accessibles | À faire |
-| iPad | Vue en colonnes et rotation | Contenu adapté | À faire |
+| Simulateur iPad | Vue en colonnes et rotation | Navigation en paysage | Réussi ; installation physique à faire |
 | iPad MDM | Installation autorisée par l’établissement | Dépend du MDM | Non garanti |
 | Watch | Live Activity relayée dans Smart Stack | Dépend de watchOS et de la signature | À faire |
 

@@ -9,7 +9,11 @@
     "executed": 3,
     "passed": 3
   },
+  "screenshotManifestPythonTests": {
+    "executed": 3,
+    "passed": 3
+  },
   "swiftCoreTestsLocal": "Non exécutés : WSL ERROR_TIMEOUT avant démarrage du compilateur",
-  "xcodeCompilation": "En attente de GitHub Actions",
+  "scope": "Vérifications locales uniquement ; résultats Xcode dans docs/VERIFICATION.md",
   "physicalDeviceTests": "Non exécutés"
 }

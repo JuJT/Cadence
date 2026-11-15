@@ -1,0 +1,101 @@
+{
+  "livraison": "2026-11-15",
+  "compilation": "2026-11-14",
+  "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295",
+  "commit": "6728b57416f0ac74296f70278c35d6e7bbca1551",
+  "conclusion": "success",
+  "xcode": "Xcode 26.6\nBuild version 17F113",
+  "tests": {
+    "metierSwift": 34,
+    "scriptsPython": 6,
+    "parcoursXCTest": 3
+  },
+  "capturesXCTest": 9,
+  "ipas": [
+    {
+      "fichier": "CadenceSpike-unsigned.ipa",
+      "sha256": "da4de4791fe3546c4f5397bfcd24c5be2691b82121f8bf63596b1e0e20535645",
+      "octets": 1029340,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ]
+    },
+    {
+      "fichier": "Cadence-unsigned.ipa",
+      "sha256": "bdf11976049ade38b17a0482e0157716daed74330dec035f993476a39b43e180",
+      "octets": 975114,
+      "extensions": []
+    },
+    {
+      "fichier": "CadenceExtensions-unsigned.ipa",
+      "sha256": "e6acf49c4b86af61c9e33f725037f104171ffaabf76d2a6ee6751c28e71a5eb4",
+      "octets": 1061340,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ]
+    },
+    {
+      "fichier": "CadenceShared-unsigned.ipa",
+      "sha256": "b684b62eb8f998abc182748517c201425d3a9ae84ab47f36c4786a09054727a3",
+      "octets": 1064312,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ]
+    }
+  ],
+  "signature": "IPA non signés ; signature gratuite et installation physiques non vérifiées",
+  "installationIPhone": "non effectuée",
+  "controleCaptureIPad": {
+    "conclusion": "success",
+    "headSha": "7ad026fa4dee56106bd4ed17ff8b682a879fce5f",
+    "status": "completed",
+    "url": "https://github.com/JuJT/Cadence/actions/runs/43703459552"
+  },
+  "capturesLivrees": [
+    {
+      "fichier": "accueil-clair.png",
+      "sha256": "84d4a9368ff07a86383b3e21c174a3e3ba82cf59535dbbfadc4a64c349887a75",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295"
+    },
+    {
+      "fichier": "cours-clair.png",
+      "sha256": "5e07e26a5243e75140b448520f34e9d4ccaa0daa1ed4e78bcb05313060e0a831",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295"
+    },
+    {
+      "fichier": "ipad-accueil-paysage.png",
+      "sha256": "bc0fa8db0a1b5663b5db8f32724150c4b859aeca0a913ea571d122aae8ff90c7",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43703459552"
+    },
+    {
+      "fichier": "ipad-cours-paysage.png",
+      "sha256": "bd59ca21c3ee0f904ab22a54d84ac22a9103d1e8afffd93ac31b066463266b70",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43703459552"
+    },
+    {
+      "fichier": "ipad-statistiques-paysage.png",
+      "sha256": "d30acaa4843d4d6eacdc93881dd8bb0f14c3159ef490fa1fa5ac3850b288459f",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43703459552"
+    },
+    {
+      "fichier": "revision-active.png",
+      "sha256": "eac1766d84578e1b04de05aeb77b9e677c70971ce08451c9255c2be2cc63e4d2",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295"
+    },
+    {
+      "fichier": "revision-clair.png",
+      "sha256": "1437bff43c3d5b8972fe2183cf7dad510d777d3ab439917a0b521c54421ac77c",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295"
+    },
+    {
+      "fichier": "statistiques-clair.png",
+      "sha256": "279ac43c0b6fea6485c490f3f444f6b2dcad547266a971a46fe6e47956144a32",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295"
+    },
+    {
+      "fichier": "statistiques-sombre.png",
+      "sha256": "7668e7a9d520101b2844b2ab6c6cdcf039acb79247e03d98b10cba99a191675b",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43613409295"
+    }
+  ]
+}

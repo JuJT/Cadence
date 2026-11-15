@@ -1,0 +1,1 @@
+Test iPad paysage exécuté sur 9D5EE149-46EF-4BB8-93BB-086C5748FD94. Captures nommées par XCTest, sans navigation URL externe.

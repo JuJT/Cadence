@@ -2,7 +2,7 @@
 
 Application native SwiftUI iPhone/iPad, interface française, iOS 17 minimum. Cours et révisions séparés, données locales, intégration Calendrier en lecture uniquement, sans serveur ni compte applicatif.
 
-**Statut de cette livraison : sources réalisées, vérifications syntaxiques locales et trois tests de diagnostic réussis. La compilation iOS sur Xcode, le simulateur et l’installation sur iPhone ne sont pas encore validés. Aucun IPA fictif n’est fourni.** Le statut détaillé fait foi dans [VERIFICATION.md](docs/VERIFICATION.md).
+**Livraison du 15 novembre 2026 : quatre IPA non signées compilées avec Xcode 26.6 ; 34 tests métier, 6 tests de scripts et parcours iPhone/iPad en simulateur réussis. Neuf captures natives sont fournies. La signature gratuite et l’installation physique sur iPhone restent à valider.** Le statut détaillé fait foi dans [VERIFICATION.md](docs/VERIFICATION.md).
 
 ## Commencer depuis Windows
 

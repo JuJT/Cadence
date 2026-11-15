@@ -1,6 +1,6 @@
 # Premier jalon : six tests matériels
 
-**Statut initial : compilation iOS, installation, widget, Live Activity et Raccourcis non vérifiés.** Le code complet est livré pour avancer depuis Windows ; cette livraison ne franchit pas le jalon matériel. Commencer par `CadenceSpike-unsigned.ipa` après un run CI réussi. Si la signature des extensions échoue, la variante autonome reste disponible.
+**Les IPA iOS sont compilées et le parcours de l’application complète passe en simulateur. L’installation, la signature gratuite, le widget, la Live Activity et les Raccourcis sur votre iPhone restent non vérifiés.** Commencer par `CadenceSpike-unsigned.ipa`, déjà fourni dans la livraison. Si la signature des extensions échoue, la variante autonome reste disponible.
 
 | Test | Action sur iPhone 15 Pro | Résultat à relever | Statut initial |
 |---|---|---|---|

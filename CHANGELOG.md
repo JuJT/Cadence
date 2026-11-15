@@ -1,5 +1,12 @@
 # Historique
 
+## Livraison vérifiée — 15 novembre 2026
+
+- Quatre IPA compilées avec Xcode 26.6 : essai minimal, autonome, extensions et App Group facultatif.
+- 34 tests métier et 6 tests de scripts réussis ; parcours iPhone clair/sombre et iPad paysage exécutés en simulateur.
+- Neuf captures natives vérifiées, avec contrôle ciblé de la capture plein écran iPad.
+- Empreintes SHA-256 des IPA vérifiées ; guides et matrice mis à jour. Signature gratuite et installation physique restant à valider.
+
 ## 0.1.0 — 14 novembre 2026
 
 - Construction du projet SwiftUI à partir du kit Atelier Liquid Glass V2.
@@ -8,4 +15,4 @@
 - Intégration EventKit en lecture uniquement avec consentement et aperçu ; estimations facultatives séparées des mesures.
 - App Intents, widgets, Live Activity et Dynamic Island ; variantes autonome, extensions, partage expérimental et essai minimal.
 - Projet XcodeGen, workflow macOS sans secrets Apple, diagnostics IPA et recette Windows/Sideloadly.
-- Validation iOS, signature et tests physiques restant à exécuter selon le rapport de vérification.
+- Résultats de compilation et de simulateur, limites de signature et tests physiques consignés dans le rapport de vérification.

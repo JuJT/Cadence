@@ -1,8 +1,10 @@
 # Compiler puis installer depuis Windows
 
-Le dossier livré contient des sources, pas une IPA déjà compilée. Tant qu’un run GitHub Actions n’a pas réussi, la compilation iOS reste **non vérifiée**. Une IPA unsigned ne s’installe pas directement sur l’iPhone.
+Les quatre IPA ont été compilées avec succès et leurs empreintes SHA-256 vérifiées. Elles sont fournies dans le dossier de livraison `IPA` et dans le brouillon de release `ci-4` du dépôt JuJT/Cadence. Une IPA **non signée** doit encore être signée et installée avec Sideloadly ; aucune installation physique n’est déclarée validée. Voir [le rapport de vérification](VERIFICATION.md).
 
-## 1. Compiler gratuitement avec GitHub Actions
+Pour le premier essai, utilisez directement l’IPA fournie et passez à la section **2 · Premier essai Sideloadly**. La section suivante sert aux prochaines compilations.
+
+## 1. Recompiler avec GitHub Actions
 
 1. Le dépôt fourni est [JuJT/Cadence](https://github.com/JuJT/Cadence). Le contenu du dossier Cadence se place à sa racine ; le workflow est dans `.github/workflows/`. Aucune note réelle, sauvegarde personnelle ni information Apple ne doit y être ajoutée.
 2. Sur ce dépôt **public**, les changements de code sur `main` déclenchent un runner standard `macos-26`, gratuit. Aucun cache ni artefact Actions n’est téléversé sur un push : les sorties sont attachées à une **release brouillon `ci-numéro-du-run`**, accessible aux personnes autorisées à gérer le dépôt. GitHub Releases n’utilise pas le stockage des artefacts Actions ; les fichiers sont limités à moins de 2 GiB chacun, sans quota de taille totale de release ni de bande passante annoncé par GitHub.
