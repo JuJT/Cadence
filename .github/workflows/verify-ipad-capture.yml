@@ -1,0 +1,74 @@
+name: Cadence · vérifier les captures iPad
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ipad:
+    if: github.event.repository.private == false
+    runs-on: macos-26
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Générer le projet et démarrer iPad
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/reports
+          xcodebuild -version > dist/reports/xcode-version.txt
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate --spec project.yml
+          xcrun simctl list devices available --json > dist/reports/simulators.json
+          device="$(python3 - <<'PY'
+          import json
+          data=json.load(open('dist/reports/simulators.json'))['devices']
+          choices=[(runtime,item['name'],item['udid']) for runtime,items in data.items() if 'iOS' in runtime for item in items if item.get('isAvailable') and item['name'].startswith('iPad')]
+          assert choices, 'Aucun simulateur iPad disponible'
+          print(sorted(choices,reverse=True)[0][2])
+          PY
+          )"
+          echo "IPAD_DEVICE=$device" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device" 2>/dev/null || true
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl ui "$device" appearance light
+          xcrun simctl status_bar "$device" override --time '9:41' --batteryState charged --batteryLevel 100
+      - name: Vérifier le paysage et les captures écran
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -project Cadence.xcodeproj -scheme CadenceExtensions -configuration Debug \
+            -destination "platform=iOS Simulator,id=$IPAD_DEVICE" -derivedDataPath "$RUNNER_TEMP/CadenceIPad" \
+            -resultBundlePath dist/CadenceIPadUITests.xcresult -parallel-testing-enabled NO \
+            -only-testing:CadenceUITests/CadenceUITests/testIPadLandscapeLayout \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test 2>&1 | tee dist/reports/ipad-tests.log
+      - name: Exporter les preuves réelles
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d dist/CadenceIPadUITests.xcresult ]]; then
+            xcrun xcresulttool export attachments --path dist/CadenceIPadUITests.xcresult --output-path dist/test-attachments/ipad
+            python3 Scripts/collect_test_screenshots.py dist/test-attachments dist/screenshots dist/reports/screenshot-index.json
+          fi
+      - name: Enregistrer un brouillon de contrôle
+        if: always() && !cancelled()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          cd dist
+          zip -qry Cadence-iPad-controle.zip reports test-attachments screenshots
+          cat > notes.md <<EOF
+          Contrôle ciblé des captures iPad : $RESULT.
+          Sources : $GITHUB_SHA. Test XCTest en simulateur uniquement, aucune installation physique.
+          Les IPA du build complet restent dans le brouillon ci-4 ; ce contrôle ne les reconstruit pas.
+          Run : https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          EOF
+          gh release create "qa-ipad-$GITHUB_RUN_ID" Cadence-iPad-controle.zip --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --draft --title "Cadence · contrôle iPad ($RESULT)" --notes-file notes.md
