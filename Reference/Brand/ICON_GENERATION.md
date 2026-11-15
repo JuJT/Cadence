@@ -1,5 +1,7 @@
 # Nouvelle icône Cadence
 
+Cette création est conservée pour le nouveau nom **Cadenza** : le symbole C ne contient aucun mot à remplacer. Le prompt original ci-dessous est conservé tel qu’il a été envoyé à imagegen.
+
 Outil : image_gen intégré (imagegen), génération originale sans image source.
 L’image originale est conservée dans ce dossier ; le PNG AppIcon est exporté en 1024 × 1024 RGB opaque pour iOS.
 

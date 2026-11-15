@@ -1,4 +1,4 @@
-name: Cadence · compiler et vérifier sans signature
+name: Cadenza · compiler et vérifier sans signature
 
 on:
   push:

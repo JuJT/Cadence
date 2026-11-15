@@ -108,7 +108,7 @@ final class SystemIntegrationService {
             lastActivityError = nil
         } else if ActivityAuthorizationInfo().areActivitiesEnabled {
             guard now.timeIntervalSince(session.startedAt) < 8 * 3600 else {
-                lastActivityError = "Séance de plus de 8 heures : la Live Activity n’est pas relancée automatiquement. Votre séance continue dans Cadence."
+                lastActivityError = "Séance de plus de 8 heures : la Live Activity n’est pas relancée automatiquement. Votre séance continue dans Cadenza."
                 return
             }
             do {

@@ -196,7 +196,7 @@ struct CourseDetailView: View {
                             Button("Ignorer ce cours") { store.setOccurrenceStatus(course.id, status: .ignored) }
                             Button("Rétablir comme cours planifié") { store.setOccurrenceStatus(course.id, status: .scheduled) }
                         }.disabled(course.linkedSessionID != nil)
-                    } footer: { Text("Ces actions modifient uniquement votre suivi Cadence. Votre calendrier système reste inchangé.") }
+                    } footer: { Text("Ces actions modifient uniquement votre suivi Cadenza. Votre calendrier système reste inchangé.") }
                 }
                 .cadenceListStyle()
                 .sheet(isPresented: $showEdit) { NavigationStack { OccurrenceEditorView(occurrence: course) } }
@@ -241,7 +241,7 @@ private struct OccurrenceEditorView: View {
     }
     var body: some View {
         Form {
-            Section("Dans Cadence") {
+            Section("Dans Cadenza") {
                 TextField("Titre", text: $title)
                 SubjectPicker(selection: $subjectID)
                 DatePicker("Début", selection: $start)

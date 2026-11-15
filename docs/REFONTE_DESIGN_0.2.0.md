@@ -1,4 +1,6 @@
-# Cadence 0.2.0 — Atelier lumineux
+# Cadenza 0.2.0 — Atelier lumineux pour iPhone
+
+La livraison finale porte le nom **Cadenza** et vise uniquement l’iPhone, conformément à la dernière demande. L’interface et les contrôles spécifiques à l’iPad ont été retirés. Les noms techniques historiques `CadenceCore`, les identifiants de bundles, les groupes de partage, les URLs `cadence://` et le dossier de stockage existant restent inchangés pour préserver la mise à jour et les données.
 
 ## Audit et direction retenue
 
@@ -8,7 +10,7 @@ La version précédente privilégiait des listes et des cartes système opaques.
 
 `App/Design/CadenceTheme.swift` centralise les couleurs, espacements et rayons (`CadenceColors`, `CadenceSpacing`, `CadenceRadius`, `CadenceTheme`). `CadenceBackground` compose des champs de lumière statiques bleu glacier, sans animation permanente coûteuse. `CadenceGlassStyle` et `cadenceSurface` réunissent matière native, voile clair, reflet fin et ombre douce. Les composants existants `AtelierCard`, `AtelierPage`, `ProminentAction`, `SecondaryAction`, `SubjectMark` et `MetricRow` utilisent ce système, complété par `CadenceSectionHeader`, `cadenceSegmentedStyle` et `cadenceListStyle`.
 
-La navigation conserve `TabView`, `NavigationStack` et `NavigationSplitView`. Sur iOS 26, la barre basse et les actions utilisent leur verre natif ; les versions antérieures gardent un repli système. Les contrôles, titres, alertes et feuilles restent de vrais composants SwiftUI. Réglages → Apparence permet de choisir Système, Claire ou Sombre, sans modifier le format de sauvegarde des séances.
+La navigation iPhone conserve `TabView` et `NavigationStack`. Sur iOS 26, la barre basse et les actions utilisent leur verre natif ; les versions antérieures gardent un repli système. Les contrôles, titres, alertes et feuilles restent de vrais composants SwiftUI. Réglages → Apparence permet de choisir Système, Claire ou Sombre, sans modifier le format de sauvegarde des séances.
 
 ## Écrans
 

@@ -10,7 +10,7 @@ struct SpikeView: View {
         NavigationStack {
             List {
                 Section("Preuve de faisabilité") {
-                    Text("Cadence · essai iPhone")
+                    Text("Cadenza · essai iPhone")
                         .font(.title2.bold())
                     Text("Vérifiez l’installation, Raccourcis, le widget et la Live Activity. Ces fonctions ne sont pas encore validées sur votre appareil.")
                     Text("Aucune donnée Calendrier ni connexion nécessaire.")
@@ -41,12 +41,12 @@ struct SpikeView: View {
                     Text("Historique local : \(store.state.sessions.filter { $0.endedAt != nil }.count) séance(s)")
                 }
                 Section("Sur votre iPhone") {
-                    Text("Laissez tourner deux minutes, verrouillez l’écran et ouvrez la Dynamic Island. Ajoutez le widget Cadence puis lancez « Démarrer une révision » dans Raccourcis après avoir terminé la séance.")
+                    Text("Laissez tourner deux minutes, verrouillez l’écran et ouvrez la Dynamic Island. Ajoutez le widget Cadenza puis lancez « Démarrer une révision » dans Raccourcis après avoir terminé la séance.")
                     Text("Le compteur dépend des dates enregistrées ; aucun traitement permanent en arrière-plan n’est requis.")
                 }
             }
-            .navigationTitle("Essai Cadence")
-            .alert("Cadence", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
+            .navigationTitle("Essai Cadenza")
+            .alert("Cadenza", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
                 Button("Compris", role: .cancel) { store.errorMessage = nil }
             } message: { Text(store.errorMessage ?? "") }
         }

@@ -7,7 +7,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var exportDocument = CadenceExportDocument(data: Data())
     @State private var exportType = UTType.json
-    @State private var exportName = "Cadence-sauvegarde"
+    @State private var exportName = "Cadenza-sauvegarde"
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var showRestoreConfirmation = false
@@ -43,9 +43,9 @@ struct SettingsView: View {
             }
             Section("Diagnostic") {
                 Text(store.storageDiagnostic).font(.footnote).textSelection(.enabled)
-                Text("La disponibilité des extensions dépend de la signature de votre installation. Les tests sur iPhone et iPad restent nécessaires.").font(.footnote).foregroundStyle(.secondary)
+                Text("La disponibilité des extensions dépend de la signature de votre installation. La lecture réelle des widgets se vérifie sur votre iPhone.").font(.footnote).foregroundStyle(.secondary)
             }
-            Section { Text("Cadence · Atelier Liquid Glass\nDonnées locales · iOS 17 et versions ultérieures").font(.footnote).foregroundStyle(.secondary) }
+            Section { Text("Cadenza · Atelier Liquid Glass\nDonnées locales · iOS 17 et versions ultérieures").font(.footnote).foregroundStyle(.secondary) }
         }
         .cadenceListStyle()
         .navigationTitle("Réglages")
@@ -63,7 +63,7 @@ struct SettingsView: View {
                 pendingRestore = data; showRestoreConfirmation = true
             } catch { store.errorMessage = "Lecture de sauvegarde impossible : \(error.localizedDescription)" }
         }
-        .alert("Remplacer les données de Cadence par cette sauvegarde ?", isPresented: $showRestoreConfirmation) {
+        .alert("Remplacer les données de Cadenza par cette sauvegarde ?", isPresented: $showRestoreConfirmation) {
             Button("Restaurer et remplacer", role: .destructive) { if let data = pendingRestore { store.restoreBackup(data) }; pendingRestore = nil }
             Button("Annuler", role: .cancel) { pendingRestore = nil }
         } message: { Text("Exportez d’abord vos données actuelles si vous souhaitez les conserver.") }
@@ -74,7 +74,7 @@ struct SettingsView: View {
             if csv { data = try store.csvData() } else { data = try store.backupData() }
             exportDocument = CadenceExportDocument(data: data)
             exportType = csv ? .commaSeparatedText : .json
-            exportName = csv ? "Cadence-durees" : "Cadence-sauvegarde"
+            exportName = csv ? "Cadenza-durees" : "Cadenza-sauvegarde"
             showExporter = true
         } catch { store.errorMessage = error.localizedDescription }
     }
@@ -100,7 +100,7 @@ struct CalendarSettingsView: View {
             Section {
                 Label(store.calendarPermissionDescription, systemImage: "calendar")
                 Button("Autoriser Calendrier") { Task { working = true; await store.requestCalendarAccess(); working = false } }.disabled(working)
-                Text("Cadence lit les calendriers déjà synchronisés dans iOS. Apple demande un accès complet pour permettre la lecture ; Cadence ne modifie jamais vos événements.").font(.footnote).foregroundStyle(.secondary)
+                Text("Cadenza lit les calendriers déjà synchronisés dans iOS. Apple demande un accès complet pour permettre la lecture ; Cadenza ne modifie jamais vos événements.").font(.footnote).foregroundStyle(.secondary)
             } header: { Text("1 · Autorisation") }
             Section {
                 if store.calendarSources.isEmpty {
@@ -148,7 +148,7 @@ struct CalendarSettingsView: View {
                     Button("Actualiser maintenant", systemImage: "arrow.clockwise") { Task { working = true; await store.refreshCalendars(); working = false } }.disabled(working)
                     if let sync = store.lastSyncAt { LabeledContent("Dernier import", value: sync.cadenceFormatted(date: .abbreviated, time: .shortened)) }
                     Button("Désactiver la synchronisation", role: .destructive) { confirmDisconnect = true }
-                } footer: { Text("iOS ne garantit pas les actualisations en arrière-plan. Le planning est rapproché à la réouverture de Cadence.") }
+                } footer: { Text("iOS ne garantit pas les actualisations en arrière-plan. Le planning est rapproché à la réouverture de Cadenza.") }
             }
         }
         .cadenceListStyle()
@@ -248,14 +248,14 @@ private struct IntegrationsHelpView: View {
                 Text("L’affichage système peut expirer sans interrompre votre séance. Sa durée est retrouvée à la réouverture.").font(.footnote).foregroundStyle(.secondary)
             }
             Section("Widgets") {
-                Text("Ajoutez Cadence depuis la galerie de widgets. Le partage des chiffres avec l’app exige un App Group valide dans la signature. Sans cet accès, le widget propose d’ouvrir Cadence.")
+                Text("Ajoutez Cadenza depuis la galerie de widgets. Aujourd’hui, Ma semaine et Prochain cours utilisent votre résumé local. La signature doit autoriser le partage entre l’app et ses widgets. Le diagnostic indique leur dernière lecture réelle.")
             }
             Section("Raccourcis Apple") {
-                Text("Les actions Cadence permettent de démarrer une révision, ajouter un cours, mettre en pause, reprendre, terminer, consulter les durées du jour et ouvrir l’emploi du temps.")
+                Text("Les actions Cadenza permettent de démarrer une révision, ajouter un cours, mettre en pause, reprendre, terminer, consulter les durées du jour et ouvrir l’emploi du temps.")
                 Link("Ouvrir Raccourcis", destination: URL(string: "shortcuts://")!)
             }
-            Section("Apple Watch et iPad scolaire") {
-                Text("Le relais d’une Live Activity sur la Watch dépend du système. L’application Watch dédiée est prévue après validation de l’installation iPhone. Sur un iPad scolaire, l’administrateur peut interdire l’installation.")
+            Section("Apple Watch") {
+                Text("Le relais d’une Live Activity sur la Watch dépend du système. L’application Watch dédiée est prévue après validation de l’installation iPhone.")
             }
             Section("Signature gratuite") {
                 Text("Une installation avec un Apple ID gratuit doit généralement être renouvelée après sept jours. Gardez le même identifiant d’app et sauvegardez vos données avant toute réinstallation.")

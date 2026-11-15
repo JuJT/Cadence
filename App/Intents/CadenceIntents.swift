@@ -20,8 +20,8 @@ private enum ShortcutCommands {
         }
         guard candidates.count == 1, let value = candidates.first else {
             throw ShortcutError.message(query.isEmpty
-                ? "Indiquez une matière ou démarrez d’abord une séance dans Cadence pour définir la matière par défaut."
-                : "Matière introuvable ou ambiguë. Utilisez son nom complet dans Cadence.")
+                ? "Indiquez une matière ou démarrez d’abord une séance dans Cadenza pour définir la matière par défaut."
+                : "Matière introuvable ou ambiguë. Utilisez son nom complet dans Cadenza.")
         }
         return value
     }
@@ -39,7 +39,7 @@ private enum ShortcutCommands {
 /// où le même dépôt persistant et le même moteur de séances assurent les transitions.
 struct StartRevisionIntent: AppIntent {
     static var title: LocalizedStringResource = "Démarrer une révision"
-    static var description = IntentDescription("Démarre une révision dans Cadence, avec votre matière par défaut ou celle indiquée.")
+    static var description = IntentDescription("Démarre une révision dans Cadenza, avec votre matière par défaut ou celle indiquée.")
     static var openAppWhenRun = true
     @Parameter(title: "Matière") var subjectName: String?
     @Parameter(title: "Chapitre") var topic: String?
@@ -50,7 +50,7 @@ struct StartRevisionIntent: AppIntent {
         let subject = try ShortcutCommands.subject(named: subjectName)
         if let active = store.state.activeSession {
             guard active.kind == .revision && active.subjectID == subject.id else {
-                throw ShortcutError.message("Une autre séance est en cours. Terminez-la d’abord dans Cadence.")
+                throw ShortcutError.message("Une autre séance est en cours. Terminez-la d’abord dans Cadenza.")
             }
             store.route = "revision"
             return .result(dialog: "Cette révision est déjà en cours.")
@@ -64,7 +64,7 @@ struct StartRevisionIntent: AppIntent {
 
 struct AddCourseIntent: AppIntent {
     static var title: LocalizedStringResource = "Ajouter un cours"
-    static var description = IntentDescription("Enregistre un cours déjà terminé. En cas de chevauchement, ouvrez Cadence pour l’associer au calendrier.")
+    static var description = IntentDescription("Enregistre un cours déjà terminé. En cas de chevauchement, ouvrez Cadenza pour l’associer au calendrier.")
     static var openAppWhenRun = true
     @Parameter(title: "Matière") var subjectName: String?
     @Parameter(title: "Début") var start: Date

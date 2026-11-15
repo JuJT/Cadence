@@ -148,11 +148,11 @@ struct WidgetUnavailable: View {
             Spacer(minLength: 0)
             Text(lastUpdate == nil ? "Relier mes données" : "Actualiser mes données")
                 .font(.headline).lineLimit(2).minimumScaleFactor(0.85)
-            Text("Ouvrir Cadence").font(.caption).foregroundStyle(WidgetPalette.blue)
+            Text("Ouvrir Cadenza").font(.caption).foregroundStyle(WidgetPalette.blue)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .accessibilityLabel(title + ". Données indisponibles. Ouvrir Cadence pour vérifier le partage et actualiser.")
+        .accessibilityLabel(title + ". Données indisponibles. Ouvrir Cadenza pour vérifier le partage et actualiser.")
     }
 }
 
@@ -337,7 +337,7 @@ struct AccessoryStudyWidgetView: View {
         Group {
             if let value = entry.todaySnapshot {
                 if family == .accessoryInline {
-                    Label("Cadence · " + CompactDuration.text(value.courseMeasured + value.revisions), systemImage: "book.closed")
+                    Label("Cadenza · " + CompactDuration.text(value.courseMeasured + value.revisions), systemImage: "book.closed")
                 } else {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(CompactDuration.text(value.courseMeasured + value.revisions)).font(.headline)
@@ -346,7 +346,7 @@ struct AccessoryStudyWidgetView: View {
                     }
                 }
             } else {
-                Label("Ouvrir Cadence", systemImage: "book.closed")
+                Label("Ouvrir Cadenza", systemImage: "book.closed")
             }
         }.widgetURL(URL(string: "cadence://statistiques"))
     }

@@ -20,7 +20,7 @@ final class CalendarIntegrationService {
 
     var permissionDescription: String {
         switch EKEventStore.authorizationStatus(for: .event) {
-        case .fullAccess: return "Calendrier autorisé · lecture uniquement dans Cadence"
+        case .fullAccess: return "Calendrier autorisé · lecture uniquement dans Cadenza"
         case .denied: return "Accès refusé. Les séances manuelles restent disponibles."
         case .restricted: return "Accès restreint par les réglages de cet appareil."
         case .writeOnly: return "La lecture nécessite l’accès intégral au calendrier."

@@ -31,7 +31,7 @@ struct TodayWidget: Widget {
             TodayWidgetView(entry: entry)
                 .containerBackground(for: .widget) { WidgetCanvas() }
         }
-        .configurationDisplayName("Cadence aujourd’hui")
+        .configurationDisplayName("Cadenza aujourd’hui")
         .description("Vos durées de cours et de révision du jour, séparées des estimations.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
@@ -61,7 +61,7 @@ struct SessionLiveActivity: Widget {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(context.state.kindLabel).font(.caption).foregroundStyle(.secondary)
                     Text(context.state.subjectName).font(.headline).lineLimit(2).minimumScaleFactor(0.85)
-                    Text(context.isStale ? "Ouvrir Cadence pour actualiser" : context.state.isPaused ? "En pause" : "En cours")
+                    Text(context.isStale ? "Ouvrir Cadenza pour actualiser" : context.state.isPaused ? "En pause" : "En cours")
                         .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 LiveElapsedText(state: context.state)
@@ -107,7 +107,7 @@ struct SessionLiveActivity: Widget {
                 LiveElapsedText(state: context.state).font(.caption2).frame(width: 52, alignment: .trailing)
             } minimal: {
                 Image(systemName: context.state.isPaused ? "pause.fill" : context.state.symbol)
-                    .accessibilityLabel(context.state.isPaused ? "Cadence en pause" : "Cadence en cours")
+                    .accessibilityLabel(context.state.isPaused ? "Cadenza en pause" : "Cadenza en cours")
             }
             .widgetURL(URL(string: "cadence://revision"))
             .keylineTint(.blue)

@@ -14,30 +14,13 @@ private enum CadenceSection: String, CaseIterable, Identifiable {
 
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selected: CadenceSection = .accueil
     @State private var showSettings = false
     @AppStorage("cadence.appearance") private var appearance = "system"
     var body: some View {
-        Group {
-            if horizontalSizeClass == .regular {
-                NavigationSplitView {
-                    List {
-                        ForEach(CadenceSection.allCases) { section in
-                            Button { selected = section } label: {
-                                Label(section.title, systemImage: section.symbol)
-                                    .foregroundStyle(selected == section ? Atelier.blue : .primary)
-                            }.listRowBackground(selected == section ? Atelier.blue.opacity(0.1) : Color.clear)
-                        }
-                        Button { showSettings = true } label: { Label("Réglages", systemImage: "gearshape") }
-                    }.navigationTitle("Cadence").cadenceListStyle()
-                } detail: { navigation(selected) }
-            } else {
-                TabView(selection: $selected) {
-                    ForEach(CadenceSection.allCases) { section in
-                        navigation(section).tabItem { Label(section.title, systemImage: section.symbol) }.tag(section)
-                    }
-                }
+        TabView(selection: $selected) {
+            ForEach(CadenceSection.allCases) { section in
+                navigation(section).tabItem { Label(section.title, systemImage: section.symbol) }.tag(section)
             }
         }
         .background(CadenceBackground())
@@ -48,7 +31,7 @@ struct RootView: View {
         .fullScreenCover(isPresented: Binding(get: { !store.needsRecovery && !store.state.settings.onboardingCompleted }, set: { _ in })) {
             OnboardingView()
         }
-        .alert("Cadence", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
+        .alert("Cadenza", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("Compris", role: .cancel) { store.errorMessage = nil }
         } message: { Text(store.errorMessage ?? "Une erreur est survenue.") }
         .onChange(of: store.route) { _, route in
@@ -90,7 +73,7 @@ struct RootView: View {
         HStack(spacing: 7) {
             Image("CadenceMark").resizable().frame(width: 24, height: 24)
                 .clipShape(RoundedRectangle(cornerRadius: 7)).accessibilityHidden(true)
-            Text("Cadence").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
+            Text("Cadenza").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
         }.fixedSize(horizontal: true, vertical: false).accessibilityElement(children: .combine)
     }
 }
@@ -108,7 +91,7 @@ private struct OnboardingView: View {
                     .frame(maxWidth: .infinity).accessibilityHidden(true)
                 Text(page == 0 ? "Votre temps,\nvotre cadence." : "Un agenda qui\nvous ressemble.")
                     .font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
-                Text(page == 0 ? "Gardez un suivi distinct de vos cours et de vos révisions. Vos données restent sur cet appareil, sans compte ni abonnement." : "Liez les calendriers déjà présents sur votre iPhone, y compris Google. Cadence les consulte sans modifier vos événements.")
+                Text(page == 0 ? "Gardez un suivi distinct de vos cours et de vos révisions. Vos données restent sur cet appareil, sans compte ni abonnement." : "Liez les calendriers déjà présents sur votre iPhone, y compris Google. Cadenza les consulte sans modifier vos événements.")
                     .font(.title3).foregroundStyle(.secondary)
                 AtelierCard {
                     Label(page == 0 ? "Cours et révisions séparés" : "Connexion facultative", systemImage: page == 0 ? "books.vertical" : "hand.raised")
@@ -122,7 +105,7 @@ private struct OnboardingView: View {
                     SecondaryAction(title: "Commencer sans calendrier", symbol: "arrow.right") { complete() }
                 }
             }
-            .navigationTitle("Bienvenue sur Cadence").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Bienvenue sur Cadenza").navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showCalendar, onDismiss: { complete() }) { NavigationStack { CalendarSettingsView() } }
         }.interactiveDismissDisabled()
     }

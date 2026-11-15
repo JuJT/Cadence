@@ -65,34 +65,6 @@ final class CadenceUITests: XCTestCase {
     }
 
     @MainActor
-    func testIPadLandscapeLayout() throws {
-        let app = XCUIApplication()
-        app.launchArguments = testArguments()
-        XCUIDevice.shared.orientation = .landscapeLeft
-        defer { XCUIDevice.shared.orientation = .portrait }
-        app.launch()
-        guard app.windows.firstMatch.frame.height > 600 else {
-            throw XCTSkip("Ce scénario vérifie uniquement la navigation iPad.")
-        }
-        let window = app.windows.firstMatch
-        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            window.exists && window.frame.width > window.frame.height
-        }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 15), .completed)
-        let courses = app.buttons["Cours"].firstMatch
-        XCTAssertTrue(courses.waitForExistence(timeout: 8))
-        captureIPad(app, name: "ipad-accueil-paysage")
-        courses.tap()
-        XCTAssertTrue(app.navigationBars["Emploi du temps"].waitForExistence(timeout: 4))
-        captureIPad(app, name: "ipad-cours-paysage")
-        let statistics = app.buttons["Statistiques"].firstMatch
-        XCTAssertTrue(statistics.waitForExistence(timeout: 4))
-        statistics.tap()
-        XCTAssertTrue(app.navigationBars["Statistiques"].waitForExistence(timeout: 4))
-        captureIPad(app, name: "ipad-statistiques-paysage")
-    }
-
-    @MainActor
     func testDarkStatistics() throws {
         // La CI applique le mode sombre au simulateur avant ce test séparé.
         let app = XCUIApplication()
@@ -303,19 +275,4 @@ final class CadenceUITests: XCTestCase {
         add(screenshot)
     }
 
-    @MainActor
-    private func captureIPad(_ app: XCUIApplication, name: String) {
-        // La capture de fenêtre peut être recadrée selon les anciennes bornes
-        // portrait par XCTest. L'écran complet conserve le paysage réel.
-        let screen = XCUIScreen.main.screenshot()
-        XCTAssertGreaterThan(screen.image.size.width, screen.image.size.height)
-        let diagnostic = XCTAttachment(string: "Fenêtre : \(app.windows.firstMatch.frame)\nÉcran : \(screen.image.size)\nOrientation : \(XCUIDevice.shared.orientation)")
-        diagnostic.name = name + "-dimensions"
-        diagnostic.lifetime = .keepAlways
-        add(diagnostic)
-        let screenshot = XCTAttachment(screenshot: screen)
-        screenshot.name = name
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-    }
 }

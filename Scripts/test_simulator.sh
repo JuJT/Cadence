@@ -49,32 +49,10 @@ if [[ "${ONLY_SESSION_PRESENTATION:-false}" == "true" ]]; then
   exit 0
 fi
 run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
-  -skip-testing:CadenceUITests/CadenceUITests/testIPadLandscapeLayout \
   -skip-testing:CadenceUITests/CadenceUITests/testDarkStatistics
 xcrun simctl ui "$simulator_id" appearance dark
 run_tests "$simulator_id" dist/CadenceDarkUITests.xcresult dark \
   -only-testing:CadenceUITests/CadenceUITests/testDarkStatistics
 xcrun simctl ui "$simulator_id" appearance light
 
-ipad_id="$(python3 - <<'PY'
-import json
-data = json.load(open('dist/reports/simulators.json'))['devices']
-candidates = [(runtime, item['name'], item['udid']) for runtime, devices in data.items()
-              if 'iOS' in runtime for item in devices
-              if item.get('isAvailable') and item['name'].startswith('iPad')]
-print(sorted(candidates, reverse=True)[0][2] if candidates else '')
-PY
-)"
-if [[ -n "$ipad_id" ]]; then
-  xcrun simctl shutdown "$simulator_id"
-  xcrun simctl boot "$ipad_id" 2>/dev/null || true
-  xcrun simctl bootstatus "$ipad_id" -b
-  xcrun simctl status_bar "$ipad_id" override --time '9:41' --batteryState charged --batteryLevel 100
-  xcrun simctl ui "$ipad_id" appearance light
-  run_tests "$ipad_id" dist/CadenceIPadUITests.xcresult ipad \
-    -only-testing:CadenceUITests/CadenceUITests/testIPadLandscapeLayout
-  printf '%s\n' "Test iPad paysage exécuté sur $ipad_id. Captures nommées par XCTest, sans navigation URL externe." > dist/reports/ipad-status.txt
-else
-  printf '%s\n' 'Aucun simulateur iPad disponible : aucune capture iPad et aucun test iPad validé.' > dist/reports/ipad-status.txt
-fi
-printf '%s\n' 'Navigation vérifiée par XCTest dans les vrais onglets; images exportées depuis les pièces jointes des tests. Voir screenshot-index.json pour leur provenance. Aucun test physique iPhone/iPad.' > dist/reports/simulator-status.txt
+printf '%s\n' 'Cadenza : parcours iPhone uniquement, captures XCTest natives. Aucune prise en charge iPad dans cette livraison.' > dist/reports/simulator-status.txt
