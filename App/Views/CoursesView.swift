@@ -198,6 +198,7 @@ struct CourseDetailView: View {
                         }.disabled(course.linkedSessionID != nil)
                     } footer: { Text("Ces actions modifient uniquement votre suivi Cadence. Votre calendrier système reste inchangé.") }
                 }
+                .cadenceListStyle()
                 .sheet(isPresented: $showEdit) { NavigationStack { OccurrenceEditorView(occurrence: course) } }
                 .sheet(isPresented: $showLink) { NavigationStack { SessionLinkView(occurrence: course) } }
                 .alert("Retirer l’association de cette séance ?", isPresented: $showUnlinkConfirmation) {
@@ -213,7 +214,7 @@ struct CourseDetailView: View {
                                 Stepper("\(Int(confirmedMinutes)) minutes", value: $confirmedMinutes, in: 1...1440, step: 5)
                                 Text("Cette durée sera comptée comme confirmée, à la place de l’estimation.").font(.footnote).foregroundStyle(.secondary)
                             }
-                        }.navigationTitle("Confirmer le cours").navigationBarTitleDisplayMode(.inline)
+                        }.cadenceListStyle().navigationTitle("Confirmer le cours").navigationBarTitleDisplayMode(.inline)
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { showConfirm = false } }
                                 ToolbarItem(placement: .confirmationAction) { Button("Confirmer") { store.confirmOccurrence(course.id, seconds: confirmedMinutes * 60); showConfirm = false } }
@@ -247,7 +248,7 @@ private struct OccurrenceEditorView: View {
                 DatePicker("Fin", selection: $end)
             }
             Section { Text("La modification est locale. L’événement d’origine dans Calendrier reste inchangé.").foregroundStyle(.secondary) }
-        }.navigationTitle("Modifier le cours").navigationBarTitleDisplayMode(.inline)
+        }.cadenceListStyle().navigationTitle("Modifier le cours").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { store.updateOccurrence(occurrence.id, subjectID: subjectID, title: title, start: start, end: end); if store.errorMessage == nil { dismiss() } }.disabled(subjectID == nil || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || end <= start) }
@@ -269,7 +270,7 @@ private struct SessionLinkView: View {
             ForEach(candidates) { session in
                 Button { store.linkSession(sessionID: session.id, occurrenceID: occurrence.id); if store.errorMessage == nil { dismiss() } } label: { SessionRow(session: session) }
             }
-        }.navigationTitle("Associer une séance").navigationBarTitleDisplayMode(.inline)
+        }.cadenceListStyle().navigationTitle("Associer une séance").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
     }
 }
