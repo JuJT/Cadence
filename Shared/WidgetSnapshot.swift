@@ -134,7 +134,9 @@ private enum KeychainSnapshotStore {
     }
 
     private static func candidateGroups() -> [String] {
-        var groups: [String] = []
+        // A re-signer may rewrite an entire group. Inspect our own signed
+        // metadata for exact names instead of trying to reconstruct them.
+        var groups = SignedKeychainGroups.current
         if let group = defaultAccessGroup() {
             groups.append(group)
             // Compatibility with snapshots published by 0.2.0. This is only an

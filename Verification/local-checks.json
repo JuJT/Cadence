@@ -1,8 +1,8 @@
 {
   "date": "2026-11-16",
-  "generatedAtUTC": "2026-11-16T14:23:38.091844+00:00",
+  "generatedAtUTC": "2026-11-16T17:55:01.901085+00:00",
   "swiftSyntaxParser": "tree-sitter-swift (analyse syntaxique, sans vérification des types Apple)",
-  "swiftFiles": 43,
+  "swiftFiles": 44,
   "errors": [],
   "yamlJSONPlistAndPythonSyntax": "OK",
   "appIcon": "1024x1024 RGB opaque ; nouvelle icône Cadenza générée avec imagegen, original et prompt conservés",
