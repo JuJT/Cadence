@@ -18,10 +18,10 @@ on:
   workflow_dispatch:
     inputs:
       runner_image:
-        description: 'Runner macOS standard gratuit en dépôt public ; repli macos-15 si macos-26 est saturé'
+        description: 'Runner macOS standard gratuit en dépôt public ; Intel par défaut pour éviter la saturation ARM'
         type: choice
-        options: [macos-26, macos-15]
-        default: macos-26
+        options: [macos-26-intel, macos-15-intel, macos-26, macos-15]
+        default: macos-26-intel
       free_quota_verified:
         description: 'Quota stockage artefacts (et calcul si privé) vérifié ; usage payant bloqué dans Billing'
         type: boolean
@@ -53,8 +53,8 @@ jobs:
        vars.CADENCE_PRIVATE_FREE_CI == 'true')
     permissions:
       contents: write
-    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_image || 'macos-26' }}
-    timeout-minutes: 45
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_image || 'macos-26-intel' }}
+    timeout-minutes: 50
     env:
       INCLUDE_SHARED: ${{ (github.event_name == 'push' || inputs.include_shared_variant) && 'true' || 'false' }}
       ONLY_SESSION_PRESENTATION: ${{ inputs.session_presentation_only && 'true' || 'false' }}
@@ -109,7 +109,7 @@ jobs:
         shell: bash
         run: bash Scripts/build_unsigned.sh
       - name: Tester en simulateur et capturer le rendu natif
-        timeout-minutes: 26
+        timeout-minutes: 32
         shell: bash
         run: bash Scripts/test_simulator.sh
       - name: Joindre les IPA, rapports et captures réels
