@@ -1,4 +1,32 @@
-# Vérification de Cadenza 0.2.0 — 15 novembre 2026
+# Vérification de Cadenza 0.3.0 — 17 novembre 2026
+
+Compilation finale : [GitHub Actions](https://github.com/JuJT/Cadence/actions/runs/43974418769), commit `5f3e66c9c178ca482674d16d4ca9dec388eb7767`, version 0.3.0 build 4. Les quatre IPA appareil portent le nom Cadenza et ciblent uniquement l’iPhone.
+
+| Contrôle | Résultat réel |
+|---|---|
+| Noyau Swift | 65 tests réussis, dont migration, doublons, Paris été/hiver, devoirs/pauses/attributions et validation des liens de connexion |
+| Scripts Python | 13 tests réussis, dont séparation du groupe privé et des droits du widget |
+| Résumé widgets | Sérialisation, ancien format, bornes, séparation des estimations et parseur des groupes signés : réussis |
+| Parcours natifs | 11 réussis, dont trois parcours de devoirs et la feuille Musique et concentration ; 10 en clair, 1 en sombre |
+| Captures | 21 captures natives sans retouche, empreintes conservées dans `Verification/0.3.0` |
+| Métadonnées et intégrité | Version, nom, famille iPhone, extensions, CRC et SHA-256 des quatre IPA conformes |
+| Isolation d’authentification | Groupe privé présent dans l’app et absent des droits du widget, aucun wildcard donnant cet accès ; modèles de signature ad-hoc, sans profil Apple |
+| API déployée | Connexion par e-mail vérifié puis lecture 200 de 460 créneaux, 17 devoirs et 250 contenus ; refus 401/403 et schéma privé inaccessible au client public |
+| Infrastructure PRONOTE | Fonctions existantes inchangées, 14 tâches PRONOTE actives ; aucun nouveau client PRONOTE sur iPhone |
+
+Les tests réseau ont été exécutés depuis le poste de travail. Le lien de connexion a été vérifié en POST, la session de test révoquée et les fichiers temporaires de jetons supprimés. Le rapport `SUPABASE_AUDIT.json` ne conserve que des résultats agrégés. Aucun contenu scolaire réel, adresse, identifiant utilisateur, jeton ou secret administratif n’est publié dans le dépôt, les captures ou les logs de CI.
+
+Un lancement précédent du simulateur n’a pas ouvert la feuille « Nouvelle séance » malgré un tap correctement ciblé. Le même code a ensuite réussi les onze parcours complets ; aucun défaut reproductible de présentation n’a été établi. Les rapports distinguent cette exécution de validation des tentatives précédentes.
+
+Les données des captures scolaires et de présentation sont fictives et compilées uniquement dans le simulateur. Les images de widgets montrent les composants réels dans une galerie de test, sans constituer une installation WidgetKit sur l’écran d’accueil. Le fond animé est actif avec ses garde-fous d’accessibilité ; la CI ne mesure pas la consommation énergétique réelle de l’iPhone.
+
+L’iPhone n’étant pas disponible en USB/Wi-Fi pendant cette livraison, le Keychain privé après Sideloadly, la lecture réelle des widgets, l’audio écran verrouillé, la Dynamic Island et le raccourci Concentration restent à contrôler sur appareil. Les capacités de l’IPA non signée ne garantissent pas leur conservation par le resigneur. Le reçu « Dernière lecture réelle par un widget » reste la preuve de lecture effective.
+
+Composants et utilisation : [FONCTIONNALITES_0.3.0.md](FONCTIONNALITES_0.3.0.md), [SUPABASE_CADENZA.md](SUPABASE_CADENZA.md), [RENOUVELLEMENT_ET_SESSION.md](RENOUVELLEMENT_ET_SESSION.md).
+
+---
+
+## Historique — Cadenza 0.2.0
 
 Les quatre variantes finales 0.2.0 (build 3) sont compilées par [GitHub Actions](https://github.com/JuJT/Cadence/actions/runs/43766146783), commit `5e7b98e89a7b887c20914fd2d98d7f4a3e9b0144`.
 

@@ -1,13 +1,21 @@
 {
   "date": "2026-11-16",
   "project": "sknscitxtbwmgluwejnw",
-  "edgeFunction": { "name": "cadenza-school", "version": 1, "verifyJWT": true },
+  "edgeFunction": {
+    "name": "cadenza-school",
+    "version": 1,
+    "verifyJWT": true
+  },
   "migration": "20261116123138_cadenza_private_reader.sql",
   "authorization": "Supabase Auth getUser, verified non-anonymous email, active server session and private admin-managed allowlist before any school read",
   "realNetworkTests": {
     "emailLinkVerified": true,
     "authenticatedReadHTTP": 200,
-    "responseCounts": { "timetable": 460, "homework": 17, "courseContent": 250 },
+    "responseCounts": {
+      "timetable": 460,
+      "homework": 17,
+      "courseContent": 250
+    },
     "uniqueIdentifiers": true,
     "positiveCourseDurations": true,
     "unauthenticatedHTTP": 401,
@@ -31,5 +39,13 @@
     "originalPronoteSyncsReplacedOrDuplicated": false
   },
   "contentRelations": "204 timetable rows have lesson_resource_id, but none currently matches course_resource or course_content exactly. No subject-based association is invented.",
-  "limits": "These tests validate the deployed API and a real authenticated email session from the workstation. Native iPhone Keychain, signed widgets, Focus shortcut setup and hardware behavior remain distinct checks. No school rows, email address, user ID or token are included in this report."
+  "limits": "These tests validate the deployed API and a real authenticated email session from the workstation. Native iPhone Keychain, signed widgets, Focus shortcut setup and hardware behavior remain distinct checks. No school rows, email address, user ID or token are included in this report.",
+  "identifierAudit": {
+    "compositeEventIDs": 460,
+    "distinctBaseIDs": 228,
+    "datePrefixedSuffixes": 460,
+    "nonUniqueBaseAndSchoolDayKeys": 0,
+    "maximumRowsPerBaseAndSchoolDay": 1,
+    "scope": "Aggregates only; identifiers and school dates excluded. Read-only SQL on 16 November 2026."
+  }
 }

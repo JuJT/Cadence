@@ -2,13 +2,19 @@
 
 ## Séparation des responsabilités
 
-`CadenceCore` est un package Swift Foundation sans dépendance à EventKit, SwiftUI ni WidgetKit. Les modèles sont des valeurs Codable/Sendable. Le moteur reçoit une copie de l’état par `inout` et les tests contrôlent les horodatages. La source de vérité est `CadenceState`, version 2.
+`CadenceCore` est un package Swift Foundation sans dépendance à EventKit, SwiftUI ni WidgetKit. Les modèles sont des valeurs Codable/Sendable. Le moteur reçoit une copie de l’état par `inout` et les tests contrôlent les horodatages. La source de vérité locale est `CadenceState`, version 3, compatible avec les anciennes sauvegardes.
 
 `AppStore` est l’unique écrivain, isolé sur MainActor. Une commande prépare une copie, la valide puis écrit le fichier atomiquement avant de publier l’état à SwiftUI et aux intégrations. Une erreur de lecture initiale bloque les écritures et conserve le fichier existant. Les App Intents utilisent `openAppWhenRun = true` et le même store ; ils ne prétendent pas modifier une base isolée d’extension.
 
 `LocalStateRepository` stocke `Application Support/Cadence/cadence-state.json` et conserve la génération précédente dans `cadence-previous.json`. Le partage widget ne déplace jamais cette base. Pas de synchronisation multiappareils.
 
-## Calendrier
+## Synchronisation scolaire Supabase
+
+SupabaseSchoolService lit le nouvel endpoint Edge authentifié. SchoolReconciler rapproche les créneaux, conserve les décisions locales et absorbe les anciens doublons sans effacer les séances. AppStore sérialise les rafraîchissements et invalide les réponses périmées. Les données restent en cache, tandis que les jetons sont dans le trousseau privé. Voir [SUPABASE_CADENZA.md](SUPABASE_CADENZA.md).
+
+## Ancien connecteur Calendrier et compatibilité
+
+Ce code reste présent pour la compatibilité et l’historique, mais n’alimente plus les cours scolaires au lancement, au premier plan ni sur notification EventKit. L’interface scolaire utilise Supabase. Les paragraphes suivants décrivent l’ancien import.
 
 `CalendarIntegrationService` demande l’accès EventKit uniquement après action de l’utilisateur. L’accès système s’appelle « intégral » car iOS l’impose pour lire ; le code Cadence n’effectue aucune écriture EventKit. Google est disponible seulement si ses calendriers sont déjà synchronisés et exposés par iOS.
 

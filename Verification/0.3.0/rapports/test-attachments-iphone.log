@@ -1,0 +1,44 @@
+Exported 1 attachment for: CadenceUITests/testCourseDateNavigationAndSubjectNames():
+File: 6ED0F495-1CF0-404B-9711-974625AD3E9F.png, suggested name: "cours-jour-matiere_0_727FAE86-27D8-4ED2-846D-2783EF747C0A.png"
+
+Exported 1 attachment for: CadenceUITests/testLargeTextSessionControls():
+File: 6FD3DAFF-A354-4B3A-AC00-4401EE85F7A7.png, suggested name: "accessibilite-grand-texte_0_F273DED8-9DFF-4113-A9F9-C38F26FE81E1.png"
+
+Exported 5 attachments for: CadenceUITests/testManualNavigationWithoutCalendarPermission():
+File: 1529FCDC-3706-4CDB-BF8C-E96AF459C0AD.png, suggested name: "statistiques-clair_0_87062953-129A-487B-975A-E692A3C48B0D.png"
+File: 54EDDF91-8E6F-444D-B08E-665013B65177.png, suggested name: "revision-active_0_566FE0B4-42D9-4BD6-A0DE-B646CC18A130.png"
+File: 2DD0FF69-403C-4CEF-94B2-C8FCF014FBFA.png, suggested name: "revision-clair_0_3BE97DE4-457B-4CB8-9F16-A9BEB02F37F1.png"
+File: 7E743DAC-8472-4BF1-8813-C156AF904B74.png, suggested name: "cours-clair_0_92AF8FAE-A2F7-4CDA-BE16-FB4777DE2C60.png"
+File: 2C3B615F-289D-4613-8123-5D8CFA7F7B11.png, suggested name: "accueil-clair_0_C44BF7B5-AEB6-4810-94FB-255CF5107505.png"
+
+Exported 1 attachment for: CadenceUITests/testMusicAndFocusSheetHasNavigationAndClosesToSession():
+File: BCBE80DE-B2EA-4773-8169-AA9DE4E1DF45.png, suggested name: "musique-et-concentration_0_CF54DF61-8FAE-4CA5-9E95-2C940A637E24.png"
+
+Exported 3 attachments for: CadenceUITests/testNewSessionSheetAndCancellation():
+File: A8A90C56-C9FD-4832-B808-1A1CF6BB9A11.png, suggested name: "terminer-seance-alerte_0_37E45B16-31BD-4239-83D9-4FC6F1FD451F.png"
+File: 7FA32FC4-3A25-4468-96FB-0074E1DF2DB0.png, suggested name: "nouvelle-seance-formulaire_0_EA25B284-7C50-47A8-9357-2C880832913A.png"
+File: 9C6D206E-7C8F-4D54-BEE6-52F51A1C75FF.png, suggested name: "nouvelle-seance-feuille_0_537F0959-ED34-4A00-9556-248B696927C3.png"
+
+Skipped export for CadenceUITests/testSchoolHomeworkAttachesToExistingSessionOfAnotherSubject(): no matching attachments
+
+Exported 3 attachments for: CadenceUITests/testSchoolHomeworkFiltersAndDetails():
+File: A3AF0148-1A6B-4F52-B71D-D3930539056C.png, suggested name: "devoirs-detail_0_C3213740-58CD-4BD8-B5FA-BB0F8E4B1779.png"
+File: 45299725-D4FC-4064-8434-D6AFC120CD41.png, suggested name: "devoirs-liste_0_CA51ECCA-3797-48E8-A53A-5F8D28295FC0.png"
+File: 5B745B46-EC85-4329-BF9B-01428C27E655.txt, suggested name: "devoirs-contexte-fictif_0_C57C754E-06DC-4BD4-8221-43BDF55FF805.txt"
+
+Exported 1 attachment for: CadenceUITests/testSchoolHomeworkStartsRevisionAndCompletesWithoutLosingTimer():
+File: 94F6EE05-01A3-4E4A-B02A-83F1C7D87E4D.png, suggested name: "devoir-seance-liee_0_BD45005D-4B42-44A7-A427-30F30DAD07D3.png"
+
+Exported 5 attachments for: CadenceUITests/testShowcaseDesign():
+File: 8D41FD6D-F3E1-4E5E-A8B9-1A34EB71EF57.png, suggested name: "vitrine-statistiques_0_7A2B7CC7-15E6-4E28-BE02-68BB9E07F38C.png"
+File: 83814971-BE7F-4D9B-B0C2-16F385A590D7.png, suggested name: "vitrine-revision-active_0_1924FF0A-5BA8-47A7-863E-5EB14C8DC4EC.png"
+File: 0D4D1CAF-DC93-46F5-AFE0-FE773AD61808.png, suggested name: "vitrine-emploi-du-temps_0_351170C4-FBFE-4AD8-B8C8-E7E3FF9B0327.png"
+File: DA6D4DB1-7036-445E-9608-028E3803452E.png, suggested name: "vitrine-accueil_0_5AEAD9EF-4026-4EE4-8A0A-6413DDEDA5E1.png"
+File: D7D684FF-D84F-454B-A340-8FF42D771E0E.txt, suggested name: "vitrine-contexte_0_079F1318-B72B-4D06-B249-4AF4C3515603.txt"
+
+Exported 3 attachments for: CadenceUITests/testWidgetDesignPreview():
+File: ABC8186D-89BE-41FB-8B8C-D812ED3221B8.png, suggested name: "widgets-apercu-simulateur-bas_0_39D075CE-296B-47C9-B2AC-21F020D6CBDD.png"
+File: 641BA28D-96D1-42B8-AC3C-9170C348B977.png, suggested name: "widgets-apercu-simulateur-haut_0_D155756C-B244-4DE2-AAAE-5E9FE9723B6D.png"
+File: 0923EEA5-958D-4C1C-99F6-4BE8234BB349.txt, suggested name: "widgets-apercu-contexte_0_39C8E921-63B9-4E19-8E38-77230A141642.txt"
+
+Generated manifest file with attachment details: /Users/runner/work/Cadence/Cadence/dist/test-attachments/iphone/manifest.json

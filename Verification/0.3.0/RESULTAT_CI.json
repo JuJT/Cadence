@@ -1,0 +1,257 @@
+{
+  "app": "Cadenza",
+  "devices": [
+    "iPhone"
+  ],
+  "version": "0.3.0",
+  "build": "4",
+  "date": "2026-11-17",
+  "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+  "commit": "5f3e66c9c178ca482674d16d4ca9dec388eb7767",
+  "conclusion": "success",
+  "xcode": "Xcode 26.6\nBuild version 17F113",
+  "tests": {
+    "swiftCore": 65,
+    "python": 13,
+    "widgetSerializationAndSignatureParser": "passed",
+    "nativeUI": 11
+  },
+  "captures": [
+    {
+      "file": "statistiques-sombre.png",
+      "sha256": "7120b09f9cf8e7b598e84a912b5aba6ec5814aa260af3cbffcc6291229b8a580",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "cours-jour-matiere.png",
+      "sha256": "9a32d1c2704e523e3bbc80ea0d3d813e16ed5205a0075ee9c7f2d4cbc8492c51",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "accessibilite-grand-texte.png",
+      "sha256": "dba963f37840772253b4fb529ed9b4a80fa015040d8dc1186b66dc8a4ad5d0ab",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "statistiques-clair.png",
+      "sha256": "3b0145050a7d5fb1663e1844a612fc83c961e0fa85dc401f5c8479f889351d8b",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "revision-active.png",
+      "sha256": "556303ff5efa3cfa48a6d5f91d4e866b8ddeae3b107a826b93d7603edaa0b778",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "revision-clair.png",
+      "sha256": "d22303e2f1e92bcb1be1029bb4a0c2cbd39fd6b7dc94626bd50965f11dc34c74",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "cours-clair.png",
+      "sha256": "c288c6a4678294d41025541854c80cae0c6cbae6b9f2c9b6f13d94da99a99160",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "accueil-clair.png",
+      "sha256": "05f48f3729b7962924cea30654b3b84b02e7979c0c4e6b8adf71058db0b6dba7",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "musique-et-concentration.png",
+      "sha256": "ce75aeeef48dd56a714704efa6dbc59b1f4cfdf1494b86bc69d70f423bcb315f",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "terminer-seance-alerte.png",
+      "sha256": "029e83161eef5f5016a947001ee8787fdd590b6d451113cfe9b72406f47e144b",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "nouvelle-seance-formulaire.png",
+      "sha256": "b3610128259d08aebdbcbf88b9020b133b9de9fbea90b4ec2bf9a4c34a9c080d",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "nouvelle-seance-feuille.png",
+      "sha256": "6c4295a3b44c4f3418219d62f0cfd6a36175645c142add4f6496405ec906dee8",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "devoirs-detail.png",
+      "sha256": "c3b7eeff726e26b1e97433904c8af0342c31faa8904a09dd84b8d664dcfda9a8",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "devoirs-liste.png",
+      "sha256": "f059635ef8ffae3c968e634ea5770a22ef1d2b0a0967cd8f9698e80cc5390ff9",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "devoir-seance-liee.png",
+      "sha256": "eb07c92a0dc986d51039b376146e4fad1903ef6ae49ff790d49d582e34b6bc60",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "vitrine-statistiques.png",
+      "sha256": "691e98789b58cd02495005452fa729c19fd0a9b46eea505676dcd0214fc3c7dd",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "vitrine-revision-active.png",
+      "sha256": "730e0a2c0e6198dfbaa73062f874d67afdd4c712c28a19f60db22218a691056f",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "vitrine-emploi-du-temps.png",
+      "sha256": "adc5891c28a64557b239f5361b414296248572ded22a08a27a5a2ae02363f35d",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "vitrine-accueil.png",
+      "sha256": "92bb8547dc9d2cfd2de1dcb912d106d60d8aafbd62ccdbc30bac6628a2649932",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+    },
+    {
+      "file": "widgets-apercu-simulateur-bas.png",
+      "sha256": "1f338bc899d0e1db5eb405cea3aba8c2e42112437c6352d8bb5efa0a47dd47a3",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Simulated widget component preview with fictitious data, not SpringBoard installation"
+    },
+    {
+      "file": "widgets-apercu-simulateur-haut.png",
+      "sha256": "0f33bd8954f49d0cbf056866f52fab5f6f6e76020499d16137c84b7d2c7deee0",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
+      "nature": "Simulated widget component preview with fictitious data, not SpringBoard installation"
+    }
+  ],
+  "ipas": [
+    {
+      "file": "CadenceSpike-unsigned.ipa",
+      "sha256": "3a3b669f09a57e99385398f1c528fa08103ddb82e749d0d0f0dd06cd711ec2d6",
+      "bytes": 3048397,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ],
+      "keychainSharing": {
+        "extensionAndAppPresent": true,
+        "commonCadenceGroupInExecutableSignatures": false,
+        "templateMetadataOnly": false,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
+      },
+      "authIsolation": {
+        "privateAppGroupPresent": false,
+        "privateAppGroupIsDefault": false,
+        "extensionEntitlementsReadable": true,
+        "extensionHasAppPrivateGroup": false,
+        "isolatedInExecutableMetadata": false,
+        "templateMetadataOnly": false,
+        "privateGroupPermittedByAppProfile": false,
+        "readyForPhysicalPrivateStorageTest": false,
+        "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      }
+    },
+    {
+      "file": "Cadence-unsigned.ipa",
+      "sha256": "e3247cc0cf5ef2c709d7db288912f0c23b102ee19ef143ca142e61fa8b154803",
+      "bytes": 2919902,
+      "extensions": [],
+      "keychainSharing": {
+        "extensionAndAppPresent": false,
+        "commonCadenceGroupInExecutableSignatures": false,
+        "templateMetadataOnly": false,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
+      },
+      "authIsolation": {
+        "privateAppGroupPresent": false,
+        "privateAppGroupIsDefault": false,
+        "extensionEntitlementsReadable": true,
+        "extensionHasAppPrivateGroup": false,
+        "isolatedInExecutableMetadata": false,
+        "templateMetadataOnly": false,
+        "privateGroupPermittedByAppProfile": false,
+        "readyForPhysicalPrivateStorageTest": false,
+        "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      }
+    },
+    {
+      "file": "CadenceExtensions-unsigned.ipa",
+      "sha256": "cb7a5cf950eb8ed49da0af338e6552b20c1a20f42362414b5f59d8d419eca811",
+      "bytes": 3149654,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ],
+      "keychainSharing": {
+        "extensionAndAppPresent": true,
+        "commonCadenceGroupInExecutableSignatures": true,
+        "templateMetadataOnly": true,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
+      },
+      "authIsolation": {
+        "privateAppGroupPresent": true,
+        "privateAppGroupIsDefault": true,
+        "extensionEntitlementsReadable": true,
+        "extensionHasAppPrivateGroup": false,
+        "isolatedInExecutableMetadata": true,
+        "templateMetadataOnly": true,
+        "privateGroupPermittedByAppProfile": false,
+        "readyForPhysicalPrivateStorageTest": false,
+        "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      }
+    },
+    {
+      "file": "CadenceShared-unsigned.ipa",
+      "sha256": "f6a73f5c10c71504e6aa9d8abc191948770d14d01071203040878ccf14cb814e",
+      "bytes": 3108718,
+      "extensions": [
+        "CadenceWidgets.appex"
+      ],
+      "keychainSharing": {
+        "extensionAndAppPresent": true,
+        "commonCadenceGroupInExecutableSignatures": false,
+        "templateMetadataOnly": false,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
+      },
+      "authIsolation": {
+        "privateAppGroupPresent": false,
+        "privateAppGroupIsDefault": false,
+        "extensionEntitlementsReadable": true,
+        "extensionHasAppPrivateGroup": false,
+        "isolatedInExecutableMetadata": false,
+        "templateMetadataOnly": false,
+        "privateGroupPermittedByAppProfile": false,
+        "readyForPhysicalPrivateStorageTest": false,
+        "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      }
+    }
+  ],
+  "backendAudit": "SUPABASE_AUDIT.json",
+  "limits": "The real deployed API was tested separately with verified email authentication. The iPhone was unavailable: post-Sideloadly Keychain/widget access, physical audio/Focus setup, and actual motion performance are not hardware-validated. Unsigned ad-hoc metadata is not an Apple provisioning profile."
+}

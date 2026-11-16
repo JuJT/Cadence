@@ -1,5 +1,14 @@
 # Historique
 
+## 0.3.0 — Synchronisation scolaire et devoirs — 17 novembre 2026
+
+- Lecture Supabase sécurisée, cours et devoirs en cache hors connexion ; plus de dépendance au calendrier PRONOTE de l’iPhone.
+- Migration préservant les séances, alias et notes ; rapprochement des doublons sans double crédit et cours passés automatiquement comptés comme estimés.
+- Devoirs liés aux séances, attribution du temps hors pauses et état de réalisation local conservé.
+- Correction des destinations Keychain des widgets et isolation des jetons d’authentification dans le groupe privé de l’app.
+- Musique depuis Fichiers, intégration Concentration par raccourci initial, halos animés et transitions ; carte informative Révision supprimée.
+- API réelle vérifiée ; 65 tests Swift, 13 Python, contrôles de résumé/signature et 11 parcours natifs réussis. Les tests après resignature sur iPhone restent distincts.
+
 ## 0.2.0 — Cadenza pour iPhone — 15 novembre 2026
 
 - Renommage visible en Cadenza et abandon de l’interface, des tests et du workflow dédiés à l’iPad ; identifiants de mise à jour, données et alias conservés.

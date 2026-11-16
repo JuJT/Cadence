@@ -2,17 +2,17 @@
 
 ## Stockage
 
-Aucune donnée scolaire n’est fournie dans l’installation. Les matières initiales sont des noms génériques modifiables. Les séances, notes, choix de calendriers et alias restent dans le conteneur local de l’application. Aucun serveur, télémétrie, compte Google OAuth, CloudKit ou identifiant Apple n’est utilisé par le code.
+Aucune donnée scolaire réelle n’est fournie dans l’installation. Après connexion, les cours et devoirs sont lus depuis l’API privée Supabase et conservés en cache. Les séances personnelles, notes et alias restent sur l’iPhone et ne sont pas envoyés au serveur. Les jetons sont dans le trousseau privé, hors du JSON et du résumé widgets.
 
 L’écriture est atomique. La génération précédente est conservée. Si le fichier ne peut pas être lu ou validé, il n’est pas écrasé silencieusement ; l’application bloque les modifications et permet une restauration explicite. Une réinstallation après suppression peut effacer toutes les données : le fichier local précédent n’est pas une sauvegarde externe.
 
 ## JSON
 
-Depuis Réglages, exporter puis enregistrer le JSON dans Fichiers ou un emplacement choisi via la feuille système. Le document version 2 contient `schemaVersion`, `exportedAt`, `subjects`, `sessions`, `occurrences` et `settings`. Les identifiants UUID restent stables ; les associations session/occurrence sont bidirectionnelles. Les dates représentent des instants UTC. La session active et ses pauses font partie de la sauvegarde.
+Depuis Réglages, exporter puis enregistrer le JSON dans Fichiers ou un emplacement choisi via la feuille système. Le document version 3 contient `schemaVersion`, `exportedAt`, `subjects`, `sessions`, `occurrences` `settings`, `homework`, `courseContents` et `schoolSync`. Les identifiants UUID restent stables ; les associations session/occurrence sont bidirectionnelles. Les dates représentent des instants UTC. La session active et ses pauses et ses segments par devoir font partie de la sauvegarde.
 
-L’import **remplace l’état courant après confirmation** ; ce n’est pas une fusion entre deux appareils. Avant remplacement, la génération locale antérieure est conservée. Le fichier est validé en entier : taille maximale 20 Mo, version connue, UUID uniques, références existantes, une seule session active, ordre temporel et associations cohérentes. En cas de refus, l’état courant reste intact. Le format v1 du kit est migré vers v2 ; aucune donnée fictive du kit n’est importée au lancement.
+L’import **remplace l’état courant après confirmation** ; ce n’est pas une fusion entre deux appareils. Avant remplacement, la génération locale antérieure est conservée. Le fichier est validé en entier : taille maximale 20 Mo, version connue, UUID uniques, références existantes, une seule session active, ordre temporel et associations cohérentes. En cas de refus, l’état courant reste intact. Les formats v1 et v2 sont migrés vers v3 ; aucune donnée fictive du kit n’est importée au lancement. La première lecture d’un ancien stockage conserve aussi une copie cadence-before-school-v3.json avant modification.
 
-Une sauvegarde contient des noms et identifiants de calendriers ainsi que des notes privées : partager le fichier seulement avec les destinataires choisis. Les workflows de compilation n’ont pas besoin de vos exports réels et ne doivent pas en recevoir.
+Une sauvegarde contient le cache scolaire, des devoirs et des notes privées : ne la partager qu’avec les destinataires choisis. Les workflows de compilation ne doivent recevoir aucun export réel.
 
 ## CSV
 
@@ -22,7 +22,7 @@ Le CSV est destiné à la consultation et ne sert pas à restaurer la base. Le J
 
 ## Comptabilisation
 
-- Le réglage d’estimation automatique est désactivé tant que vous ne l’activez pas explicitement.
+- Les cours scolaires terminés sont automatiquement estimés, sauf annulation, dispense, absence ou exclusion locale ; aucune confirmation systématique n’est demandée.
 - Un cours passé estimé est distinct d’un cours confirmé ou mesuré.
 - Une mesure associée remplace l’estimation, même si sa durée diffère.
 - Les révisions restent manuelles et comptent séparément.

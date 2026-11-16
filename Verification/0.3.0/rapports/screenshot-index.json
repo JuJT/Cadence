@@ -1,0 +1,153 @@
+{
+  "screenshots": [
+    {
+      "label": "statistiques-sombre_0_6C59AF52-3590-46AF-952F-A39F020A6AA8.png",
+      "source": "dark/6F6497C8-3B0E-40A5-852C-B8316A82FD41.png",
+      "manifest": "dark/manifest.json",
+      "output": "dark/statistiques-sombre_0_6c59af52-3590-46af-952f-a39f020a6aa8.png",
+      "sha256": "7120b09f9cf8e7b598e84a912b5aba6ec5814aa260af3cbffcc6291229b8a580"
+    },
+    {
+      "label": "cours-jour-matiere_0_727FAE86-27D8-4ED2-846D-2783EF747C0A.png",
+      "source": "iphone/6ED0F495-1CF0-404B-9711-974625AD3E9F.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/cours-jour-matiere_0_727fae86-27d8-4ed2-846d-2783ef747c0a.png",
+      "sha256": "9a32d1c2704e523e3bbc80ea0d3d813e16ed5205a0075ee9c7f2d4cbc8492c51"
+    },
+    {
+      "label": "accessibilite-grand-texte_0_F273DED8-9DFF-4113-A9F9-C38F26FE81E1.png",
+      "source": "iphone/6FD3DAFF-A354-4B3A-AC00-4401EE85F7A7.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/accessibilite-grand-texte_0_f273ded8-9dff-4113-a9f9-c38f26fe81e1.png",
+      "sha256": "dba963f37840772253b4fb529ed9b4a80fa015040d8dc1186b66dc8a4ad5d0ab"
+    },
+    {
+      "label": "statistiques-clair_0_87062953-129A-487B-975A-E692A3C48B0D.png",
+      "source": "iphone/1529FCDC-3706-4CDB-BF8C-E96AF459C0AD.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/statistiques-clair_0_87062953-129a-487b-975a-e692a3c48b0d.png",
+      "sha256": "3b0145050a7d5fb1663e1844a612fc83c961e0fa85dc401f5c8479f889351d8b"
+    },
+    {
+      "label": "revision-active_0_566FE0B4-42D9-4BD6-A0DE-B646CC18A130.png",
+      "source": "iphone/54EDDF91-8E6F-444D-B08E-665013B65177.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/revision-active_0_566fe0b4-42d9-4bd6-a0de-b646cc18a130.png",
+      "sha256": "556303ff5efa3cfa48a6d5f91d4e866b8ddeae3b107a826b93d7603edaa0b778"
+    },
+    {
+      "label": "revision-clair_0_3BE97DE4-457B-4CB8-9F16-A9BEB02F37F1.png",
+      "source": "iphone/2DD0FF69-403C-4CEF-94B2-C8FCF014FBFA.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/revision-clair_0_3be97de4-457b-4cb8-9f16-a9beb02f37f1.png",
+      "sha256": "d22303e2f1e92bcb1be1029bb4a0c2cbd39fd6b7dc94626bd50965f11dc34c74"
+    },
+    {
+      "label": "cours-clair_0_92AF8FAE-A2F7-4CDA-BE16-FB4777DE2C60.png",
+      "source": "iphone/7E743DAC-8472-4BF1-8813-C156AF904B74.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/cours-clair_0_92af8fae-a2f7-4cda-be16-fb4777de2c60.png",
+      "sha256": "c288c6a4678294d41025541854c80cae0c6cbae6b9f2c9b6f13d94da99a99160"
+    },
+    {
+      "label": "accueil-clair_0_C44BF7B5-AEB6-4810-94FB-255CF5107505.png",
+      "source": "iphone/2C3B615F-289D-4613-8123-5D8CFA7F7B11.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/accueil-clair_0_c44bf7b5-aeb6-4810-94fb-255cf5107505.png",
+      "sha256": "05f48f3729b7962924cea30654b3b84b02e7979c0c4e6b8adf71058db0b6dba7"
+    },
+    {
+      "label": "musique-et-concentration_0_CF54DF61-8FAE-4CA5-9E95-2C940A637E24.png",
+      "source": "iphone/BCBE80DE-B2EA-4773-8169-AA9DE4E1DF45.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/musique-et-concentration_0_cf54df61-8fae-4ca5-9e95-2c940a637e24.png",
+      "sha256": "ce75aeeef48dd56a714704efa6dbc59b1f4cfdf1494b86bc69d70f423bcb315f"
+    },
+    {
+      "label": "terminer-seance-alerte_0_37E45B16-31BD-4239-83D9-4FC6F1FD451F.png",
+      "source": "iphone/A8A90C56-C9FD-4832-B808-1A1CF6BB9A11.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/terminer-seance-alerte_0_37e45b16-31bd-4239-83d9-4fc6f1fd451f.png",
+      "sha256": "029e83161eef5f5016a947001ee8787fdd590b6d451113cfe9b72406f47e144b"
+    },
+    {
+      "label": "nouvelle-seance-formulaire_0_EA25B284-7C50-47A8-9357-2C880832913A.png",
+      "source": "iphone/7FA32FC4-3A25-4468-96FB-0074E1DF2DB0.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/nouvelle-seance-formulaire_0_ea25b284-7c50-47a8-9357-2c880832913a.png",
+      "sha256": "b3610128259d08aebdbcbf88b9020b133b9de9fbea90b4ec2bf9a4c34a9c080d"
+    },
+    {
+      "label": "nouvelle-seance-feuille_0_537F0959-ED34-4A00-9556-248B696927C3.png",
+      "source": "iphone/9C6D206E-7C8F-4D54-BEE6-52F51A1C75FF.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/nouvelle-seance-feuille_0_537f0959-ed34-4a00-9556-248b696927c3.png",
+      "sha256": "6c4295a3b44c4f3418219d62f0cfd6a36175645c142add4f6496405ec906dee8"
+    },
+    {
+      "label": "devoirs-detail_0_C3213740-58CD-4BD8-B5FA-BB0F8E4B1779.png",
+      "source": "iphone/A3AF0148-1A6B-4F52-B71D-D3930539056C.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/devoirs-detail_0_c3213740-58cd-4bd8-b5fa-bb0f8e4b1779.png",
+      "sha256": "c3b7eeff726e26b1e97433904c8af0342c31faa8904a09dd84b8d664dcfda9a8"
+    },
+    {
+      "label": "devoirs-liste_0_CA51ECCA-3797-48E8-A53A-5F8D28295FC0.png",
+      "source": "iphone/45299725-D4FC-4064-8434-D6AFC120CD41.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/devoirs-liste_0_ca51ecca-3797-48e8-a53a-5f8d28295fc0.png",
+      "sha256": "f059635ef8ffae3c968e634ea5770a22ef1d2b0a0967cd8f9698e80cc5390ff9"
+    },
+    {
+      "label": "devoir-seance-liee_0_BD45005D-4B42-44A7-A427-30F30DAD07D3.png",
+      "source": "iphone/94F6EE05-01A3-4E4A-B02A-83F1C7D87E4D.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/devoir-seance-liee_0_bd45005d-4b42-44a7-a427-30f30dad07d3.png",
+      "sha256": "eb07c92a0dc986d51039b376146e4fad1903ef6ae49ff790d49d582e34b6bc60"
+    },
+    {
+      "label": "vitrine-statistiques_0_7A2B7CC7-15E6-4E28-BE02-68BB9E07F38C.png",
+      "source": "iphone/8D41FD6D-F3E1-4E5E-A8B9-1A34EB71EF57.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-statistiques_0_7a2b7cc7-15e6-4e28-be02-68bb9e07f38c.png",
+      "sha256": "691e98789b58cd02495005452fa729c19fd0a9b46eea505676dcd0214fc3c7dd"
+    },
+    {
+      "label": "vitrine-revision-active_0_1924FF0A-5BA8-47A7-863E-5EB14C8DC4EC.png",
+      "source": "iphone/83814971-BE7F-4D9B-B0C2-16F385A590D7.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-revision-active_0_1924ff0a-5ba8-47a7-863e-5eb14c8dc4ec.png",
+      "sha256": "730e0a2c0e6198dfbaa73062f874d67afdd4c712c28a19f60db22218a691056f"
+    },
+    {
+      "label": "vitrine-emploi-du-temps_0_351170C4-FBFE-4AD8-B8C8-E7E3FF9B0327.png",
+      "source": "iphone/0D4D1CAF-DC93-46F5-AFE0-FE773AD61808.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-emploi-du-temps_0_351170c4-fbfe-4ad8-b8c8-e7e3ff9b0327.png",
+      "sha256": "adc5891c28a64557b239f5361b414296248572ded22a08a27a5a2ae02363f35d"
+    },
+    {
+      "label": "vitrine-accueil_0_5AEAD9EF-4026-4EE4-8A0A-6413DDEDA5E1.png",
+      "source": "iphone/DA6D4DB1-7036-445E-9608-028E3803452E.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-accueil_0_5aead9ef-4026-4ee4-8a0a-6413ddeda5e1.png",
+      "sha256": "92bb8547dc9d2cfd2de1dcb912d106d60d8aafbd62ccdbc30bac6628a2649932"
+    },
+    {
+      "label": "widgets-apercu-simulateur-bas_0_39D075CE-296B-47C9-B2AC-21F020D6CBDD.png",
+      "source": "iphone/ABC8186D-89BE-41FB-8B8C-D812ED3221B8.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/widgets-apercu-simulateur-bas_0_39d075ce-296b-47c9-b2ac-21f020d6cbdd.png",
+      "sha256": "1f338bc899d0e1db5eb405cea3aba8c2e42112437c6352d8bb5efa0a47dd47a3"
+    },
+    {
+      "label": "widgets-apercu-simulateur-haut_0_D155756C-B244-4DE2-AAAE-5E9FE9723B6D.png",
+      "source": "iphone/641BA28D-96D1-42B8-AC3C-9170C348B977.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/widgets-apercu-simulateur-haut_0_d155756c-b244-4de2-aaae-5e9fe9723b6d.png",
+      "sha256": "0f33bd8954f49d0cbf056866f52fab5f6f6e76020499d16137c84b7d2c7deee0"
+    }
+  ],
+  "warnings": [],
+  "provenance": "pièces jointes XCTest réellement exportées; fichiers copiés sans modification"
+}
