@@ -55,12 +55,17 @@ public struct StudySession: Codable, Identifiable, Equatable, Sendable {
     public var endedAt: Date?
     public var activeSegments: [TimeSegment]
     public var linkedOccurrenceID: UUID?
+    public var activeHomeworkID: String?
+    public var homeworkWorkSegments: [HomeworkWorkSegment]?
+    public var allowsDistinctCourseOverlap: Bool?
     public var isPaused: Bool { endedAt == nil && activeSegments.last?.end != nil }
     public var isActive: Bool { endedAt == nil }
-    public init(id: UUID = UUID(), subjectID: UUID, kind: SessionKind, origin: SessionOrigin = .timer, topic: String = "", notes: String = "", startedAt: Date, endedAt: Date? = nil, activeSegments: [TimeSegment], linkedOccurrenceID: UUID? = nil) {
+    public init(id: UUID = UUID(), subjectID: UUID, kind: SessionKind, origin: SessionOrigin = .timer, topic: String = "", notes: String = "", startedAt: Date, endedAt: Date? = nil, activeSegments: [TimeSegment], linkedOccurrenceID: UUID? = nil, activeHomeworkID: String? = nil, homeworkWorkSegments: [HomeworkWorkSegment]? = nil, allowsDistinctCourseOverlap: Bool? = nil) {
         self.id = id; self.subjectID = subjectID; self.kind = kind; self.origin = origin
         self.topic = topic; self.notes = notes; self.startedAt = startedAt; self.endedAt = endedAt
         self.activeSegments = activeSegments; self.linkedOccurrenceID = linkedOccurrenceID
+        self.activeHomeworkID = activeHomeworkID; self.homeworkWorkSegments = homeworkWorkSegments
+        self.allowsDistinctCourseOverlap = allowsDistinctCourseOverlap
     }
     public func elapsed(at now: Date = Date()) -> TimeInterval {
         activeSegments.reduce(0) { $0 + $1.duration(at: endedAt ?? now) }
@@ -133,7 +138,10 @@ public struct CourseOccurrence: Codable, Identifiable, Equatable, Sendable {
     public var pendingEnd: Date?
     public var pendingTitle: String?
     public var identityUncertain: Bool
-    public init(id: UUID = UUID(), calendarIdentifier: String, eventIdentifier: String, externalIdentifier: String? = nil, occurrenceAnchor: Date? = nil, isRecurring: Bool = false, calendarName: String = "", title: String, start: Date, end: Date, subjectID: UUID? = nil, status: CourseStatus = .scheduled, previousStatus: CourseStatus? = nil, confirmedSeconds: TimeInterval? = nil, linkedSessionID: UUID? = nil, sourceMissing: Bool = false, userEdited: Bool = false, lastSeenAt: Date = Date(), sourceFingerprint: String = "", pendingStart: Date? = nil, pendingEnd: Date? = nil, pendingTitle: String? = nil, identityUncertain: Bool = false) {
+    public var school: SchoolCourseMetadata?
+    public var schoolScheduleOverridden: Bool?
+    public var supersededByOccurrenceID: UUID?
+    public init(id: UUID = UUID(), calendarIdentifier: String, eventIdentifier: String, externalIdentifier: String? = nil, occurrenceAnchor: Date? = nil, isRecurring: Bool = false, calendarName: String = "", title: String, start: Date, end: Date, subjectID: UUID? = nil, status: CourseStatus = .scheduled, previousStatus: CourseStatus? = nil, confirmedSeconds: TimeInterval? = nil, linkedSessionID: UUID? = nil, sourceMissing: Bool = false, userEdited: Bool = false, lastSeenAt: Date = Date(), sourceFingerprint: String = "", pendingStart: Date? = nil, pendingEnd: Date? = nil, pendingTitle: String? = nil, identityUncertain: Bool = false, school: SchoolCourseMetadata? = nil, schoolScheduleOverridden: Bool? = nil, supersededByOccurrenceID: UUID? = nil) {
         self.id = id; self.calendarIdentifier = calendarIdentifier; self.eventIdentifier = eventIdentifier
         self.externalIdentifier = externalIdentifier; self.occurrenceAnchor = occurrenceAnchor; self.isRecurring = isRecurring
         self.calendarName = calendarName; self.title = title; self.start = start; self.end = end
@@ -143,6 +151,7 @@ public struct CourseOccurrence: Codable, Identifiable, Equatable, Sendable {
         self.sourceFingerprint = sourceFingerprint
         self.pendingStart = pendingStart; self.pendingEnd = pendingEnd; self.pendingTitle = pendingTitle
         self.identityUncertain = identityUncertain
+        self.school = school; self.schoolScheduleOverridden = schoolScheduleOverridden; self.supersededByOccurrenceID = supersededByOccurrenceID
     }
     public var accountingStatus: CourseStatus { status == .needsReview ? previousStatus ?? .needsReview : status }
 
@@ -165,7 +174,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var onboardingCompleted: Bool
     public var defaultSubjectID: UUID?
     public var lastCalendarSync: Date?
-    public init(selectedCalendarIDs: [String] = [], excludedKeywords: [String] = [], autoCreditCourses: Bool = false, calendarEnabled: Bool = false, liveActivityEnabled: Bool = true, onboardingCompleted: Bool = false, defaultSubjectID: UUID? = nil, lastCalendarSync: Date? = nil) {
+    public init(selectedCalendarIDs: [String] = [], excludedKeywords: [String] = [], autoCreditCourses: Bool = true, calendarEnabled: Bool = false, liveActivityEnabled: Bool = true, onboardingCompleted: Bool = false, defaultSubjectID: UUID? = nil, lastCalendarSync: Date? = nil) {
         self.selectedCalendarIDs = selectedCalendarIDs; self.excludedKeywords = excludedKeywords
         self.autoCreditCourses = autoCreditCourses; self.calendarEnabled = calendarEnabled
         self.liveActivityEnabled = liveActivityEnabled; self.onboardingCompleted = onboardingCompleted
@@ -179,10 +188,27 @@ public struct CadenceState: Codable, Equatable, Sendable {
     public var sessions: [StudySession]
     public var occurrences: [CourseOccurrence]
     public var settings: AppSettings
+    public var homework: [HomeworkItem]
+    public var courseContents: [SchoolCourseContent]
+    public var schoolSync: SchoolSyncState?
     public var activeSession: StudySession? { sessions.first { $0.endedAt == nil } }
-    public init(schemaVersion: Int = 2, subjects: [Subject] = [], sessions: [StudySession] = [], occurrences: [CourseOccurrence] = [], settings: AppSettings = AppSettings()) {
+    public var visibleOccurrences: [CourseOccurrence] { occurrences.filter { $0.supersededByOccurrenceID == nil } }
+    public init(schemaVersion: Int = 3, subjects: [Subject] = [], sessions: [StudySession] = [], occurrences: [CourseOccurrence] = [], settings: AppSettings = AppSettings(), homework: [HomeworkItem] = [], courseContents: [SchoolCourseContent] = [], schoolSync: SchoolSyncState? = nil) {
         self.schemaVersion = schemaVersion; self.subjects = subjects; self.sessions = sessions
         self.occurrences = occurrences; self.settings = settings
+        self.homework = homework; self.courseContents = courseContents; self.schoolSync = schoolSync
+    }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, subjects, sessions, occurrences, settings, homework, courseContents, schoolSync }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        subjects = try c.decode([Subject].self, forKey: .subjects)
+        sessions = try c.decode([StudySession].self, forKey: .sessions)
+        occurrences = try c.decode([CourseOccurrence].self, forKey: .occurrences)
+        settings = try c.decode(AppSettings.self, forKey: .settings)
+        homework = try c.decodeIfPresent([HomeworkItem].self, forKey: .homework) ?? []
+        courseContents = try c.decodeIfPresent([SchoolCourseContent].self, forKey: .courseContents) ?? []
+        schoolSync = try c.decodeIfPresent(SchoolSyncState.self, forKey: .schoolSync)
     }
     public static func initial() -> CadenceState {
         CadenceState(subjects: [
@@ -200,6 +226,7 @@ public enum CadenceError: Error, LocalizedError, Equatable {
     case activeSessionExists, subjectNotFound, sessionNotFound, occurrenceNotFound
     case invalidDates, invalidDuration, invalidSubject, invalidBackup(String)
     case incompatibleLink, alreadyLinked, courseOverlap, clockMovedBackwards
+    case homeworkNotFound, incompatibleHomework, invalidSchoolSnapshot
     public var errorDescription: String? {
         switch self {
         case .activeSessionExists: return "Une séance est déjà en cours. Terminez-la avant d’en démarrer une autre."
@@ -214,6 +241,9 @@ public enum CadenceError: Error, LocalizedError, Equatable {
         case .alreadyLinked: return "Ce cours ou cette séance est déjà associé. Détachez d’abord son association actuelle."
         case .courseOverlap: return "Un cours de cette matière chevauche ce créneau. Associez-le ou confirmez une séance distincte."
         case .clockMovedBackwards: return "L’heure de l’appareil précède la dernière transition de la séance. Vérifiez la date avant de continuer."
+        case .homeworkNotFound: return "Ce devoir n’est pas disponible dans le cache local."
+        case .incompatibleHomework: return "Le devoir et la séance doivent appartenir à la même matière."
+        case .invalidSchoolSnapshot: return "Les données scolaires reçues sont incomplètes ou invalides ; le cache précédent est conservé."
         }
     }
 }

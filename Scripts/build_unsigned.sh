@@ -27,17 +27,25 @@ for bundle in [app, *sorted((app / 'PlugIns').glob('*.appex'))]:
 print('Cadenza: compiled app and extensions target iPhone only.')
 PY
   if [[ "$scheme" == "CadenceExtensions" || "$scheme" == "CadenceShared" ]]; then
-    signing_source="Config/CadenceKeychain.entitlements"
-    if [[ "$scheme" == "CadenceShared" ]]; then signing_source="Config/CadenceShared.entitlements"; fi
-    signing_intent="$derived/Cadence-signing-intent.plist"
+    app_signing_source="Config/CadenceAppKeychain.entitlements"
+    widget_signing_source="Config/CadenceKeychain.entitlements"
+    if [[ "$scheme" == "CadenceShared" ]]; then
+      app_signing_source="Config/CadenceShared.entitlements"
+      widget_signing_source="Config/CadenceShared.entitlements"
+    fi
+    app_signing_intent="$derived/Cadence-app-signing-intent.plist"
+    widget_signing_intent="$derived/Cadence-widget-signing-intent.plist"
     # A local ad-hoc signature only preserves the requested capabilities for the
     # re-signer. UNSIGNED00 is a declared placeholder, NEVER an Apple Team ID.
     # No profile/certificate is supplied and this IPA still cannot install as-is.
-    python3 Scripts/prepare_signing_intent.py "$signing_source" "$signing_intent"
-    cp "$signing_intent" "$app/CadenceSigningIntent.plist"
-    /usr/bin/codesign --force --sign - --generate-entitlement-der --entitlements "$signing_intent" "$app/PlugIns/CadenceWidgets.appex"
-    /usr/bin/codesign --force --sign - --generate-entitlement-der --entitlements "$signing_intent" "$app"
+    python3 Scripts/prepare_signing_intent.py "$app_signing_source" "$app_signing_intent" --bundle-info "$app/Info.plist"
+    python3 Scripts/prepare_signing_intent.py "$widget_signing_source" "$widget_signing_intent" --bundle-info "$app/PlugIns/CadenceWidgets.appex/Info.plist"
+    cp "$app_signing_intent" "$app/CadenceSigningIntent.plist"
+    cp "$widget_signing_intent" "$app/PlugIns/CadenceWidgets.appex/CadenceSigningIntent.plist"
+    /usr/bin/codesign --force --sign - --generate-entitlement-der --entitlements "$widget_signing_intent" "$app/PlugIns/CadenceWidgets.appex"
+    /usr/bin/codesign --force --sign - --generate-entitlement-der --entitlements "$app_signing_intent" "$app"
     /usr/bin/codesign -d --entitlements :- "$app" > "dist/reports/$scheme-signing-intent.plist" 2>/dev/null
+    /usr/bin/codesign -d --entitlements :- "$app/PlugIns/CadenceWidgets.appex" > "dist/reports/$scheme-widget-signing-intent.plist" 2>/dev/null
   fi
   python3 Scripts/inspect_bundle.py "$app" "dist/reports/$scheme-bundle.json"
   if [[ "$scheme" != "Cadence" ]]; then
@@ -54,5 +62,17 @@ PY
   (cd "$package_dir" && /usr/bin/zip -qry "$ipa_path" Payload)
   /usr/bin/unzip -t "dist/$scheme-unsigned.ipa" > "dist/reports/$scheme-zip-check.txt"
   python3 Scripts/inspect_ipa.py "dist/$scheme-unsigned.ipa" --output "dist/reports/$scheme-ipa-signing.json"
+  if [[ "$scheme" == "CadenceExtensions" ]]; then
+    python3 - "dist/reports/$scheme-ipa-signing.json" <<'PY'
+import json, sys
+from pathlib import Path
+auth = json.loads(Path(sys.argv[1]).read_text())['authIsolation']
+assert auth['privateAppGroupPresent'] and auth['privateAppGroupIsDefault'], 'Private app keychain group missing'
+assert auth['extensionEntitlementsReadable'] and not auth['extensionHasAppPrivateGroup'], 'Widget must not access app credentials'
+assert auth['isolatedInExecutableMetadata'], 'Auth keychain separation not established in metadata'
+assert auth['templateMetadataOnly'] and not auth['readyForPhysicalPrivateStorageTest'], 'Unsigned metadata must not claim Apple provisioning'
+print('Cadenza: private app auth group and widget summary group are separated in unsigned metadata.')
+PY
+  fi
   shasum -a 256 "dist/$scheme-unsigned.ipa" > "dist/reports/$scheme-sha256.txt"
 done

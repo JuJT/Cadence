@@ -15,8 +15,17 @@ final class AppStore: ObservableObject {
     @Published private(set) var calendarPermissionDescription = "Calendrier non lié"
     @Published private(set) var storageDiagnostic = "Stockage local"
     @Published var route = "accueil"
+    @Published private(set) var schoolSignedIn = false
+    @Published private(set) var schoolEmail: String?
+    @Published private(set) var schoolSyncing = false
+    @Published private(set) var schoolStatus = "Connexion scolaire à configurer"
+    @Published private(set) var schoolError: String?
 
     private let calendarService = CalendarIntegrationService()
+    private let schoolService = SupabaseSchoolService()
+    private var lastSchoolAttempt: Date?
+    private var schoolEpoch = UUID()
+    private var schoolOperation: UUID?
     private var repository: LocalStateRepository?
     private var writesBlocked = false
     var needsRecovery: Bool { writesBlocked }
@@ -57,6 +66,9 @@ final class AppStore: ObservableObject {
                 if ProcessInfo.processInfo.arguments.contains("--uitesting-showcase") {
                     Self.populateShowcase(&initial)
                 }
+                if ProcessInfo.processInfo.arguments.contains("--uitesting-school") {
+                    SchoolUITestFixtures.populate(&initial)
+                }
                 self.state = initial
             } else {
                 self.state = try repository.load()
@@ -75,9 +87,8 @@ final class AppStore: ObservableObject {
         SystemIntegrationService.shared.onDiagnosticChange = { [weak self] in self?.updateDiagnostics() }
         updateDiagnostics()
         if !writesBlocked { SystemIntegrationService.shared.refresh(state: state) }
-        calendarObserver = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in await self?.refreshCalendars() }
-        }
+        // School refresh never depends on EventKit notifications or permissions.
+        SessionCompanionService.shared.synchronizeExistingSession(activeSessionID: state.activeSession?.id)
     }
 
     #if targetEnvironment(simulator)
@@ -126,9 +137,13 @@ final class AppStore: ObservableObject {
             try mutation(&updated)
             try BackupCodec.validate(updated)
             try repository.save(updated)
+            let previousSessionID = state.activeSession?.id
             state = updated
             errorMessage = nil
             SystemIntegrationService.shared.refresh(state: updated)
+            if previousSessionID != updated.activeSession?.id {
+                SessionCompanionService.shared.sessionDidChange(activeSessionID: updated.activeSession?.id)
+            }
             updateDiagnostics()
             return true
         } catch {
@@ -145,6 +160,30 @@ final class AppStore: ObservableObject {
     func pause() { performMutation { _ = try CadenceEngine.pause(state: &$0) } }
     func resume() { performMutation { _ = try CadenceEngine.resume(state: &$0) } }
     func finish() { performMutation { _ = try CadenceEngine.finish(state: &$0) } }
+    func startHomework(_ id: String) {
+        guard let item = state.homework.first(where: { $0.id == id }), let subjectID = item.subjectID else {
+            errorMessage = "Choisissez d’abord la matière de ce devoir."; return
+        }
+        if state.activeSession != nil { assignHomeworkToActiveSession(id); return }
+        if performMutation({ state in
+            _ = try CadenceEngine.start(state: &state, subjectID: subjectID, kind: .revision,
+                topic: item.source.subject, homeworkID: id)
+        }) { route = "revision" }
+    }
+    func assignHomeworkToActiveSession(_ id: String?) {
+        performMutation { try CadenceEngine.setActiveHomework(state: &$0, homeworkID: id) }
+    }
+    func setHomeworkCompletion(_ id: String, isDone: Bool) {
+        performMutation { state in
+            try CadenceEngine.setHomeworkCompletion(state: &state, homeworkID: id, isDone: isDone)
+            if isDone, state.activeSession?.activeHomeworkID == id {
+                try CadenceEngine.setActiveHomework(state: &state, homeworkID: nil)
+            }
+        }
+    }
+    func setHomeworkSubject(_ id: String, subjectID: UUID) {
+        performMutation { try CadenceEngine.assignHomeworkSubject(state: &$0, homeworkID: id, subjectID: subjectID) }
+    }
     func saveSubject(_ subject: CadenceCore.Subject) { performMutation { try CadenceEngine.updateSubject(state: &$0, subject: subject) } }
     func deleteSubject(_ id: UUID) { performMutation { try CadenceEngine.deleteSubject(state: &$0, subjectID: id) } }
 
@@ -193,6 +232,10 @@ final class AppStore: ObservableObject {
     func updateOccurrence(_ id: UUID, subjectID: UUID?, title: String, start: Date, end: Date) {
         performMutation { state in
             guard end > start, let index = state.occurrences.firstIndex(where: { $0.id == id }) else { throw AppStoreError.invalidSession }
+            if state.occurrences[index].school != nil,
+               state.occurrences[index].start != start || state.occurrences[index].end != end || state.occurrences[index].title != title.trimmingCharacters(in: .whitespacesAndNewlines) {
+                state.occurrences[index].schoolScheduleOverridden = true
+            }
             if let subjectID { try CadenceEngine.assignSubject(state: &state, occurrenceID: id, subjectID: subjectID) }
             state.occurrences[index].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
             state.occurrences[index].start = start
@@ -280,12 +323,95 @@ final class AppStore: ObservableObject {
     }
 
     func foreground() async {
-        await refreshCalendars()
+        await refreshSchool(force: false)
         if !writesBlocked {
             performMutation { state in
-                let enabled = state.settings.autoCreditCourses
-                CadenceEngine.setAutoCredit(state: &state, enabled: enabled)
+                CadenceEngine.setAutoCredit(state: &state, enabled: true)
             }
+        }
+    }
+
+    @discardableResult
+    func requestSchoolLogin(email: String) async -> Bool {
+        let epoch = schoolEpoch
+        schoolError = nil
+        do { try await schoolService.requestLogin(email: email); return epoch == schoolEpoch }
+        catch { if epoch == schoolEpoch { schoolError = error.localizedDescription }; return false }
+    }
+
+    @discardableResult
+    func verifySchoolLogin(email: String, codeOrLink: String) async -> Bool {
+        invalidateSchoolRequests()
+        let epoch = schoolEpoch
+        schoolError = nil
+        do {
+            try await schoolService.verifyLogin(email: email, codeOrLink: codeOrLink)
+            guard epoch == schoolEpoch else { return false }
+            await refreshSchool(force: true)
+            return epoch == schoolEpoch && schoolSignedIn && schoolError == nil
+        } catch { if epoch == schoolEpoch { schoolError = error.localizedDescription }; return false }
+    }
+
+    func disconnectSchool() async {
+        invalidateSchoolRequests()
+        let epoch = schoolEpoch
+        schoolError = nil
+        do { try await schoolService.signOut() }
+        catch { if epoch == schoolEpoch { schoolError = error.localizedDescription } }
+        let signedIn = await schoolService.hasSession
+        let email = await schoolService.email
+        guard epoch == schoolEpoch else { return }
+        schoolSignedIn = signedIn
+        schoolEmail = email
+        schoolStatus = signedIn ? "La connexion reste enregistrée · réessayez la déconnexion" : "Déconnecté · données locales conservées"
+    }
+
+    private func invalidateSchoolRequests() {
+        schoolEpoch = UUID(); schoolOperation = nil; schoolSyncing = false
+    }
+
+    func refreshSchool(force: Bool = true) async {
+        guard !writesBlocked, !schoolSyncing else { return }
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--uitesting") {
+            schoolSignedIn = state.schoolSync != nil
+            schoolStatus = state.schoolSync == nil ? "Suivi manuel" : "Données fictives de recette · hors connexion"
+            return
+        }
+        #endif
+        let epoch = schoolEpoch
+        let operation = UUID()
+        schoolOperation = operation
+        schoolSyncing = true
+        defer { if schoolOperation == operation { schoolSyncing = false; schoolOperation = nil } }
+        let signedIn = await schoolService.hasSession
+        let email = await schoolService.email
+        guard epoch == schoolEpoch else { return }
+        schoolSignedIn = signedIn
+        schoolEmail = email
+        guard schoolSignedIn else {
+            schoolStatus = state.schoolSync == nil ? "Connecter PRONOTE via Supabase" : "Cache scolaire disponible · connexion à rétablir"
+            return
+        }
+        if !force, let lastSchoolAttempt, Date().timeIntervalSince(lastSchoolAttempt) < 300 { return }
+        lastSchoolAttempt = Date()
+        schoolError = nil
+        do {
+            let snapshot = try await schoolService.fetchSnapshot()
+            guard epoch == schoolEpoch else { return }
+            guard performMutation({ state in _ = try SchoolReconciler.sync(state: &state, snapshot: snapshot) }) else {
+                schoolError = errorMessage; return
+            }
+            lastSyncAt = state.schoolSync?.lastSuccessfulFetch
+            schoolStatus = snapshot.syncState.hasError ? "Cache actualisé · source PRONOTE à vérifier" : "PRONOTE synchronisé avec Supabase"
+        } catch {
+            let signedIn = await schoolService.hasSession
+            let email = await schoolService.email
+            guard epoch == schoolEpoch else { return }
+            schoolSignedIn = signedIn
+            schoolEmail = email
+            schoolError = error.localizedDescription
+            schoolStatus = state.schoolSync == nil ? "Connexion scolaire indisponible" : "Hors connexion · dernier emploi du temps conservé"
         }
     }
 
@@ -298,12 +424,14 @@ final class AppStore: ObservableObject {
             let repository = try self.repository ?? LocalStateRepository()
             try repository.save(restored)
             self.repository = repository
+            invalidateSchoolRequests()
             state = restored
             lastSyncAt = restored.settings.lastCalendarSync
             writesBlocked = false
             errorMessage = nil
             calendarPreview = []; previewWindow = nil
             SystemIntegrationService.shared.refresh(state: restored)
+            SessionCompanionService.shared.synchronizeExistingSession(activeSessionID: restored.activeSession?.id)
             updateDiagnostics()
         } catch { errorMessage = "Restauration refusée ; données conservées. \(error.localizedDescription)" }
     }

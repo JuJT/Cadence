@@ -25,7 +25,10 @@ struct HomeView: View {
                 if let active = store.state.activeSession {
                     ActiveSessionCard(session: active) { store.route = "revision" }
                 }
-                if let next = store.state.occurrences.filter({ $0.start > context.date && $0.status != .cancelled && $0.status != .ignored && $0.status != .absent }).sorted(by: { $0.start < $1.start }).first {
+                if let next = store.state.visibleOccurrences.filter({
+                    $0.start > context.date && !$0.sourceMissing && $0.school?.canceled != true && $0.school?.exempted != true
+                        && ![.cancelled, .ignored, .absent].contains($0.accountingStatus)
+                }).sorted(by: { $0.start < $1.start }).first {
                     NavigationLink { CourseDetailView(occurrenceID: next.id) } label: {
                         nextCourseCard(next)
                     }.buttonStyle(.plain)
@@ -39,7 +42,7 @@ struct HomeView: View {
                                     .fill(Atelier.blue.opacity(0.35)).frame(width: 4, height: 40)
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text("Votre planning vous attend").font(.headline).foregroundStyle(CadenceColors.ink)
-                                    Text("Ajoutez un cours ou liez votre emploi du temps.")
+                                    Text("Connectez PRONOTE ou ajoutez un cours manuel.")
                                         .font(.subheadline).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 4)
@@ -50,6 +53,10 @@ struct HomeView: View {
                 }
                 ProminentAction(title: "Nouvelle séance", symbol: "play.fill") { showNewSession = true }
                     .accessibilityIdentifier("session.new")
+                if store.state.schoolSync != nil || !store.state.homework.isEmpty {
+                    NavigationLink { HomeworkView() } label: { homeworkCard(now: context.date) }
+                        .buttonStyle(.plain).accessibilityIdentifier("home.homework")
+                }
                 Button { store.route = "statistiques" } label: {
                     weekCard(now: context.date)
                 }.buttonStyle(.plain)
@@ -80,19 +87,27 @@ struct HomeView: View {
                         }
                     }
                 }
-                Label(syncDescription, systemImage: "arrow.triangle.2.circlepath")
-                    .font(.caption).foregroundStyle(.secondary).padding(.top, 2)
+                NavigationLink { SchoolConnectionView() } label: {
+                    HStack(spacing: 8) {
+                        if store.schoolSyncing { ProgressView().controlSize(.small) }
+                        else { Image(systemName: "arrow.triangle.2.circlepath") }
+                        Text(syncDescription)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.caption2)
+                    }.font(.caption).foregroundStyle(.secondary).padding(.top, 2)
+                }.buttonStyle(.plain)
             }
         }
         .navigationTitle("Bonjour,")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showNewSession) { NewSessionSheet() }
+        .refreshable { await store.refreshSchool(force: true) }
     }
 
     private var syncDescription: String {
-        guard store.state.settings.calendarEnabled else { return "Calendrier facultatif · suivi manuel disponible" }
-        guard let date = store.lastSyncAt else { return "Calendrier activé · aucun import effectué" }
-        return "Dernière synchronisation : " + date.cadenceFormatted(date: .abbreviated, time: .shortened)
+        if store.schoolSyncing { return "Actualisation des cours et devoirs…" }
+        guard let date = store.state.schoolSync?.lastSuccessfulFetch else { return store.schoolStatus }
+        return "PRONOTE · actualisé " + date.cadenceFormatted(date: .abbreviated, time: .shortened)
     }
 
     private func todayCard(_ totals: StudyTotals) -> some View {
@@ -114,7 +129,7 @@ struct HomeView: View {
                 summaryRow("Révisions", detail: nil, seconds: totals.revisions, color: Atelier.revision)
                 if totals.courseEstimated > 0 {
                     Divider().overlay(Color.white.opacity(0.25))
-                    summaryRow("Cours estimés", detail: "D’après le calendrier", seconds: totals.courseEstimated, color: .cyan)
+                    summaryRow("Cours estimés", detail: "D’après l’emploi du temps", seconds: totals.courseEstimated, color: .cyan)
                 }
             }
         }
@@ -155,7 +170,7 @@ struct HomeView: View {
                     .frame(width: 4, height: 46).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(next.displayTitle(in: store.state.subjects)).font(.headline).foregroundStyle(CadenceColors.ink)
-                    Text(next.start.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).locale(Locale(identifier: "fr_FR"))) + " · " + next.start.cadenceFormatted(date: .omitted, time: .shortened) + " – " + next.end.cadenceFormatted(date: .omitted, time: .shortened))
+                    Text(CourseDisplay.shortDay(next.start, course: next) + " · " + CourseDisplay.timeRange(next))
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 4)
@@ -163,6 +178,28 @@ struct HomeView: View {
                     .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
             }
         }
+    }
+
+    private func homeworkCard(now: Date) -> some View {
+        let pending = store.state.homework.filter { !$0.isDone }.sorted { $0.source.deadline < $1.source.deadline }
+        let overdue = pending.filter { $0.isOverdue(at: now) }.count
+        return AtelierCard {
+            HStack {
+                Label("Mes devoirs", systemImage: "checklist").font(.subheadline.weight(.semibold))
+                Spacer()
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(pending.count)").font(.system(.title, design: .rounded, weight: .bold)).monospacedDigit()
+                Text(pending.isEmpty ? "Tout est à jour" : "à faire").font(.subheadline).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                if overdue > 0 { Text("\(overdue) en retard").font(.caption).foregroundStyle(.orange) }
+            }
+            if let next = pending.first {
+                Text((Atelier.subject(next.subjectID, in: store.state)?.name ?? next.source.subject) + " · " + CourseDisplay.schoolDay(next.source.deadline))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
+        }.foregroundStyle(CadenceColors.ink)
     }
 
     private func weekCard(now: Date) -> some View {

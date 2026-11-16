@@ -1,7 +1,7 @@
 import Foundation
 
 public enum BackupCodec {
-    public static let currentVersion = 2
+    public static let currentVersion = 3
     public static let maximumBytes = 20 * 1024 * 1024
 
     public static func encode(_ state: CadenceState, exportedAt: Date = Date()) throws -> Data {
@@ -33,9 +33,13 @@ public enum BackupCodec {
         }
         do {
             let header = try decoder.decode(VersionHeader.self, from: data)
-            let state: CadenceState
+            var state: CadenceState
             switch header.schemaVersion {
             case 1: state = try decoder.decode(LegacyBackup.self, from: data).migrated()
+            case 2:
+                state = try decoder.decode(CadenceState.self, from: data)
+                state.schemaVersion = currentVersion
+                state.settings.autoCreditCourses = true
             case currentVersion: state = try decoder.decode(CadenceState.self, from: data)
             default: throw CadenceError.invalidBackup("Version \(header.schemaVersion) non prise en charge. Aucune donnée n’a été remplacée.")
             }
@@ -47,16 +51,17 @@ public enum BackupCodec {
 
     public static func validate(_ state: CadenceState) throws {
         guard state.schemaVersion == currentVersion else { throw CadenceError.invalidBackup("Version de données non prise en charge.") }
-        guard state.subjects.count <= 1000, state.sessions.count <= 100_000, state.occurrences.count <= 100_000 else { throw CadenceError.invalidBackup("Trop d’enregistrements.") }
+        guard state.subjects.count <= 1000, state.sessions.count <= 100_000, state.occurrences.count <= 100_000, state.homework.count <= 100_000, state.courseContents.count <= 100_000 else { throw CadenceError.invalidBackup("Trop d’enregistrements.") }
         func unique<T: Hashable>(_ values: [T]) -> Bool { Set(values).count == values.count }
         func validDate(_ date: Date) -> Bool {
             let value = date.timeIntervalSince1970
             return value.isFinite && value >= -62_135_596_800 && value <= 253_402_300_799
         }
-        guard unique(state.subjects.map(\.id)), unique(state.sessions.map(\.id)), unique(state.occurrences.map(\.id)) else { throw CadenceError.invalidBackup("Des identifiants sont dupliqués.") }
+        guard unique(state.subjects.map(\.id)), unique(state.sessions.map(\.id)), unique(state.occurrences.map(\.id)), unique(state.homework.map(\.id)), unique(state.courseContents.map(\.id)) else { throw CadenceError.invalidBackup("Des identifiants sont dupliqués.") }
         let subjectIDs = Set(state.subjects.map(\.id))
         let sessions = Dictionary(uniqueKeysWithValues: state.sessions.map { ($0.id, $0) })
         let occurrences = Dictionary(uniqueKeysWithValues: state.occurrences.map { ($0.id, $0) })
+        let homeworkIDs = Set(state.homework.map(\.id))
         guard state.subjects.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.name.count <= 200 && $0.aliases.count <= 1000 }) else { throw CadenceError.invalidBackup("Une matière est vide ou trop longue.") }
         guard state.sessions.filter(\.isActive).count <= 1 else { throw CadenceError.invalidBackup("Plusieurs séances actives.") }
         for session in state.sessions {
@@ -75,6 +80,24 @@ public enum BackupCodec {
             if let linkedID = session.linkedOccurrenceID {
                 guard let occurrence = occurrences[linkedID], occurrence.linkedSessionID == session.id, occurrence.subjectID == session.subjectID, session.kind == .course else { throw CadenceError.invalidBackup("Une association cours/séance est incohérente.") }
             }
+            if let homeworkID = session.activeHomeworkID, !homeworkIDs.contains(homeworkID) { throw CadenceError.homeworkNotFound }
+            let work = session.homeworkWorkSegments ?? []
+            guard work.count <= 100_000 else { throw CadenceError.invalidBackup("Trop de changements de devoir.") }
+            var previousWorkEnd = session.startedAt
+            for (i, segment) in work.enumerated() {
+                guard homeworkIDs.contains(segment.homeworkID), validDate(segment.start), segment.start >= previousWorkEnd else { throw CadenceError.invalidBackup("Une association de devoir est incohérente.") }
+                if let end = segment.end {
+                    guard validDate(end), end >= segment.start, session.endedAt.map({ end <= $0 }) ?? true else { throw CadenceError.invalidDates }
+                    previousWorkEnd = end
+                } else {
+                    guard session.isActive, !session.isPaused, i == work.count - 1, session.activeHomeworkID == segment.homeworkID else { throw CadenceError.invalidDates }
+                }
+                guard session.activeSegments.contains(where: { active in
+                    guard segment.start >= active.start else { return false }
+                    if let end = segment.end { return active.end.map { end <= $0 } ?? true }
+                    return active.end == nil
+                }) else { throw CadenceError.invalidBackup("Le temps d’un devoir doit appartenir au temps actif de la séance.") }
+            }
         }
         for occurrence in state.occurrences {
             guard occurrence.end > occurrence.start, validDate(occurrence.start), validDate(occurrence.end), validDate(occurrence.lastSeenAt) else { throw CadenceError.invalidDates }
@@ -86,6 +109,17 @@ public enum BackupCodec {
             }
             if occurrence.accountingStatus == .measured && occurrence.linkedSessionID == nil { throw CadenceError.invalidBackup("Un cours mesuré n’a pas de séance associée.") }
             if let start = occurrence.pendingStart, let end = occurrence.pendingEnd, end <= start { throw CadenceError.invalidDates }
+            if let replacement = occurrence.supersededByOccurrenceID {
+                guard replacement != occurrence.id, let target = occurrences[replacement], target.supersededByOccurrenceID == nil, occurrence.linkedSessionID == nil else { throw CadenceError.invalidBackup("Une fusion de cours est incohérente.") }
+            }
+            if let school = occurrence.school {
+                guard !school.eventID.isEmpty, !school.subjectName.isEmpty, validDate(school.startAt), validDate(school.endAt), school.endAt > school.startAt else { throw CadenceError.invalidSchoolSnapshot }
+            }
+        }
+        for homework in state.homework {
+            guard !homework.id.isEmpty, !homework.source.subject.isEmpty, validDate(homework.source.deadline), validDate(homework.lastSeenAt), homework.localUpdatedAt.map(validDate) ?? true else { throw CadenceError.invalidSchoolSnapshot }
+            if let subjectID = homework.subjectID, !subjectIDs.contains(subjectID) { throw CadenceError.subjectNotFound }
+            if let minutes = homework.source.lengthMinutes, !minutes.isFinite || minutes < 0 { throw CadenceError.invalidDuration }
         }
         if let defaultID = state.settings.defaultSubjectID, !subjectIDs.contains(defaultID) { throw CadenceError.subjectNotFound }
     }
@@ -104,10 +138,10 @@ public enum BackupCodec {
         for session in state.sessions.sorted(by: { $0.startedAt < $1.startedAt }) {
             rows.append(row([session.id.uuidString, session.kind.label, subjects[session.subjectID] ?? "Matière inconnue", formatter.string(from: session.startedAt), session.endedAt.map(formatter.string(from:)) ?? "", String(session.elapsed(at: now)), session.origin.label, session.isActive ? (session.isPaused ? "En pause" : "En cours") : "Terminée", session.topic, session.notes, session.linkedOccurrenceID?.uuidString ?? ""]))
         }
-        for occurrence in state.occurrences where occurrence.linkedSessionID == nil {
+        for occurrence in state.visibleOccurrences where occurrence.linkedSessionID == nil {
             let status = occurrence.accountingStatus
             let seconds: TimeInterval = status == .confirmed ? occurrence.confirmedSeconds ?? occurrence.end.timeIntervalSince(occurrence.start) : status == .estimated && occurrence.end <= now ? occurrence.end.timeIntervalSince(occurrence.start) : 0
-            rows.append(row([occurrence.id.uuidString, SessionKind.course.label, occurrence.subjectID.flatMap { subjects[$0] } ?? "À classer", formatter.string(from: occurrence.start), formatter.string(from: occurrence.end), String(seconds), "Calendrier", occurrence.status.label, occurrence.title, occurrence.sourceMissing ? "N’apparaît plus au calendrier" : "", ""]))
+            rows.append(row([occurrence.id.uuidString, SessionKind.course.label, occurrence.subjectID.flatMap { subjects[$0] } ?? "À classer", formatter.string(from: occurrence.start), formatter.string(from: occurrence.end), String(seconds), occurrence.school == nil ? "Calendrier" : "PRONOTE", occurrence.status.label, occurrence.title, occurrence.sourceMissing ? "Source absente" : "", ""]))
         }
         return "\u{FEFF}" + rows.joined(separator: "\r\n") + "\r\n"
     }

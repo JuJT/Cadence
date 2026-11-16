@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from inspect_ipa import inspect, signed_entitlements, keychain_sharing_check, selected_entitlements
+from inspect_ipa import inspect, signed_entitlements, keychain_sharing_check, selected_entitlements, auth_isolation_check
 from prepare_signing_intent import prepare
 from collect_test_screenshots import collect
 
@@ -74,6 +74,56 @@ class DiagnosticTests(unittest.TestCase):
         self.assertFalse(keychain_sharing_check([entitlements, entitlements], [permitted, denied])['readyForPhysicalReadTest'])
         self.assertFalse(keychain_sharing_check([entitlements, {'keychain-access-groups': ['OTHERTEAM.com.cadence.study.widget-summary']}], [permitted, permitted])['readyForPhysicalReadTest'])
         self.assertNotIn('PRIVATEID1', str(selected_entitlements(entitlements)))
+
+    def test_application_private_auth_group_is_never_given_to_widgets(self):
+        config = Path(__file__).resolve().parents[1] / 'Config'
+        app = prepare((config / 'CadenceAppKeychain.entitlements').read_bytes(), 'com.cadence.study')
+        widget = prepare((config / 'CadenceKeychain.entitlements').read_bytes(), 'com.cadence.study.widgets')
+        private = 'UNSIGNED00.com.cadence.study'
+        common = 'UNSIGNED00.com.cadence.study.widget-summary'
+        self.assertEqual(app['keychain-access-groups'], [private, common])
+        self.assertEqual(widget['keychain-access-groups'], [common])
+        self.assertNotIn(private, widget['keychain-access-groups'])
+        self.assertTrue(keychain_sharing_check([app, widget], [None, None])['commonCadenceGroupInExecutableSignatures'])
+
+    def test_private_group_requires_a_resolved_compiled_bundle_identifier(self):
+        source = plistlib.dumps({'keychain-access-groups': ['$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)']})
+        with self.assertRaises(ValueError):
+            prepare(source)
+        with self.assertRaises(ValueError):
+            prepare(source, 'bad bundle identifier')
+        self.assertEqual(prepare(source, 'com.cadence.study.example')['keychain-access-groups'],
+                         ['UNSIGNED00.com.cadence.study.example'])
+
+
+    def test_auth_isolation_finds_private_app_group_without_revealing_it(self):
+        private = 'PRIVATEID1.com.cadence.study'
+        shared = 'PRIVATEID1.com.cadence.study.widget-summary'
+        result = auth_isolation_check('com.cadence.study', {'keychain-access-groups': [private, shared]},
+                                      [{'keychain-access-groups': [shared]}], {'keychain-access-groups': ['PRIVATEID1.*']})
+        self.assertTrue(result['privateAppGroupPresent'])
+        self.assertTrue(result['privateAppGroupIsDefault'])
+        self.assertFalse(result['extensionHasAppPrivateGroup'])
+        self.assertTrue(result['isolatedInExecutableMetadata'])
+        self.assertTrue(result['readyForPhysicalPrivateStorageTest'])
+        self.assertNotIn('PRIVATEID1', str(result))
+
+    def test_auth_isolation_rejects_extensions_claiming_the_private_group(self):
+        private = 'PRIVATEID1.com.cadence.study'
+        app = {'keychain-access-groups': [private, 'PRIVATEID1.com.cadence.study.widget-summary']}
+        for claim in [private, 'PRIVATEID1.*']:
+            result = auth_isolation_check('com.cadence.study', app, [{'keychain-access-groups': [claim]}])
+            self.assertTrue(result['extensionHasAppPrivateGroup'])
+            self.assertFalse(result['isolatedInExecutableMetadata'])
+
+    def test_auth_isolation_never_promises_unsigned_or_unreadable_storage(self):
+        app = {'keychain-access-groups': ['UNSIGNED00.com.cadence.study', 'UNSIGNED00.com.cadence.study.widget-summary']}
+        result = auth_isolation_check('com.cadence.study', app,
+                                      [{'keychain-access-groups': ['UNSIGNED00.com.cadence.study.widget-summary']}])
+        self.assertTrue(result['isolatedInExecutableMetadata'])
+        self.assertTrue(result['templateMetadataOnly'])
+        self.assertFalse(result['readyForPhysicalPrivateStorageTest'])
+        self.assertFalse(auth_isolation_check('com.cadence.study', app, [None])['isolatedInExecutableMetadata'])
 
 
 if __name__ == '__main__':

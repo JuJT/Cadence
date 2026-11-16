@@ -3,11 +3,21 @@ import Foundation
 /// Pure transitions: persistence is the caller's responsibility. Apply to a copy before committing.
 public enum CadenceEngine {
     @discardableResult
-    public static func start(state: inout CadenceState, subjectID: UUID, kind: SessionKind, topic: String = "", origin: SessionOrigin = .timer, occurrenceID: UUID? = nil, at now: Date = Date()) throws -> UUID {
+    public static func start(state: inout CadenceState, subjectID: UUID, kind: SessionKind, topic: String = "", origin: SessionOrigin = .timer, occurrenceID: UUID? = nil, homeworkID: String? = nil, at now: Date = Date()) throws -> UUID {
         guard state.activeSession == nil else { throw CadenceError.activeSessionExists }
         try requireSubject(subjectID, state: state)
+        if let homeworkID { try requireHomework(homeworkID, state: state) }
+        var occurrenceID = occurrenceID
+        if occurrenceID == nil && kind == .course {
+            let candidates = state.visibleOccurrences.filter {
+                $0.subjectID == subjectID && $0.linkedSessionID == nil && !$0.sourceMissing
+                    && $0.start <= now && $0.end > now && ![.absent, .cancelled, .ignored].contains($0.accountingStatus)
+            }
+            if candidates.count == 1 { occurrenceID = candidates[0].id }
+        }
         if let occurrenceID { try requireLink(state: state, subjectID: subjectID, kind: kind, sessionID: nil, occurrenceID: occurrenceID) }
-        let session = StudySession(subjectID: subjectID, kind: kind, origin: origin, topic: topic, startedAt: now, activeSegments: [TimeSegment(start: now)], linkedOccurrenceID: occurrenceID)
+        let work = homeworkID.map { [HomeworkWorkSegment(homeworkID: $0, start: now)] }
+        let session = StudySession(subjectID: subjectID, kind: kind, origin: origin, topic: topic, startedAt: now, activeSegments: [TimeSegment(start: now)], linkedOccurrenceID: occurrenceID, activeHomeworkID: homeworkID, homeworkWorkSegments: work)
         state.sessions.append(session)
         state.settings.defaultSubjectID = subjectID
         if let occurrenceID, let i = state.occurrences.firstIndex(where: { $0.id == occurrenceID }) {
@@ -27,7 +37,9 @@ public enum CadenceEngine {
         guard !state.sessions[i].isPaused else { return false }
         guard let j = state.sessions[i].activeSegments.indices.last else { throw CadenceError.invalidDates }
         guard now >= state.sessions[i].activeSegments[j].start else { throw CadenceError.clockMovedBackwards }
+        if let work = state.sessions[i].homeworkWorkSegments?.last, now < (work.end ?? work.start) { throw CadenceError.clockMovedBackwards }
         state.sessions[i].activeSegments[j].end = now
+        closeHomeworkSegment(session: &state.sessions[i], at: now)
         return true
     }
 
@@ -37,6 +49,11 @@ public enum CadenceEngine {
         guard state.sessions[i].isPaused else { return false }
         guard now >= (state.sessions[i].activeSegments.last?.end ?? state.sessions[i].startedAt) else { throw CadenceError.clockMovedBackwards }
         state.sessions[i].activeSegments.append(TimeSegment(start: now))
+        if let homeworkID = state.sessions[i].activeHomeworkID {
+            var work = state.sessions[i].homeworkWorkSegments ?? []
+            work.append(HomeworkWorkSegment(homeworkID: homeworkID, start: now))
+            state.sessions[i].homeworkWorkSegments = work
+        }
         return true
     }
 
@@ -46,8 +63,10 @@ public enum CadenceEngine {
         let session = state.sessions[i]
         let lastTransition = session.activeSegments.last.map { $0.end ?? $0.start } ?? session.startedAt
         guard now >= lastTransition else { throw CadenceError.clockMovedBackwards }
+        if let work = session.homeworkWorkSegments?.last, now < (work.end ?? work.start) { throw CadenceError.clockMovedBackwards }
         if !session.isPaused, let j = session.activeSegments.indices.last { state.sessions[i].activeSegments[j].end = now }
         state.sessions[i].endedAt = now
+        closeHomeworkSegment(session: &state.sessions[i], at: now)
         return state.sessions[i]
     }
 
@@ -60,12 +79,12 @@ public enum CadenceEngine {
             let conflictingSession = state.sessions.contains {
                 $0.kind == .course && $0.subjectID == subjectID && $0.startedAt < end && ($0.endedAt ?? end) > start
             }
-            let conflictingOccurrence = state.occurrences.contains {
+            let conflictingOccurrence = state.visibleOccurrences.contains {
                 $0.id != occurrenceID && $0.subjectID == subjectID && $0.start < end && $0.end > start && ![.absent, .cancelled, .ignored].contains($0.accountingStatus)
             }
             if conflictingSession || conflictingOccurrence { throw CadenceError.courseOverlap }
         }
-        let session = StudySession(subjectID: subjectID, kind: kind, origin: origin, topic: topic, notes: notes, startedAt: start, endedAt: end, activeSegments: [TimeSegment(start: start, end: end)], linkedOccurrenceID: occurrenceID)
+        let session = StudySession(subjectID: subjectID, kind: kind, origin: origin, topic: topic, notes: notes, startedAt: start, endedAt: end, activeSegments: [TimeSegment(start: start, end: end)], linkedOccurrenceID: occurrenceID, allowsDistinctCourseOverlap: allowOverlap)
         state.sessions.append(session)
         if let occurrenceID { try link(state: &state, sessionID: session.id, occurrenceID: occurrenceID) }
         return session.id
@@ -141,7 +160,7 @@ public enum CadenceEngine {
 
     public static func deleteSubject(state: inout CadenceState, subjectID: UUID) throws {
         guard let i = state.subjects.firstIndex(where: { $0.id == subjectID }) else { throw CadenceError.subjectNotFound }
-        if state.sessions.contains(where: { $0.subjectID == subjectID }) || state.occurrences.contains(where: { $0.subjectID == subjectID }) { state.subjects[i].isArchived = true }
+        if state.sessions.contains(where: { $0.subjectID == subjectID }) || state.occurrences.contains(where: { $0.subjectID == subjectID }) || state.homework.contains(where: { $0.subjectID == subjectID }) { state.subjects[i].isArchived = true }
         else { state.subjects.remove(at: i) }
         if state.settings.defaultSubjectID == subjectID { state.settings.defaultSubjectID = nil }
     }
@@ -174,10 +193,57 @@ public enum CadenceEngine {
     public static func setAutoCredit(state: inout CadenceState, enabled: Bool, at now: Date = Date()) {
         state.settings.autoCreditCourses = enabled
         CalendarReconciler.refreshCredits(state: &state, now: now)
+        SchoolReconciler.refreshCredits(state: &state, now: now)
     }
 
     public static func overlappingOccurrences(state: CadenceState, subjectID: UUID, start: Date, end: Date) -> [CourseOccurrence] {
-        state.occurrences.filter { $0.subjectID == subjectID && $0.start < end && $0.end > start && $0.linkedSessionID == nil && ![.absent, .cancelled, .ignored].contains($0.accountingStatus) }
+        state.visibleOccurrences.filter { $0.subjectID == subjectID && $0.start < end && $0.end > start && $0.linkedSessionID == nil && ![.absent, .cancelled, .ignored].contains($0.accountingStatus) }
+    }
+
+    public static func setActiveHomework(state: inout CadenceState, homeworkID: String?, at now: Date = Date()) throws {
+        guard let i = state.sessions.firstIndex(where: { $0.isActive }) else { throw CadenceError.sessionNotFound }
+        if let homeworkID { try requireHomework(homeworkID, state: state) }
+        let session = state.sessions[i]
+        let transition = max(session.activeSegments.last.map { $0.end ?? $0.start } ?? session.startedAt,
+                             session.homeworkWorkSegments?.last.map { $0.end ?? $0.start } ?? session.startedAt)
+        guard now >= transition else { throw CadenceError.clockMovedBackwards }
+        if session.activeHomeworkID == homeworkID { return }
+        closeHomeworkSegment(session: &state.sessions[i], at: now)
+        state.sessions[i].activeHomeworkID = homeworkID
+        if let homeworkID, !session.isPaused {
+            var work = state.sessions[i].homeworkWorkSegments ?? []
+            work.append(HomeworkWorkSegment(homeworkID: homeworkID, start: now))
+            state.sessions[i].homeworkWorkSegments = work
+        }
+    }
+
+    public static func setHomeworkCompletion(state: inout CadenceState, homeworkID: String, isDone: Bool, at now: Date = Date()) throws {
+        guard let i = state.homework.firstIndex(where: { $0.id == homeworkID }) else { throw CadenceError.homeworkNotFound }
+        state.homework[i].localCompletionOverride = isDone
+        state.homework[i].localUpdatedAt = now
+    }
+
+    public static func clearHomeworkCompletionOverride(state: inout CadenceState, homeworkID: String) throws {
+        guard let i = state.homework.firstIndex(where: { $0.id == homeworkID }) else { throw CadenceError.homeworkNotFound }
+        state.homework[i].localCompletionOverride = nil
+        state.homework[i].localUpdatedAt = nil
+    }
+
+    public static func assignHomeworkSubject(state: inout CadenceState, homeworkID: String, subjectID: UUID) throws {
+        try requireSubject(subjectID, state: state)
+        guard let i = state.homework.firstIndex(where: { $0.id == homeworkID }) else { throw CadenceError.homeworkNotFound }
+        state.homework[i].subjectID = subjectID
+        state.homework[i].subjectOverridden = true
+    }
+
+    private static func requireHomework(_ id: String, state: CadenceState) throws {
+        guard state.homework.contains(where: { $0.id == id }) else { throw CadenceError.homeworkNotFound }
+    }
+
+    private static func closeHomeworkSegment(session: inout StudySession, at now: Date) {
+        guard var work = session.homeworkWorkSegments, let i = work.indices.last, work[i].end == nil else { return }
+        work[i].end = max(work[i].start, now)
+        session.homeworkWorkSegments = work
     }
 
     private static func requireSubject(_ id: UUID, state: CadenceState) throws {
@@ -186,6 +252,7 @@ public enum CadenceEngine {
 
     private static func requireLink(state: CadenceState, subjectID: UUID, kind: SessionKind, sessionID: UUID?, occurrenceID: UUID) throws {
         guard let occurrence = state.occurrences.first(where: { $0.id == occurrenceID }) else { throw CadenceError.occurrenceNotFound }
+        guard occurrence.supersededByOccurrenceID == nil else { throw CadenceError.occurrenceNotFound }
         guard kind == .course && (occurrence.subjectID == nil || occurrence.subjectID == subjectID) else { throw CadenceError.incompatibleLink }
         if let linked = occurrence.linkedSessionID, linked != sessionID { throw CadenceError.alreadyLinked }
     }

@@ -17,7 +17,15 @@ struct LocalStateRepository {
 
     func load() throws -> CadenceState {
         guard FileManager.default.fileExists(atPath: url.path) else { return .initial() }
-        return try BackupCodec.decode(Data(contentsOf: url))
+        let data = try Data(contentsOf: url)
+        if let header = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let version = header["schemaVersion"] as? Int, version < 3 {
+            let beforeSchool = url.deletingLastPathComponent().appendingPathComponent("cadence-before-school-v3.json")
+            if !FileManager.default.fileExists(atPath: beforeSchool.path) {
+                try data.write(to: beforeSchool, options: .atomic)
+            }
+        }
+        return try BackupCodec.decode(data)
     }
 
     func save(_ state: CadenceState) throws {

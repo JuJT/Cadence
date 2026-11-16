@@ -446,7 +446,7 @@ final class CadenceCoreTests: XCTestCase {
         {"schemaVersion":1,"subjects":[{"id":"\(subjectID)","name":"Mathématiques","colorHex":"#2776F8","symbol":"book","position":0,"isArchived":false}],"sessions":[{"id":"\(sessionID)","subjectId":"\(subjectID)","kind":"revision","topic":"Révision","notes":"Ancienne note","startedAt":"2026-11-13T09:00:00Z","endedAt":"2026-11-13T09:30:00Z","activeSegments":[{"start":"2026-11-13T09:00:00Z","end":"2026-11-13T09:30:00Z"}],"origin":"app"}],"activeSession":null,"settings":{}}
         """
         let restored = try BackupCodec.decode(Data(json.utf8))
-        XCTAssertEqual(restored.schemaVersion, 2)
+        XCTAssertEqual(restored.schemaVersion, 3)
         XCTAssertEqual(restored.subjects[0].id, subjectID)
         XCTAssertEqual(restored.sessions[0].id, sessionID)
         XCTAssertEqual(restored.sessions[0].elapsed(), 1800)

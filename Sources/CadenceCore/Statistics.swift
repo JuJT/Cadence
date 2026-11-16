@@ -30,11 +30,16 @@ public enum Statistics {
             totals[session.subjectID] = value
         }
         let sessionIDs = Set(state.sessions.map(\.id))
-        for occurrence in state.occurrences {
+        for occurrence in state.visibleOccurrences {
             guard let subjectID = occurrence.subjectID, occurrence.end > occurrence.start else { continue }
             // Measured time replaces the estimate for the entire occurrence, including other days.
             if let linked = occurrence.linkedSessionID, sessionIDs.contains(linked) { continue }
-            let status = occurrence.accountingStatus
+            if occurrence.school?.canceled == true || occurrence.school?.exempted == true { continue }
+            var status = occurrence.accountingStatus
+            if [.scheduled, .inProgressScheduled].contains(status), !occurrence.sourceMissing,
+               occurrence.school != nil || state.settings.autoCreditCourses {
+                status = occurrence.end <= now ? .estimated : status
+            }
             guard status == .estimated || status == .confirmed else { continue }
             // A scheduled future class is never credited, including malformed imported status flags.
             guard occurrence.end <= now else { continue }
@@ -54,6 +59,19 @@ public enum Statistics {
 
     public static func dayInterval(containing date: Date, calendar: Calendar = .current) -> DateInterval {
         calendar.dateInterval(of: .day, for: date) ?? DateInterval(start: date, duration: 24 * 3600)
+    }
+
+    /// Homework allocations are a subdivision of session time, never additional study credit.
+    public static func homeworkSeconds(state: CadenceState, in interval: DateInterval, now: Date = Date()) -> [String: TimeInterval] {
+        guard interval.end > interval.start, interval.start < now else { return [:] }
+        let bounded = DateInterval(start: interval.start, end: min(interval.end, now))
+        var values: [String: TimeInterval] = [:]
+        for session in state.sessions {
+            for work in session.homeworkWorkSegments ?? [] {
+                values[work.homeworkID, default: 0] += work.seconds(in: bounded, now: session.endedAt ?? now)
+            }
+        }
+        return values
     }
 }
 

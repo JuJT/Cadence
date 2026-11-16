@@ -8,6 +8,8 @@ struct RevisionView: View {
     @State private var topic = ""
     @State private var showFinish = false
     @State private var showManual = false
+    @State private var showHomework = false
+    @State private var showCompanion = false
     var body: some View {
         ScrollViewReader { scrollProxy in
             AtelierPage {
@@ -38,14 +40,8 @@ struct RevisionView: View {
                     store.start(kind: .revision, subjectID: id, topic: topic)
                 }.disabled(store.state.subjects.allSatisfy(\.isArchived)).accessibilityIdentifier("session.start")
                 SecondaryAction(title: "Ajouter une révision passée", symbol: "plus") { showManual = true }
-                AtelierCard {
-                    Label("À votre rythme", systemImage: "pause.circle")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Les pauses sont déduites de votre séance. Votre suivi continue lorsque vous verrouillez l’iPhone.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                    NavigationLink("Voir l’historique des révisions") { HistoryView(initialKind: .revision) }
-                        .font(.subheadline.weight(.medium)).padding(.vertical, 4)
-                }
+                NavigationLink("Historique des révisions", destination: HistoryView(initialKind: .revision))
+                    .font(.subheadline.weight(.medium)).frame(minHeight: 44)
             }
             }
             .onChange(of: store.state.activeSession?.id) { _, _ in
@@ -63,6 +59,8 @@ struct RevisionView: View {
             Text("La durée suivie sera enregistrée dans votre historique.")
         }
         .sheet(isPresented: $showManual) { NavigationStack { NewSessionView(kind: .revision, startAsTimer: false) } }
+        .sheet(isPresented: $showHomework) { HomeworkPickerSheet() }
+        .sheet(isPresented: $showCompanion) { SessionCompanionView() }
     }
 
     private func timer(_ active: StudySession) -> some View {
@@ -83,6 +81,18 @@ struct RevisionView: View {
                 }
             }
             sessionStatistics(active)
+            AtelierCard {
+                if let id = active.activeHomeworkID, let item = store.state.homework.first(where: { $0.id == id }) {
+                    Label(item.source.subject, systemImage: "checklist").font(.headline)
+                    Text(item.source.description).font(.subheadline).lineLimit(3)
+                    Button("Valider ce devoir", systemImage: "checkmark.circle") { store.setHomeworkCompletion(id, isDone: true) }
+                        .accessibilityIdentifier("session.homework.complete")
+                }
+                Button(active.activeHomeworkID == nil ? "Associer un devoir" : "Changer de devoir", systemImage: "list.bullet.clipboard") { showHomework = true }
+                    .accessibilityIdentifier("session.homework.choose")
+                Button("Concentration et musique", systemImage: "headphones") { showCompanion = true }
+                    .accessibilityIdentifier("session.companion")
+            }
             NavigationLink { SessionEditorView(session: active) } label: {
                 HStack(spacing: 10) {
                     Label("Modifier les notes et le chapitre", systemImage: "square.and.pencil")
@@ -144,7 +154,10 @@ private struct SessionDial: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 52.0
+    @State private var launchProgress = 1.0
+    @State private var animatedSessionID: UUID?
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -179,6 +192,30 @@ private struct SessionDial: View {
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: session.isPaused)
             }
         }
+        .scaleEffect(reduceMotion ? 1 : 0.975 + 0.025 * launchProgress)
+        .opacity(0.75 + 0.25 * launchProgress)
+        .overlay {
+            if !reduceMotion && !reduceTransparency && dynamicTypeSize < .xxLarge {
+                Circle().stroke(Atelier.ice.opacity(0.5), lineWidth: 2)
+                    .scaleEffect(1 + launchProgress * 0.12)
+                    .opacity((1 - launchProgress) * 0.6)
+                    .accessibilityHidden(true).allowsHitTesting(false)
+            }
+        }
+        .task(id: session.id) {
+            let age = Date().timeIntervalSince(session.startedAt)
+            guard animatedSessionID != session.id, age >= 0, age < 8,
+                  !reduceMotion, scenePhase == .active,
+                  !ProcessInfo.processInfo.isLowPowerModeEnabled else { launchProgress = 1; return }
+            animatedSessionID = session.id
+            launchProgress = 0
+            do { try await Task.sleep(nanoseconds: 20_000_000) }
+            catch { launchProgress = 1; return }
+            guard !Task.isCancelled else { launchProgress = 1; return }
+            withAnimation(.spring(response: 0.62, dampingFraction: 0.88)) { launchProgress = 1 }
+        }
+        .onChange(of: reduceMotion) { _, reduced in if reduced { launchProgress = 1 } }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { launchProgress = 1 } }
     }
 
     @ViewBuilder private var dialSurface: some View {

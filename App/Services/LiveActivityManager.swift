@@ -19,8 +19,8 @@ final class SystemIntegrationService {
         } else {
             #if CADENCE_KEYCHAIN_SHARED
             group = lastSnapshotPublished
-                ? "Widgets : résumé publié dans le trousseau partagé; lecture à vérifier sur l’appareil."
-                : "Widgets : trousseau partagé indisponible. La signature de l’app et de l’extension doit conserver le même groupe de trousseau."
+                ? "Widgets : résumé écrit dans le trousseau autorisé de l’app ; la lecture par l’extension reste distincte."
+                : "Widgets : écriture du résumé indisponible. La signature de l’app et de l’extension doit autoriser un groupe commun."
             #else
             group = "Widgets : ouverture de l’app, sans données partagées dans cette variante."
             #endif
@@ -31,7 +31,7 @@ final class SystemIntegrationService {
         let receipt = SharedSnapshotStore.lastWidgetReadAt.map {
             "Dernière lecture réelle par un widget : " + $0.formatted(date: .abbreviated, time: .shortened)
         } ?? "Aucune lecture du résumé par un widget confirmée pour cette installation."
-        return [group, receipt, activity, lastActivityError].compactMap { $0 }.joined(separator: "\n")
+        return [group, SharedSnapshotStore.transportDiagnostic, receipt, activity, lastActivityError].compactMap { $0 }.joined(separator: "\n")
         #else
         return "Version autonome : aucune extension intégrée. Raccourcis ouvre l’app."
         #endif
@@ -42,8 +42,9 @@ final class SystemIntegrationService {
         if let day = Calendar.current.dateInterval(of: .day, for: now) {
             let totals = Statistics.totals(state: state, in: day, now: now)
             let active = state.activeSession
-            let upcoming = state.occurrences.filter {
-                $0.end > now && $0.status != .cancelled && $0.status != .ignored && $0.status != .absent
+            let upcoming = state.visibleOccurrences.filter {
+                $0.end > now && !$0.sourceMissing && $0.status != .cancelled && $0.status != .ignored && $0.status != .absent &&
+                $0.school?.canceled != true && $0.school?.exempted != true
             }.sorted { $0.start < $1.start }
             let next = upcoming.first { $0.start > now }
             let week = Calendar.current.dateInterval(of: .weekOfYear, for: now)

@@ -82,6 +82,39 @@ def keychain_sharing_check(signed_values, profile_values):
             'readyForPhysicalReadTest': len(groups) >= 2 and bool(common) and allowed and not template,
             'note': 'Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation.'}
 
+def auth_isolation_check(bundle_id, app_values, extension_values, app_profile=None):
+    """Describe private auth isolation without revealing group names or identities."""
+    app_values = app_values or {}
+    app_groups = app_values.get('keychain-access-groups', [])
+    private_groups = {item for item in app_groups if isinstance(item, str) and
+                      item.endswith('.' + bundle_id) and '*' not in item}
+    application_id = app_values.get('application-identifier')
+    if isinstance(application_id, str) and application_id.endswith('.' + bundle_id) and '*' not in application_id:
+        private_groups.add(application_id)
+    extension_readable = all(value is not None for value in extension_values)
+    extension_claims = []
+    for values in extension_values:
+        extension_claims.extend((values or {}).get('keychain-access-groups', []))
+        if isinstance((values or {}).get('application-identifier'), str):
+            extension_claims.append(values['application-identifier'])
+    extension_has_private = any(fnmatchcase(group, claim) for group in private_groups for claim in extension_claims)
+    isolated = bool(private_groups) and extension_readable and not extension_has_private
+    template = any(group.startswith('UNSIGNED00.') for group in private_groups)
+    profile_claims = (app_profile or {}).get('keychain-access-groups', [])
+    if isinstance((app_profile or {}).get('application-identifier'), str):
+        profile_claims = [*profile_claims, app_profile['application-identifier']]
+    permitted = bool(private_groups) and any(fnmatchcase(group, claim) for group in private_groups for claim in profile_claims)
+    return {'privateAppGroupPresent': bool(private_groups),
+            'privateAppGroupIsDefault': bool(app_groups) and app_groups[0] in private_groups,
+            'extensionEntitlementsReadable': extension_readable,
+            'extensionHasAppPrivateGroup': extension_has_private,
+            'isolatedInExecutableMetadata': isolated,
+            'templateMetadataOnly': template,
+            'privateGroupPermittedByAppProfile': permitted,
+            'readyForPhysicalPrivateStorageTest': isolated and permitted and not template,
+            'note': 'Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone.'}
+
+
 def inspect(ipa):
     with zipfile.ZipFile(ipa) as archive:
         names = set(archive.namelist())
@@ -93,6 +126,10 @@ def inspect(ipa):
         bundles = []
         signature_values = []
         profile_values = []
+        app_id = ''
+        app_entitlements = None
+        app_profile = None
+        extension_entitlements = []
         for root in roots:
             info = plistlib.loads(archive.read(root + '/Info.plist'))
             executable_path = root + '/' + info['CFBundleExecutable']
@@ -101,6 +138,12 @@ def inspect(ipa):
             profile = profile_contents(archive.read(profile_path)) if profile_path in names else None
             signature_values.append(entitlement_values)
             profile_values.append((profile or {}).get('Entitlements'))
+            if '.appex' in root:
+                extension_entitlements.append(entitlement_values)
+            else:
+                app_id = info.get('CFBundleIdentifier', '')
+                app_entitlements = entitlement_values
+                app_profile = (profile or {}).get('Entitlements')
             signed_groups = (entitlement_values or {}).get('com.apple.security.application-groups', [])
             provisioned_groups = (profile or {}).get('Entitlements', {}).get('com.apple.security.application-groups', [])
             warnings = []
@@ -119,6 +162,7 @@ def inspect(ipa):
         return {'ipa': Path(ipa).name, 'bundles': bundles,
                 'extensionCount': sum('.appex' in bundle['path'] for bundle in bundles),
                 'keychainSharing': keychain_sharing_check(signature_values, profile_values),
+                'authIsolation': auth_isolation_check(app_id, app_entitlements, extension_entitlements, app_profile),
                 'signatureCryptographicallyVerified': False,
                 'hardwareValidation': 'NON EFFECTUÉE'}
 

@@ -23,7 +23,7 @@ struct SettingsView: View {
                 }
             }
             Section("Votre organisation") {
-                NavigationLink { CalendarSettingsView() } label: { Label("Calendriers et emploi du temps", systemImage: "calendar") }
+                NavigationLink { SchoolConnectionView() } label: { Label("Connexion PRONOTE via Supabase", systemImage: "calendar.badge.clock") }
                 NavigationLink { SubjectsView() } label: { Label("Matières et mots-clés", systemImage: "books.vertical") }
                 Picker("Matière par défaut", selection: Binding(get: { store.state.settings.defaultSubjectID }, set: { id in var settings = store.state.settings; settings.defaultSubjectID = id; store.updateSettings(settings) })) {
                     Text("Première matière disponible").tag(nil as UUID?)
@@ -38,6 +38,7 @@ struct SettingsView: View {
                 Text("Sauvegardez avant un renouvellement de signature. Une restauration remplace les données actuelles après confirmation. Aucun fichier n’est envoyé à un serveur.")
             }
             Section("Intégrations Apple") {
+                NavigationLink { SessionCompanionView() } label: { Label("Concentration et musique", systemImage: "headphones") }
                 Toggle("Live Activities", isOn: Binding(get: { store.state.settings.liveActivityEnabled }, set: { enabled in var settings = store.state.settings; settings.liveActivityEnabled = enabled; store.updateSettings(settings) }))
                 NavigationLink { IntegrationsHelpView() } label: { Label("Widgets, Raccourcis et Apple Watch", systemImage: "square.stack.3d.up") }
             }

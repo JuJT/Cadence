@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-16",
+  "project": "sknscitxtbwmgluwejnw",
+  "edgeFunction": { "name": "cadenza-school", "version": 1, "verifyJWT": true },
+  "migration": "20261116123138_cadenza_private_reader.sql",
+  "authorization": "Supabase Auth getUser, verified non-anonymous email, active server session and private admin-managed allowlist before any school read",
+  "realNetworkTests": {
+    "emailLinkVerified": true,
+    "authenticatedReadHTTP": 200,
+    "responseCounts": { "timetable": 460, "homework": 17, "courseContent": 250 },
+    "uniqueIdentifiers": true,
+    "positiveCourseDurations": true,
+    "unauthenticatedHTTP": 401,
+    "malformedTokenHTTP": 401,
+    "authenticatedButNotAuthorizedHTTP": 403,
+    "privateSchemaPublicAPIHTTP": 406,
+    "allowlistRestoredAfterTest": true,
+    "testSessionRevoked": true,
+    "temporaryTokenFilesRemoved": true
+  },
+  "dataAccess": {
+    "pronotePrivateAnonUsage": false,
+    "readerPrivateAnonUsage": false,
+    "readerPrivateAuthenticatedUsage": false,
+    "realDataInRepositoryOrBuildLogs": false,
+    "clientCredentials": "public project URL and publishable key only; session tokens in private application Keychain"
+  },
+  "existingInfrastructure": {
+    "previousEdgeFunctionVersionsAndHashesUnchanged": true,
+    "activePronoteJobs": 14,
+    "originalPronoteSyncsReplacedOrDuplicated": false
+  },
+  "contentRelations": "204 timetable rows have lesson_resource_id, but none currently matches course_resource or course_content exactly. No subject-based association is invented.",
+  "limits": "These tests validate the deployed API and a real authenticated email session from the workstation. Native iPhone Keychain, signed widgets, Focus shortcut setup and hardware behavior remain distinct checks. No school rows, email address, user ID or token are included in this report."
+}

@@ -198,6 +198,109 @@ final class CadenceUITests: XCTestCase {
         capture(app, name: "widgets-apercu-simulateur-bas")
     }
 
+    @MainActor
+    func testSchoolHomeworkFiltersAndDetails() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        let homeworkTab = app.tabBars.buttons["Devoirs"]
+        XCTAssertTrue(homeworkTab.waitForExistence(timeout: 8))
+        homeworkTab.tap()
+        let math = app.buttons["homework.row.fixture-homework-math-today"]
+        let english = app.buttons["homework.row.fixture-homework-english-tomorrow"]
+        let overdue = app.buttons["homework.row.fixture-homework-svt-overdue"]
+        let completed = app.buttons["homework.row.fixture-homework-french-done"]
+        XCTAssertTrue(math.waitForExistence(timeout: 4))
+        XCTAssertFalse(completed.exists)
+        tap(app.segmentedControls.buttons["Tous"], in: app)
+        XCTAssertTrue(reveal(completed, in: app))
+        tap(app.segmentedControls.buttons["Retard"], in: app)
+        XCTAssertTrue(overdue.waitForExistence(timeout: 3))
+        XCTAssertFalse(math.exists)
+        XCTAssertFalse(english.exists)
+        XCTAssertFalse(completed.exists)
+        tap(app.segmentedControls.buttons["À faire"], in: app)
+        XCTAssertTrue(math.waitForExistence(timeout: 3))
+        scrollToTop(app)
+        let context = XCTAttachment(string: "Captures natives de --uitesting-school : cours et devoirs entièrement fictifs, cache isolé du simulateur, sans requête Supabase ni donnée scolaire réelle.")
+        context.name = "devoirs-contexte-fictif"
+        context.lifetime = .keepAlways
+        add(context)
+        capture(app, name: "devoirs-liste")
+        tap(math, in: app)
+        XCTAssertTrue(app.staticTexts["Exemple fictif : résoudre deux équations et vérifier les résultats."].waitForExistence(timeout: 3))
+        scrollToTop(app)
+        capture(app, name: "devoirs-detail")
+        tap(app.buttons["homework.complete"], in: app)
+        XCTAssertTrue(app.buttons["homework.complete"].label.contains("Remettre à faire"))
+        app.tabBars.buttons["Accueil"].tap()
+        homeworkTab.tap()
+        XCTAssertTrue(app.buttons["homework.complete"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["homework.complete"].label.contains("Remettre à faire"))
+    }
+
+    @MainActor
+    func testSchoolHomeworkStartsRevisionAndCompletesWithoutLosingTimer() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        let homeworkTab = app.tabBars.buttons["Devoirs"]
+        XCTAssertTrue(homeworkTab.waitForExistence(timeout: 8))
+        homeworkTab.tap()
+        tap(app.buttons["homework.row.fixture-homework-math-today"], in: app)
+        tap(app.buttons["homework.start"], in: app)
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        tap(app.buttons["session.pause"], in: app)
+        XCTAssertTrue(app.buttons["session.resume"].waitForExistence(timeout: 3))
+        scrollToTop(app)
+        capture(app, name: "devoir-seance-liee")
+        homeworkTab.tap()
+        XCTAssertTrue(app.buttons["homework.open.session"].waitForExistence(timeout: 4))
+        tap(app.buttons["homework.complete"], in: app)
+        XCTAssertTrue(app.buttons["homework.complete"].label.contains("Remettre à faire"))
+        XCTAssertFalse(app.buttons["homework.open.session"].exists)
+        app.tabBars.buttons["Révision"].tap()
+        XCTAssertTrue(app.buttons["session.resume"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["session.start"].exists)
+        tap(app.buttons["session.resume"], in: app)
+        tap(app.buttons["session.finish"], in: app)
+        let finish = app.alerts.buttons["Terminer et enregistrer"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 3))
+        finish.tap()
+        XCTAssertTrue(reveal(app.buttons["session.start"], in: app))
+    }
+
+    @MainActor
+    func testSchoolHomeworkAttachesToExistingSessionOfAnotherSubject() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        let revisionTab = app.tabBars.buttons["Révision"]
+        XCTAssertTrue(revisionTab.waitForExistence(timeout: 8))
+        revisionTab.tap()
+        tap(app.buttons["session.start"], in: app)
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        let homeworkTab = app.tabBars.buttons["Devoirs"]
+        homeworkTab.tap()
+        tap(app.buttons["homework.row.fixture-homework-english-tomorrow"], in: app)
+        XCTAssertTrue(app.buttons["homework.attach"].waitForExistence(timeout: 4))
+        XCTAssertFalse(app.buttons["homework.start"].exists)
+        tap(app.buttons["homework.attach"], in: app)
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        scrollToTop(app)
+        XCTAssertTrue(app.staticTexts["Mathématiques"].firstMatch.waitForExistence(timeout: 3))
+        homeworkTab.tap()
+        XCTAssertTrue(app.buttons["homework.open.session"].waitForExistence(timeout: 4))
+        tap(app.buttons["homework.detach"], in: app)
+        revisionTab.tap()
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 3))
+        tap(app.buttons["session.finish"], in: app)
+        let finish = app.alerts.buttons["Terminer et enregistrer"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 3))
+        finish.tap()
+        XCTAssertTrue(reveal(app.buttons["session.start"], in: app))
+    }
+
     private func testArguments(_ extra: [String] = []) -> [String] {
         ["--uitesting", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"] + extra
     }

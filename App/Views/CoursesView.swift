@@ -7,16 +7,21 @@ struct CoursesView: View {
     @State private var date = Date()
     @State private var search = ""
     @State private var showNew = false
-    @State private var showCalendar = false
+    private var calendar: Calendar { store.state.schoolSync == nil ? .current : SchoolDateCodec.parisCalendar }
+    private var schoolDataIsOld: Bool {
+        guard let sync = store.state.schoolSync else { return false }
+        if sync.hasError { return true }
+        return (sync.lastTimetableSync ?? sync.lastSuccessfulFetch).map { Date().timeIntervalSince($0) > 24 * 3600 } ?? false
+    }
     private var interval: DateInterval? {
         switch mode {
-        case "Jour": return Atelier.day(date)
-        case "Semaine": return Calendar.current.dateInterval(of: .weekOfYear, for: date)
+        case "Jour": return Statistics.dayInterval(containing: date, calendar: calendar)
+        case "Semaine": return calendar.dateInterval(of: .weekOfYear, for: date)
         default: return nil
         }
     }
     private var occurrences: [CourseOccurrence] {
-        store.state.occurrences.filter {
+        store.state.visibleOccurrences.filter {
             includes($0.start) && (search.isEmpty || $0.displayTitle(in: store.state.subjects).localizedStandardContains(search) || $0.title.localizedStandardContains(search))
         }.sorted { $0.start < $1.start }
     }
@@ -27,7 +32,7 @@ struct CoursesView: View {
         }.sorted { $0.startedAt < $1.startedAt }
     }
     private var days: [Date] {
-        Set(occurrences.map { Calendar.current.startOfDay(for: $0.start) } + manualSessions.map { Calendar.current.startOfDay(for: $0.startedAt) }).sorted()
+        Set(occurrences.map { calendar.startOfDay(for: $0.start) } + manualSessions.map { calendar.startOfDay(for: $0.startedAt) }).sorted()
     }
     var body: some View {
         ScrollView {
@@ -44,6 +49,7 @@ struct CoursesView: View {
                         .accessibilityIdentifier("courses.previous")
                         Spacer()
                         DatePicker("Date", selection: $date, displayedComponents: .date).labelsHidden()
+                            .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone)
                             .accessibilityIdentifier("courses.date")
                         Spacer()
                         Button { shift(1) } label: {
@@ -55,58 +61,127 @@ struct CoursesView: View {
                     }.padding(6).cadenceSurface(radius: 28)
                 }
             if days.isEmpty {
-                EmptyCard(title: "Votre semaine se dessine ici", symbol: "calendar", description: "Liez votre emploi du temps ou ajoutez un cours pour retrouver votre journée, en un regard.")
+                EmptyCard(title: "Votre semaine se dessine ici", symbol: "calendar", description: "Connectez votre emploi du temps PRONOTE ou ajoutez un cours manuel.")
             }
             ForEach(days, id: \.self) { day in
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_FR"))))
+                    Text(CourseDisplay.dayTitle(day, calendar: calendar))
                         .font(.headline).foregroundStyle(CadenceColors.ink)
-                    ForEach(occurrences.filter { Calendar.current.isDate($0.start, inSameDayAs: day) }) { occurrence in
+                    ForEach(occurrences.filter { calendar.isDate($0.start, inSameDayAs: day) }) { occurrence in
                         HStack(alignment: .top, spacing: 10) {
-                            Text(occurrence.start.cadenceFormatted(date: .omitted, time: .shortened))
+                            Text(CourseDisplay.time(occurrence.start, course: occurrence))
                                 .font(.caption.monospacedDigit()).foregroundStyle(CadenceColors.secondary)
                                 .frame(width: 43, alignment: .leading).padding(.top, 16)
                             NavigationLink { CourseDetailView(occurrenceID: occurrence.id) } label: { CourseRow(occurrence: occurrence) }
                                 .buttonStyle(.plain)
                         }
                     }
-                    ForEach(manualSessions.filter { Calendar.current.isDate($0.startedAt, inSameDayAs: day) }) { session in
+                    ForEach(manualSessions.filter { calendar.isDate($0.startedAt, inSameDayAs: day) }) { session in
                         NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session).padding(12).cadenceSurface(radius: 18) }
                             .buttonStyle(.plain)
                     }
                 }.padding(16).cadenceSurface()
             }
-                Button { showCalendar = true } label: {
+                NavigationLink { SchoolConnectionView() } label: {
                     HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "calendar.badge.clock").font(.title2).foregroundStyle(Atelier.blue)
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(store.state.settings.calendarEnabled ? "Cours synchronisés" : "Lier mon emploi du temps").font(.headline).foregroundStyle(CadenceColors.ink)
-                            Text(store.lastSyncAt.map { "Calendrier Apple · " + $0.cadenceFormatted(date: .omitted, time: .shortened) } ?? "Vos calendriers Apple et Google sur l’iPhone")
+                            Text(store.state.schoolSync == nil ? "Connecter PRONOTE" : "Cours et devoirs synchronisés").font(.headline).foregroundStyle(CadenceColors.ink)
+                            Text(store.schoolStatus)
                                 .font(.caption).foregroundStyle(.secondary)
+                            if let last = store.state.schoolSync?.lastSuccessfulFetch {
+                                Text("Dernière actualisation · " + last.cadenceFormatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                            if schoolDataIsOld { Text("Données à actualiser").font(.caption2).foregroundStyle(.orange) }
                         }
                         Spacer(minLength: 0)
-                        Image(systemName: store.state.settings.calendarEnabled ? "checkmark.circle.fill" : "chevron.right")
-                            .foregroundStyle(store.state.settings.calendarEnabled ? CadenceColors.positive : CadenceColors.secondary)
+                        if store.schoolSyncing { ProgressView() }
+                        else {
+                            Image(systemName: schoolDataIsOld ? "exclamationmark.circle" : store.state.schoolSync == nil ? "chevron.right" : "checkmark.circle.fill")
+                                .foregroundStyle(schoolDataIsOld ? Color.orange : store.state.schoolSync == nil ? CadenceColors.secondary : CadenceColors.positive)
+                        }
                     }.padding(17).cadenceSurface()
                 }.buttonStyle(.plain)
                 SecondaryAction(title: "Ajouter un cours", symbol: "plus") { showNew = true }.accessibilityIdentifier("courses.add")
-                Text("Les cours à venir ne comptent pas dans vos durées. Les estimations restent séparées du temps mesuré.")
+                Text("Les cours terminés sont comptés automatiquement. Vous pouvez retirer ceux qui n’ont pas eu lieu ; le temps estimé reste distinct du temps mesuré.")
                     .font(.caption).foregroundStyle(CadenceColors.secondary).padding(.horizontal, 4)
             }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 24)
                 .frame(maxWidth: CadenceTheme.contentWidth).frame(maxWidth: .infinity)
         }.background(CadenceBackground())
         .navigationTitle("Emploi du temps")
         .searchable(text: $search, prompt: "Rechercher un cours")
-        .refreshable { await store.refreshCalendars() }
+        .refreshable { await store.refreshSchool(force: true) }
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Ajouter un cours", systemImage: "plus") { showNew = true } } }
         .sheet(isPresented: $showNew) { NavigationStack { NewSessionView(kind: .course) } }
-        .sheet(isPresented: $showCalendar) { NavigationStack { CalendarSettingsView() } }
     }
     private func includes(_ start: Date) -> Bool {
         guard let interval else { return true }
         return start >= interval.start && start < interval.end
     }
-    private func shift(_ direction: Int) { date = Calendar.current.date(byAdding: .day, value: direction * (mode == "Semaine" ? 7 : 1), to: date) ?? date }
+    private func shift(_ direction: Int) { date = calendar.date(byAdding: .day, value: direction * (mode == "Semaine" ? 7 : 1), to: date) ?? date }
+}
+
+/// School times use Europe/Paris; personal sessions keep the device's normal display zone.
+enum CourseDisplay {
+    private static func formatter(course: CourseOccurrence?) -> DateFormatter {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "fr_FR")
+        f.timeZone = course?.school == nil ? .current : SchoolDateCodec.parisCalendar.timeZone
+        return f
+    }
+    static func time(_ date: Date, course: CourseOccurrence) -> String {
+        let f = formatter(course: course); f.timeStyle = .short; f.dateStyle = .none
+        return f.string(from: date)
+    }
+    static func timeRange(_ course: CourseOccurrence) -> String {
+        time(course.start, course: course) + " – " + time(course.end, course: course)
+    }
+    static func date(_ date: Date, course: CourseOccurrence) -> String {
+        let f = formatter(course: course); f.dateStyle = .full; f.timeStyle = .none
+        return f.string(from: date)
+    }
+    static func shortDay(_ date: Date, course: CourseOccurrence) -> String {
+        let f = formatter(course: course); f.dateFormat = "EEEE d MMM"
+        return f.string(from: date)
+    }
+    static func schoolDay(_ date: Date) -> String {
+        let f = formatter(course: nil); f.timeZone = SchoolDateCodec.parisCalendar.timeZone; f.dateStyle = .medium
+        return f.string(from: date)
+    }
+    static func dayTitle(_ date: Date, calendar: Calendar) -> String {
+        let f = formatter(course: nil); f.calendar = calendar; f.timeZone = calendar.timeZone; f.dateFormat = "EEEE d MMMM"
+        return f.string(from: date)
+    }
+    static func status(_ course: CourseOccurrence, autoCredit: Bool, now: Date = Date()) -> String {
+        if course.school?.exempted == true { return "Dispensé" }
+        if course.school?.canceled == true { return "Annulé" }
+        if course.status == .ignored { return "Non suivi" }
+        if course.status == .confirmed { return "Corrigé" }
+        if [.scheduled, .inProgressScheduled].contains(course.status), !course.sourceMissing,
+           course.end <= now, course.school != nil || autoCredit { return "Estimé" }
+        return course.status.label
+    }
+}
+
+private struct CourseContentsSections: View {
+    let contents: [SchoolCourseContent]
+    var body: some View {
+        ForEach(contents) { content in
+            Section(content.title.isEmpty ? "Contenu du cours" : content.title) {
+                if !content.description.isEmpty { Text(content.description).textSelection(.enabled) }
+                if let category = content.categoryText, !category.isEmpty { Text(category).font(.caption).foregroundStyle(.secondary) }
+                ForEach(content.resourceLinks) { resource in
+                    Link(destination: resource.url) { Label(resource.title, systemImage: "arrow.up.right.square") }
+                }
+                if content.resourceLinks.isEmpty {
+                    ForEach(Array(content.files.strings.enumerated()), id: \.offset) { _, name in
+                        Label(name, systemImage: "doc").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
 }
 
 struct CourseRow: View {
@@ -117,13 +192,23 @@ struct CourseRow: View {
             RoundedRectangle(cornerRadius: 3).fill(Color(cadenceHex: Atelier.subject(occurrence.subjectID, in: store.state)?.colorHex ?? "#2776F8")).frame(width: 4)
             VStack(alignment: .leading, spacing: 5) {
                 Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline).foregroundStyle(CadenceColors.ink)
-                Text(occurrence.start.cadenceFormatted(date: .omitted, time: .shortened) + " – " + occurrence.end.cadenceFormatted(date: .omitted, time: .shortened))
+                Text(CourseDisplay.timeRange(occurrence))
                     .font(.subheadline).foregroundStyle(.secondary)
-                Label(occurrence.calendarName, systemImage: "calendar").font(.caption2).foregroundStyle(CadenceColors.secondary).lineLimit(1)
-                if occurrence.sourceMissing { Label("N’apparaît plus dans le calendrier", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange) }
+                if let school = occurrence.school, !school.classrooms.isEmpty {
+                    Label(school.classrooms.joined(separator: ", "), systemImage: "door.left.hand.open")
+                        .font(.caption2).foregroundStyle(CadenceColors.secondary).lineLimit(1)
+                }
+                HStack(spacing: 8) {
+                    Label(occurrence.school == nil ? occurrence.calendarName : "PRONOTE", systemImage: occurrence.school == nil ? "calendar" : "graduationcap")
+                    if occurrence.school?.isTest == true { Text("Évaluation").foregroundStyle(.orange) }
+                }.font(.caption2).foregroundStyle(CadenceColors.secondary).lineLimit(1)
+                if occurrence.sourceMissing {
+                    Text(occurrence.school == nil ? "Ancienne source · suivi conservé" : "Absent du dernier relevé PRONOTE")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
-            StatusBadge(title: occurrence.status.label, color: occurrence.status == .needsReview ? .orange : Atelier.blue)
+            StatusBadge(title: CourseDisplay.status(occurrence, autoCredit: store.state.settings.autoCreditCourses), color: occurrence.status == .needsReview ? .orange : Atelier.blue)
         }.padding(12).fixedSize(horizontal: false, vertical: true)
             .background(LinearGradient(colors: [Atelier.blue.opacity(0.10), Atelier.ice.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 17).strokeBorder(Atelier.ice.opacity(0.35), lineWidth: 0.75) }
@@ -135,10 +220,10 @@ struct CourseDetailView: View {
     let occurrenceID: UUID
     @State private var showEdit = false
     @State private var showLink = false
-    @State private var showConfirm = false
+    @State private var showDurationCorrection = false
     @State private var showUnlinkConfirmation = false
-    @State private var confirmedMinutes = 60.0
-    private var occurrence: CourseOccurrence? { store.state.occurrences.first { $0.id == occurrenceID } }
+    @State private var correctedMinutes = 60.0
+    private var occurrence: CourseOccurrence? { store.state.visibleOccurrences.first { $0.id == occurrenceID } }
     var body: some View {
         Group {
             if let course = occurrence {
@@ -151,30 +236,44 @@ struct CourseDetailView: View {
                                 if course.subjectID == nil { Text("Matière à classer").foregroundStyle(.secondary) }
                             }
                         }
-                        LabeledContent("Date", value: course.start.cadenceFormatted(date: .complete, time: .omitted))
-                        LabeledContent("Horaire", value: course.start.cadenceFormatted(date: .omitted, time: .shortened) + " – " + course.end.cadenceFormatted(date: .omitted, time: .shortened))
-                        LabeledContent("Provenance", value: "Calendrier · " + course.calendarName)
-                        HStack { Text("État"); Spacer(); StatusBadge(title: course.status.label, color: course.status == .needsReview ? .orange : Atelier.blue) }
+                        LabeledContent("Date", value: CourseDisplay.date(course.start, course: course))
+                        LabeledContent("Horaire", value: CourseDisplay.timeRange(course))
+                        LabeledContent("Provenance", value: course.school == nil ? "Calendrier personnel · " + course.calendarName : "PRONOTE")
+                        HStack { Text("État"); Spacer(); StatusBadge(title: CourseDisplay.status(course, autoCredit: store.state.settings.autoCreditCourses), color: course.status == .needsReview ? .orange : Atelier.blue) }
                         if course.sourceMissing { Label("L’événement n’apparaît plus dans la source. Vos séances et vos notes sont conservées.", systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
                         if course.status == .needsReview { Text("Vérifiez la matière, l’horaire et la séance associée. Les données personnelles sont conservées jusqu’à votre décision.").font(.footnote).foregroundStyle(.secondary) }
                     }
+                    if let school = course.school {
+                        Section("Votre cours") {
+                            if !school.teacherNames.isEmpty { LabeledContent("Professeur", value: school.teacherNames.joined(separator: ", ")) }
+                            if !school.classrooms.isEmpty { LabeledContent("Salle", value: school.classrooms.joined(separator: ", ")) }
+                            if !school.groupNames.isEmpty { LabeledContent("Groupe", value: school.groupNames.joined(separator: ", ")) }
+                            if school.isTest { Label("Évaluation", systemImage: "doc.text.magnifyingglass").foregroundStyle(.orange) }
+                            if school.canceled { Label("Cours annulé par PRONOTE", systemImage: "calendar.badge.minus").foregroundStyle(.secondary) }
+                            if school.exempted { Label("Dispense indiquée par PRONOTE", systemImage: "person.crop.circle.badge.checkmark").foregroundStyle(.secondary) }
+                        }
+                    }
+                    CourseContentsSections(contents: SchoolReconciler.contents(for: course, state: store.state))
                     Section("Suivi du cours") {
                         Button("Chronométrer ce cours", systemImage: "play.fill") {
                             guard let subject = course.subjectID else { showEdit = true; return }
                             store.start(kind: .course, subjectID: subject, occurrenceID: course.id)
                             store.route = "revision"
-                        }.disabled(store.state.activeSession != nil || course.linkedSessionID != nil)
-                        Button("Confirmer une durée", systemImage: "checkmark.circle") { confirmedMinutes = (course.confirmedSeconds ?? course.end.timeIntervalSince(course.start)) / 60; showConfirm = true }.disabled(course.subjectID == nil || course.linkedSessionID != nil || course.end > .now)
+                        }.disabled(store.state.activeSession != nil || course.linkedSessionID != nil || course.school?.canceled == true || course.school?.exempted == true)
+                        Button("Corriger la durée suivie", systemImage: "slider.horizontal.3") {
+                            correctedMinutes = (course.confirmedSeconds ?? course.end.timeIntervalSince(course.start)) / 60
+                            showDurationCorrection = true
+                        }.disabled(course.subjectID == nil || course.linkedSessionID != nil || course.end > .now || course.school?.canceled == true || course.school?.exempted == true)
                         Button("Associer à une séance manuelle", systemImage: "link") { showLink = true }.disabled(course.linkedSessionID != nil)
                         Button("Modifier la matière ou l’horaire", systemImage: "pencil") { showEdit = true }
                     }
                     Section {
-                        DisclosureGroup("Détails du calendrier") {
+                        DisclosureGroup("Détails de la source") {
                             Text(course.title).font(.subheadline).foregroundStyle(.secondary).textSelection(.enabled)
                         }
                     }
                     if let pendingStart = course.pendingStart {
-                        Section("Modification du calendrier à examiner") {
+                        Section("Modification du calendrier personnel") {
                             LabeledContent("Horaire conservé", value: course.start.cadenceFormatted(date: .abbreviated, time: .shortened) + " – " + course.end.cadenceFormatted(date: .omitted, time: .shortened))
                             LabeledContent("Nouvel horaire", value: pendingStart.cadenceFormatted(date: .abbreviated, time: .shortened) + " – " + (course.pendingEnd ?? course.end).cadenceFormatted(date: .omitted, time: .shortened))
                             if let title = course.pendingTitle, title != course.title { LabeledContent("Nouveau titre", value: title) }
@@ -185,18 +284,21 @@ struct CourseDetailView: View {
                     if let linked = store.state.sessions.first(where: { $0.id == course.linkedSessionID }) {
                         Section("Séance associée") {
                             NavigationLink { SessionEditorView(session: linked) } label: { SessionRow(session: linked) }
-                            Text("La durée de cette séance remplace l’estimation du calendrier.").font(.footnote).foregroundStyle(.secondary)
+                            Text("La durée de cette séance remplace l’estimation du créneau.").font(.footnote).foregroundStyle(.secondary)
                             Button("Retirer l’association", systemImage: "link") { showUnlinkConfirmation = true }
                                 .accessibilityIdentifier("course.unlink")
                         }
                     }
                     Section {
-                        Menu("Changer l’état", systemImage: "ellipsis.circle") {
-                            Button("Marquer absent") { store.setOccurrenceStatus(course.id, status: .absent) }
-                            Button("Ignorer ce cours") { store.setOccurrenceStatus(course.id, status: .ignored) }
-                            Button("Rétablir comme cours planifié") { store.setOccurrenceStatus(course.id, status: .scheduled) }
-                        }.disabled(course.linkedSessionID != nil)
-                    } footer: { Text("Ces actions modifient uniquement votre suivi Cadenza. Votre calendrier système reste inchangé.") }
+                        Button("Ce cours n’a pas eu lieu", systemImage: "calendar.badge.minus") { store.setOccurrenceStatus(course.id, status: .ignored) }
+                            .disabled(course.linkedSessionID != nil)
+                        Button("J’étais absent", systemImage: "person.crop.circle.badge.xmark") { store.setOccurrenceStatus(course.id, status: .absent) }
+                            .disabled(course.linkedSessionID != nil)
+                        if [.absent, .ignored, .cancelled].contains(course.accountingStatus) {
+                            Button("Rétablir le suivi automatique", systemImage: "arrow.uturn.backward") { store.setOccurrenceStatus(course.id, status: .scheduled) }
+                                .disabled(course.linkedSessionID != nil || course.school?.canceled == true || course.school?.exempted == true)
+                        }
+                    } footer: { Text(course.linkedSessionID == nil ? "Le suivi est automatique. Ces choix restent dans Cadenza, sans modifier PRONOTE ni vos calendriers." : "Pour corriger un cours chronométré, ouvrez sa séance associée. Sa durée et ses notes restent conservées.") }
                 }
                 .cadenceListStyle()
                 .sheet(isPresented: $showEdit) { NavigationStack { OccurrenceEditorView(occurrence: course) } }
@@ -205,19 +307,19 @@ struct CourseDetailView: View {
                     Button("Retirer l’association", role: .destructive) { store.unlinkSession(occurrenceID: course.id) }
                     Button("Conserver l’association", role: .cancel) { }
                 } message: {
-                    Text("La séance, sa durée et ses notes sont conservées. Le créneau du calendrier sera marqué « Ignoré » pour éviter de rétablir son estimation. Vous pourrez associer la séance à un autre cours.")
+                    Text("La séance, sa durée et ses notes sont conservées. Le créneau sera retiré du décompte automatique pour éviter un doublon. Vous pourrez associer la séance à un autre cours.")
                 }
-                .sheet(isPresented: $showConfirm) {
+                .sheet(isPresented: $showDurationCorrection) {
                     NavigationStack {
                         Form {
                             Section("Temps de cours effectué") {
-                                Stepper("\(Int(confirmedMinutes)) minutes", value: $confirmedMinutes, in: 1...1440, step: 5)
-                                Text("Cette durée sera comptée comme confirmée, à la place de l’estimation.").font(.footnote).foregroundStyle(.secondary)
+                                Stepper("\(Int(correctedMinutes)) minutes", value: $correctedMinutes, in: 1...1440, step: 5)
+                                Text("Cette correction remplace la durée prévue. Les autres cours continuent à être comptés automatiquement.").font(.footnote).foregroundStyle(.secondary)
                             }
-                        }.cadenceListStyle().navigationTitle("Confirmer le cours").navigationBarTitleDisplayMode(.inline)
+                        }.cadenceListStyle().navigationTitle("Corriger la durée").navigationBarTitleDisplayMode(.inline)
                             .toolbar {
-                                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { showConfirm = false } }
-                                ToolbarItem(placement: .confirmationAction) { Button("Confirmer") { store.confirmOccurrence(course.id, seconds: confirmedMinutes * 60); showConfirm = false } }
+                                ToolbarItem(placement: .cancellationAction) { Button("Annuler") { showDurationCorrection = false } }
+                                ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { store.confirmOccurrence(course.id, seconds: correctedMinutes * 60); if store.errorMessage == nil { showDurationCorrection = false } } }
                             }
                     }.presentationDetents([.medium, .large])
                 }
@@ -247,8 +349,9 @@ private struct OccurrenceEditorView: View {
                 DatePicker("Début", selection: $start)
                 DatePicker("Fin", selection: $end)
             }
-            Section { Text("La modification est locale. L’événement d’origine dans Calendrier reste inchangé.").foregroundStyle(.secondary) }
+            Section { Text("Cette correction reste dans Cadenza. PRONOTE et les calendriers personnels ne sont pas modifiés.").foregroundStyle(.secondary) }
         }.cadenceListStyle().navigationTitle("Modifier le cours").navigationBarTitleDisplayMode(.inline)
+            .environment(\.timeZone, occurrence.school == nil ? TimeZone.current : SchoolDateCodec.parisCalendar.timeZone)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Enregistrer") { store.updateOccurrence(occurrence.id, subjectID: subjectID, title: title, start: start, end: end); if store.errorMessage == nil { dismiss() } }.disabled(subjectID == nil || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || end <= start) }

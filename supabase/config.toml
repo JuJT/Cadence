@@ -1,0 +1,4 @@
+project_id = "sknscitxtbwmgluwejnw"
+
+[functions.cadenza-school]
+verify_jwt = true

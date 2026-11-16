@@ -44,6 +44,7 @@ struct WidgetSnapshot: Codable {
 }
 
 enum SharedSnapshotStore {
+    static var transportDiagnostic: String { KeychainSnapshotStore.diagnostic }
     static var container: URL? {
         #if CADENCE_SHARED_GROUP
         guard let identifier = Bundle.main.object(forInfoDictionaryKey: "CadenceAppGroupIdentifier") as? String,
@@ -98,10 +99,14 @@ enum SharedSnapshotStore {
 }
 
 private enum KeychainSnapshotStore {
-    // Derive the real signing prefix from an item created in the signed default group.
-    // This survives re-signing and bundle-ID changes, without SecTask/private APIs or
-    // assumptions about a Team ID. The explicit shared group is still enforced by iOS.
-    private static func accessGroup() -> String? {
+    private static let diagnostics = KeychainDiagnostics()
+
+    static var diagnostic: String { diagnostics.summary }
+
+    // Keep the complete group returned by iOS. Re-signers can change more than the
+    // prefix, so rebuilding "prefix + expected suffix" loses valid shared groups.
+    private static func defaultAccessGroup() -> String? {
+        if let cached = diagnostics.defaultGroup { return cached }
         let probe: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "com.cadence.widget-group-probe",
             kSecAttrAccount as String: UUID().uuidString,
@@ -116,27 +121,68 @@ private enum KeychainSnapshotStore {
         _ = SecItemDelete(deletion as CFDictionary)
         guard let attributes = result as? [String: Any],
               let group = attributes[kSecAttrAccessGroup as String] as? String,
-              let prefix = group.split(separator: ".").first, !prefix.isEmpty else { return nil }
-        return String(prefix) + ".com.cadence.study.widget-summary"
+              !group.isEmpty else { return nil }
+        diagnostics.rememberDefault(group)
+        return group
     }
 
-    private static func query(group: String, account: String) -> [String: Any] {
+    private static func query(account: String) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
          kSecAttrService as String: "com.cadence.widget-summary",
          kSecAttrAccount as String: account,
-         kSecAttrAccessGroup as String: group,
          kSecAttrSynchronizable as String: false]
+    }
+
+    private static func candidateGroups() -> [String] {
+        var groups: [String] = []
+        if let group = defaultAccessGroup() {
+            groups.append(group)
+            // Compatibility with snapshots published by 0.2.0. This is only an
+            // attempted destination: Security still checks the actual entitlement.
+            if let prefix = group.split(separator: ".").first {
+                groups.append(String(prefix) + ".com.cadence.study.widget-summary")
+            }
+        }
+        // A profile is not proof of an executable entitlement. Only exact groups
+        // belonging to this app are candidates; every write is checked by iOS.
+        if let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+           let data = try? Data(contentsOf: url),
+           let start = data.range(of: Data("<plist".utf8)),
+           let end = data.range(of: Data("</plist>".utf8), in: start.lowerBound..<data.endIndex),
+           let profile = try? PropertyListSerialization.propertyList(from: data[start.lowerBound..<end.upperBound], options: [], format: nil) as? [String: Any],
+           let entitlements = profile["Entitlements"] as? [String: Any],
+           let values = entitlements["keychain-access-groups"] as? [String] {
+            groups.append(contentsOf: values.filter { $0.localizedCaseInsensitiveContains("cadence") })
+        }
+        var unique = Set<String>()
+        return groups.filter {
+            !$0.isEmpty && $0.count <= 512 && !$0.contains("*") &&
+            !$0.hasPrefix("UNSIGNED00.") && unique.insert($0).inserted
+        }.prefix(12).map { $0 }
     }
 
     static func read(account: String = "snapshot-v1") -> Data? {
         #if CADENCE_KEYCHAIN_SHARED
-        guard let group = accessGroup() else { return nil }
-        var attributes = query(group: group, account: account)
+        // Omitting the group searches every group actually allowed by the signed
+        // executable, while service/account remain exact. No unrelated items match.
+        var attributes = query(account: account)
         attributes[kSecReturnData as String] = true
-        attributes[kSecMatchLimit as String] = kSecMatchLimitOne
+        attributes[kSecMatchLimit as String] = kSecMatchLimitAll
         var result: CFTypeRef?
         guard SecItemCopyMatching(attributes as CFDictionary, &result) == errSecSuccess else { return nil }
-        return result as? Data
+        let values = (result as? [Data]) ?? (result as? Data).map { [$0] } ?? []
+        // Several previously signed destinations can remain accessible after an
+        // update. Prefer the newest valid copy rather than the first keychain hit.
+        if account == "snapshot-v1" {
+            return values.compactMap { data -> (Date, Data)? in
+                guard data.count <= 16_384, let value = try? JSONDecoder().decode(WidgetSnapshot.self, from: data) else { return nil }
+                return (value.updatedAt, data)
+            }.max { $0.0 < $1.0 }?.1
+        }
+        return values.compactMap { data -> (Date, Data)? in
+            guard let value = try? JSONDecoder().decode(Date.self, from: data) else { return nil }
+            return (value, data)
+        }.max { $0.0 < $1.0 }?.1
         #else
         return nil
         #endif
@@ -146,19 +192,62 @@ private enum KeychainSnapshotStore {
         #if CADENCE_KEYCHAIN_SHARED
         // A small local aggregate, never credentials or the complete study database.
         guard data.count <= 16_384 else { return false }
-        guard let group = accessGroup() else { return false }
-        let attributesQuery = query(group: group, account: account)
-        let changes: [String: Any] = [kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
-        let status = SecItemUpdate(attributesQuery as CFDictionary, changes as CFDictionary)
-        if status == errSecSuccess { return true }
-        guard status == errSecItemNotFound else { return false }
-        var attributes = attributesQuery
-        for (key, value) in changes { attributes[key] = value }
-        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+        let groups = candidateGroups()
+        let candidates: [String?] = groups.isEmpty ? [nil] : groups.map { Optional($0) }
+        var successes = 0
+        var lastStatus: OSStatus = errSecItemNotFound
+        for group in candidates {
+            var attributesQuery = query(account: account)
+            if let group { attributesQuery[kSecAttrAccessGroup as String] = group }
+            let status = write(data, query: attributesQuery)
+            if status == errSecSuccess { successes += 1 }
+            else { lastStatus = status }
+        }
+        if account == "snapshot-v1" { diagnostics.recordWrite(successes: successes, status: lastStatus) }
+        return successes > 0
         #else
         return false
         #endif
+    }
+
+    private static func write(_ data: Data, query attributesQuery: [String: Any]) -> OSStatus {
+        let changes: [String: Any] = [kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
+        let status = SecItemUpdate(attributesQuery as CFDictionary, changes as CFDictionary)
+        if status == errSecSuccess { return status }
+        guard status == errSecItemNotFound else { return status }
+        var attributes = attributesQuery
+        for (key, value) in changes { attributes[key] = value }
+        return SecItemAdd(attributes as CFDictionary, nil)
+    }
+}
+
+private final class KeychainDiagnostics: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cachedGroup: String?
+    private var destinationCount: Int?
+    private var failureStatus: OSStatus?
+
+    var defaultGroup: String? {
+        lock.lock(); defer { lock.unlock() }
+        return cachedGroup
+    }
+    func rememberDefault(_ value: String) {
+        lock.lock(); defer { lock.unlock() }
+        cachedGroup = value
+    }
+    func recordWrite(successes: Int, status: OSStatus) {
+        lock.lock(); defer { lock.unlock() }
+        destinationCount = successes
+        failureStatus = successes == 0 ? status : nil
+    }
+    var summary: String {
+        lock.lock(); defer { lock.unlock() }
+        guard let destinationCount else { return "Trousseau : aucune publication tentée dans ce processus." }
+        if destinationCount > 0 {
+            return "Résumé écrit dans \(destinationCount) destination(s) autorisée(s) par iOS. Cela ne prouve pas encore l’accès de l’extension."
+        }
+        return "Écriture du résumé refusée par iOS (OSStatus \(failureStatus ?? errSecNotAvailable)). Les groupes privés ne sont jamais contournés."
     }
 }
 
