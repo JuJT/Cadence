@@ -2,6 +2,23 @@ import XCTest
 
 final class CadenceUITests: XCTestCase {
     @MainActor
+    func testMusicAndFocusSheetHasNavigationAndClosesToSession() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments()
+        app.launch()
+        app.tabBars.buttons["Révision"].tap()
+        tap(app.buttons["session.start"], in: app)
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        tap(app.buttons["session.companion"], in: app)
+        XCTAssertTrue(app.navigationBars["Musique et concentration"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["companion.audio.import"].exists)
+        capture(app, name: "musique-et-concentration")
+        tap(app.buttons["Fermer"], in: app)
+        XCTAssertFalse(app.navigationBars["Musique et concentration"].exists)
+        XCTAssertTrue(reveal(app.buttons["session.pause"], in: app))
+    }
+
+    @MainActor
     func testCourseDateNavigationAndSubjectNames() throws {
         let app = XCUIApplication()
         app.launchArguments = testArguments(["--uitesting-courses"])

@@ -60,7 +60,7 @@ struct RevisionView: View {
         }
         .sheet(isPresented: $showManual) { NavigationStack { NewSessionView(kind: .revision, startAsTimer: false) } }
         .sheet(isPresented: $showHomework) { HomeworkPickerSheet() }
-        .sheet(isPresented: $showCompanion) { SessionCompanionView() }
+        .sheet(isPresented: $showCompanion) { NavigationStack { SessionCompanionView() } }
     }
 
     private func timer(_ active: StudySession) -> some View {
