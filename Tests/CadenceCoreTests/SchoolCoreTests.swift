@@ -95,6 +95,111 @@ final class SchoolCoreTests: XCTestCase {
         XCTAssertEqual(restored.occurrences[0].title, "Mon horaire corrigé")
     }
 
+    func testResidualCompositeMoveReservesOtherDatesAndPreservesUUIDsExclusionAndPersonalSession() throws {
+        var state = makeState()
+        let monday = event("42|2026-11-16T08:10:00")
+        let tuesday = event("42|2026-11-17T08:10:00", start: base.addingTimeInterval(86400))
+        let now = base.addingTimeInterval(3 * 86400)
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([monday, tuesday]), now: now)
+        let mondayID = state.occurrences[0].id
+        let tuesdayID = state.occurrences[1].id
+        try CadenceEngine.confirm(state: &state, occurrenceID: mondayID, seconds: 3600)
+        try CadenceEngine.setStatus(state: &state, occurrenceID: tuesdayID, status: .absent)
+        let revisionID = try CadenceEngine.addManual(state: &state, subjectID: state.subjects[0].id, kind: .revision,
+            start: base.addingTimeInterval(7200), end: base.addingTimeInterval(8100), notes: "Séance personnelle indépendante")
+        let moved = event("42|2026-11-16T08:15:00", start: base.addingTimeInterval(300))
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([moved, tuesday]), now: now)
+        XCTAssertEqual(state.visibleOccurrences.count, 2)
+        XCTAssertEqual(state.occurrences.first { $0.eventIdentifier == moved.eventID }?.id, mondayID)
+        XCTAssertEqual(state.occurrences.first { $0.eventIdentifier == tuesday.eventID }?.id, tuesdayID)
+        XCTAssertEqual(state.occurrences.first { $0.id == mondayID }?.start, moved.startAt)
+        XCTAssertEqual(state.occurrences.first { $0.id == tuesdayID }?.status, .absent)
+        XCTAssertFalse(state.occurrences.contains { $0.sourceMissing })
+        XCTAssertEqual(state.sessions.first?.id, revisionID)
+        XCTAssertEqual(state.sessions.first?.notes, "Séance personnelle indépendante")
+        let total = Statistics.totals(state: state, in: DateInterval(start: base, duration: 4 * 86400), now: now)
+        XCTAssertEqual(total.courseMeasured, 3600)
+        XCTAssertEqual(total.courseEstimated, 0)
+        XCTAssertEqual(total.revisions, 900)
+        let stable = state.visibleOccurrences.map(\.id)
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([moved, tuesday]), now: now)
+        XCTAssertEqual(state.visibleOccurrences.map(\.id), stable)
+    }
+
+    func testResidualMatchingNeverConsumesAnExactIdentityStillPresentInSnapshot() throws {
+        var state = makeState()
+        let retained = event("42|2026-11-16T08:10:00")
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([retained]), now: base)
+        let retainedID = state.occurrences[0].id
+        // These aliases resolve to the same local subject, but these are two
+        // distinct source IDs present together. The earlier one is visited first.
+        let added = event("42|2026-11-16T08:09:30", start: base.addingTimeInterval(-30), subject: "Mathématiques")
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([added, retained]), now: base)
+        XCTAssertEqual(state.visibleOccurrences.count, 2)
+        XCTAssertEqual(state.occurrences.first { $0.eventIdentifier == retained.eventID }?.id, retainedID)
+        XCTAssertNotEqual(state.occurrences.first { $0.eventIdentifier == added.eventID }?.id, retainedID)
+        XCTAssertFalse(state.occurrences.contains { $0.supersededByOccurrenceID != nil })
+    }
+
+    func testAmbiguousResidualMovesKeepDistinctRecordsAndDoNotAddAutomaticCredit() throws {
+        var state = makeState()
+        let original = event("42|2026-11-16T08:10:00")
+        let unchanged = event("42|2026-11-17T08:10:00", start: base.addingTimeInterval(86400))
+        let now = base.addingTimeInterval(3 * 86400)
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([original, unchanged]), now: now)
+        let originalID = state.occurrences[0].id
+        let unchangedID = state.occurrences[1].id
+        try CadenceEngine.confirm(state: &state, occurrenceID: originalID)
+        try CadenceEngine.setStatus(state: &state, occurrenceID: unchangedID, status: .absent)
+        let a = event("42|2026-11-16T08:15:00", start: base.addingTimeInterval(300))
+        let b = event("42|2026-11-16T10:10:00", start: base.addingTimeInterval(7200))
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([a, b, unchanged]), now: now)
+        XCTAssertEqual(state.visibleOccurrences.count, 4)
+        XCTAssertFalse(state.occurrences.contains { $0.supersededByOccurrenceID != nil })
+        XCTAssertEqual(state.occurrences.first { $0.id == originalID }?.status, .confirmed)
+        XCTAssertEqual(state.occurrences.first { $0.eventIdentifier == unchanged.eventID }?.id, unchangedID)
+        for id in [a.eventID, b.eventID] {
+            XCTAssertEqual(state.occurrences.first { $0.eventIdentifier == id }?.status, .needsReview)
+            XCTAssertEqual(state.occurrences.first { $0.eventIdentifier == id }?.identityUncertain, true)
+        }
+        let identities = Set(state.visibleOccurrences.map(\.id))
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([a, b, unchanged]), now: now)
+        XCTAssertEqual(Set(state.visibleOccurrences.map(\.id)), identities)
+        XCTAssertTrue(state.visibleOccurrences.filter { $0.eventIdentifier == a.eventID || $0.eventIdentifier == b.eventID }.allSatisfy { $0.status == .needsReview })
+        let total = Statistics.totals(state: state, in: DateInterval(start: base, duration: 4 * 86400), now: now)
+        XCTAssertEqual(total.courseMeasured, 3600)
+        XCTAssertEqual(total.courseEstimated, 0)
+        try CadenceEngine.setStatus(state: &state, occurrenceID: originalID, status: .absent)
+        for _ in 0..<2 { try SchoolReconciler.sync(state: &state, snapshot: snapshot([a, b, unchanged]), now: now) }
+        XCTAssertEqual(state.occurrences.first { $0.id == originalID }?.status, .absent)
+        XCTAssertTrue(state.visibleOccurrences.filter { $0.eventIdentifier == a.eventID || $0.eventIdentifier == b.eventID }.allSatisfy { $0.status == .needsReview })
+        XCTAssertEqual(Statistics.totals(state: state, in: DateInterval(start: base, duration: 4 * 86400), now: now).total, 0)
+        let corrected = try XCTUnwrap(state.occurrences.firstIndex { $0.id == originalID })
+        state.occurrences[corrected].status = .estimated
+        state.occurrences[corrected].schoolScheduleOverridden = true
+        state.occurrences[corrected].start = base.addingTimeInterval(60)
+        state.occurrences[corrected].end = base.addingTimeInterval(3660)
+        for _ in 0..<2 { try SchoolReconciler.sync(state: &state, snapshot: snapshot([a, b, unchanged]), now: now) }
+        XCTAssertTrue(state.visibleOccurrences.filter { $0.eventIdentifier == a.eventID || $0.eventIdentifier == b.eventID }.allSatisfy { $0.status == .needsReview })
+        XCTAssertEqual(Statistics.totals(state: state, in: DateInterval(start: base, duration: 4 * 86400), now: now).courseEstimated, 3600)
+    }
+
+    func testResidualCompositeMatchingNeverAdoptsOldHistoryOutsideTheResponseWindow() throws {
+        var state = makeState()
+        let old = event("42|2026-11-16T08:10:00")
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([old]), now: base.addingTimeInterval(7200))
+        let oldID = state.occurrences[0].id
+        try CadenceEngine.confirm(state: &state, occurrenceID: oldID)
+        let later = event("42|2026-12-06T08:10:00", start: base.addingTimeInterval(20 * 86400))
+        let response = SchoolSnapshot(timetable: [later], windowStart: base.addingTimeInterval(10 * 86400), windowEnd: base.addingTimeInterval(30 * 86400))
+        try SchoolReconciler.sync(state: &state, snapshot: response, now: base.addingTimeInterval(21 * 86400))
+        XCTAssertEqual(state.visibleOccurrences.count, 2)
+        XCTAssertEqual(state.occurrences.first { $0.id == oldID }?.start, old.startAt)
+        XCTAssertEqual(state.occurrences.first { $0.id == oldID }?.status, .confirmed)
+        XCTAssertFalse(state.occurrences.first { $0.id == oldID }?.sourceMissing ?? true)
+        XCTAssertNotEqual(state.occurrences.first { $0.eventIdentifier == later.eventID }?.id, oldID)
+    }
+
     func testCanceledAndExemptedCoursesNeverGenerateAutomaticCredit() throws {
         var state = makeState()
         try SchoolReconciler.sync(state: &state, snapshot: snapshot([
@@ -109,6 +214,10 @@ final class SchoolCoreTests: XCTestCase {
         try SchoolReconciler.sync(state: &state, snapshot: snapshot(events), now: base.addingTimeInterval(20_000))
         try CadenceEngine.setStatus(state: &state, occurrenceID: state.occurrences[0].id, status: .absent)
         try CadenceEngine.setStatus(state: &state, occurrenceID: state.occurrences[1].id, status: .ignored)
+        for i in state.occurrences.indices {
+            state.occurrences[i].previousStatus = state.occurrences[i].status
+            state.occurrences[i].status = .needsReview
+        }
         try SchoolReconciler.sync(state: &state, snapshot: snapshot(events), now: base.addingTimeInterval(20_001))
         XCTAssertEqual(state.occurrences.map(\.status), [.absent, .ignored])
         XCTAssertEqual(totals(state).total, 0)

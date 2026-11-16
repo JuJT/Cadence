@@ -32,6 +32,8 @@ public enum SchoolReconciler {
     private static func apply(state: inout CadenceState, snapshot: SchoolSnapshot, now: Date) -> SchoolSyncReport {
         var report = SchoolSyncReport()
         let oldIDs = Set(state.visibleOccurrences.filter { $0.school != nil }.map(\.id))
+        let incomingEventIDs = Set(snapshot.timetable.map(\.eventID))
+        let existingEventIDs = Set(state.visibleOccurrences.compactMap { $0.school?.eventID })
         let legacyCalendarIDs = Set(state.settings.selectedCalendarIDs)
         var seen = Set<UUID>()
         state.settings.autoCreditCourses = true
@@ -40,7 +42,16 @@ public enum SchoolReconciler {
         for event in snapshot.timetable.sorted(by: { $0.startAt < $1.startAt }) {
             let subjectID = resolveSubject(name: event.subjectName, remoteID: event.subjectID, state: &state)
             let eligible = state.occurrences.indices.filter {
-                state.occurrences[$0].supersededByOccurrenceID == nil && !seen.contains(state.occurrences[$0].id)
+                let old = state.occurrences[$0]
+                guard old.supersededByOccurrenceID == nil, !seen.contains(old.id) else { return false }
+                // Reserve every exact incoming identity before processing sorted lessons.
+                // A renamed/moved lesson must not consume another lesson still present.
+                if let source = old.school, incomingEventIDs.contains(source.eventID) {
+                    return source.eventID == event.eventID
+                }
+                let start = old.school?.startAt ?? old.start
+                let end = old.school?.endAt ?? old.end
+                return start < snapshot.windowEnd && end > snapshot.windowStart
             }
             let exact = eligible.filter { state.occurrences[$0].school?.eventID == event.eventID }
             var match = exact.count == 1 ? exact.first : nil
@@ -52,6 +63,26 @@ public enum SchoolReconciler {
                     return baseID(old.eventID) == base
                 }
                 if event.eventID.contains("|"), upstreamCount == 1, sameBase.count == 1 { match = sameBase.first }
+            }
+            var ambiguousResidual = false
+            if match == nil, event.eventID.contains("|"), !existingEventIDs.contains(event.eventID) {
+                let calendar = SchoolDateCodec.parisCalendar
+                let day = calendar.startOfDay(for: event.startAt)
+                let base = baseID(event.eventID)
+                let newResiduals = snapshot.timetable.filter {
+                    !existingEventIDs.contains($0.eventID) && baseID($0.eventID) == base
+                        && calendar.startOfDay(for: $0.startAt) == day
+                        && ($0.eventID == event.eventID || SubjectAliasResolver.subjectID(for: $0.subjectName, subjects: state.subjects) == subjectID
+                            || (event.subjectID != nil && $0.subjectID == event.subjectID))
+                }
+                let oldResiduals = eligible.filter {
+                    let old = state.occurrences[$0]
+                    guard let source = old.school else { return false }
+                    return !incomingEventIDs.contains(source.eventID) && baseID(source.eventID) == base
+                        && calendar.startOfDay(for: source.startAt) == day && old.subjectID == subjectID
+                }
+                if newResiduals.count == 1, oldResiduals.count == 1 { match = oldResiduals.first }
+                else { ambiguousResidual = !oldResiduals.isEmpty }
             }
             // Only a unique incoming lesson may adopt an old calendar fingerprint.
             let incomingMatches = snapshot.timetable.filter {
@@ -71,6 +102,8 @@ public enum SchoolReconciler {
                     match = preferred(duplicates, occurrences: state.occurrences)
                 }
             }
+            // An exact time fingerprint remains stronger evidence than an ambiguous base.
+            if match != nil { ambiguousResidual = false }
             let i: Int
             if let match {
                 i = match; report.updated += 1
@@ -126,12 +159,21 @@ public enum SchoolReconciler {
                 }
             }
             var occurrence = state.occurrences[i]
-            let localExclusion = occurrence.userEdited && [.absent, .ignored, .cancelled].contains(occurrence.accountingStatus)
+            let unresolvedResidual = occurrence.identityUncertain && occurrence.status == .needsReview && eligible.contains {
+                let old = state.occurrences[$0]
+                guard old.id != occurrence.id, let source = old.school, !incomingEventIDs.contains(source.eventID),
+                      old.subjectID == subjectID,
+                      old.userEdited || [.confirmed, .measured].contains(old.accountingStatus) else { return false }
+                return baseID(source.eventID) == baseID(event.eventID)
+                    && SchoolDateCodec.parisCalendar.isDate(source.startAt, inSameDayAs: event.startAt)
+            }
+            let localStatus = occurrence.accountingStatus
+            let localExclusion = occurrence.userEdited && [.absent, .ignored, .cancelled].contains(localStatus)
             let localConfirmation = occurrence.userEdited && occurrence.accountingStatus == .confirmed
             occurrence.calendarIdentifier = sourceIdentifier; occurrence.eventIdentifier = event.eventID
             occurrence.externalIdentifier = event.eventID; occurrence.occurrenceAnchor = nil; occurrence.isRecurring = false
             occurrence.calendarName = "PRONOTE"; occurrence.school = event; occurrence.lastSeenAt = now
-            occurrence.sourceMissing = false; occurrence.identityUncertain = incomingMatches > 1
+            occurrence.sourceMissing = false; occurrence.identityUncertain = incomingMatches > 1 || ambiguousResidual || unresolvedResidual
             occurrence.sourceFingerprint = event.eventID
             occurrence.pendingStart = nil; occurrence.pendingEnd = nil; occurrence.pendingTitle = nil
             occurrence.previousStatus = nil
@@ -141,10 +183,10 @@ public enum SchoolReconciler {
             }
             if occurrence.subjectID == nil || !occurrence.userEdited { occurrence.subjectID = subjectID }
             if occurrence.linkedSessionID != nil { occurrence.status = .measured }
-            else if localExclusion { /* keep the user's exclusion */ }
+            else if localExclusion { occurrence.status = localStatus }
             else if event.canceled || event.exempted { occurrence.status = .cancelled }
             else if localConfirmation { occurrence.status = .confirmed }
-            else if incomingMatches > 1 { occurrence.status = .needsReview }
+            else if incomingMatches > 1 || ambiguousResidual || unresolvedResidual { occurrence.status = .needsReview }
             else { occurrence.status = automaticStatus(event, start: occurrence.start, end: occurrence.end, now: now) }
             state.occurrences[i] = occurrence
             seen.insert(occurrence.id)
