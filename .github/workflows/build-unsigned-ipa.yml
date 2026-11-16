@@ -17,6 +17,11 @@ on:
       - '.github/workflows/build-unsigned-ipa.yml'
   workflow_dispatch:
     inputs:
+      runner_image:
+        description: 'Runner macOS standard gratuit en dépôt public ; repli macos-15 si macos-26 est saturé'
+        type: choice
+        options: [macos-26, macos-15]
+        default: macos-26
       free_quota_verified:
         description: 'Quota stockage artefacts (et calcul si privé) vérifié ; usage payant bloqué dans Billing'
         type: boolean
@@ -48,7 +53,7 @@ jobs:
        vars.CADENCE_PRIVATE_FREE_CI == 'true')
     permissions:
       contents: write
-    runs-on: macos-26
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_image || 'macos-26' }}
     timeout-minutes: 45
     env:
       INCLUDE_SHARED: ${{ (github.event_name == 'push' || inputs.include_shared_variant) && 'true' || 'false' }}
@@ -62,6 +67,26 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist/reports
+          # Both standard images provide Xcode 26, but macos-15 defaults to 16.
+          # Select the newest installed stable 26.x; keep the SDK check below.
+          DEVELOPER_DIR="$(python3 - <<'PY'
+          from pathlib import Path
+          import plistlib, re
+          candidates = []
+          for app in Path('/Applications').glob('Xcode*.app'):
+              try:
+                  info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+                  version = tuple(int(x) for x in re.findall(r'\d+', info['CFBundleShortVersionString'])[:3])
+                  if version and version[0] == 26:
+                      candidates.append((version, str(app / 'Contents/Developer')))
+              except (OSError, ValueError, KeyError):
+                  continue
+          assert candidates, 'Aucun Xcode 26 stable installé sur ce runner standard'
+          print(max(candidates)[1])
+          PY
+          )"
+          export DEVELOPER_DIR
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
           xcodebuild -version | tee dist/reports/xcode-version.txt
           xcodebuild -showsdks > dist/reports/sdks.txt
           xcrun swift --version > dist/reports/swift-version.txt
