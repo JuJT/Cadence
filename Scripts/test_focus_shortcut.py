@@ -1,7 +1,7 @@
 import plistlib
 import unittest
 
-from prepare_focus_shortcut import build_workflow, focus_identifiers, PREFIX
+from prepare_focus_shortcut import build_workflow, GET_FOCUS_ACTION, PREFIX
 
 
 def run_document(document, command, current_focus=None):
@@ -46,7 +46,7 @@ def run_document(document, command, current_focus=None):
             pass
         elif name == PREFIX + 'text.trimwhitespace':
             variables[parameters['UUID']] = command.strip()
-        elif name == PREFIX + 'getfocus':
+        elif name == GET_FOCUS_ACTION:
             variables[parameters['UUID']] = current_focus
         elif name == PREFIX + 'dnd.set':
             effects.append(parameters['Enabled'])
@@ -62,7 +62,7 @@ def run_document(document, command, current_focus=None):
 class FocusShortcutTests(unittest.TestCase):
     def setUp(self):
         # Round-trip the exported plist bytes before evaluating the actions.
-        self.document = plistlib.loads(plistlib.dumps(build_workflow(PREFIX + 'getfocus')))
+        self.document = plistlib.loads(plistlib.dumps(build_workflow()))
 
     def test_probe_and_unknown_inputs_have_no_focus_effect(self):
         for value in ('probe', '', 'invalid', 'ON', 'off:work'):
@@ -79,17 +79,29 @@ class FocusShortcutTests(unittest.TestCase):
         self.assertEqual(run_document(self.document, 'off', 'Work'), ('disabled', [False]))
         self.assertEqual(run_document(self.document, 'off'), ('disabled', [False]))
 
-    def test_descriptor_resolution_requires_exact_class_and_identifier(self):
-        descriptor = {PREFIX + 'getfocus': {'ActionClass': 'WFGetFocusAction'},
-                      PREFIX + 'unrelated': {'ActionClass': 'OtherAction'},
-                      'bad': {'ActionClass': 'WFGetFocusAction'}}
-        self.assertEqual(focus_identifiers(descriptor), {PREFIX + 'getfocus'})
-        self.assertEqual(focus_identifiers({'ActionClass': 'WFGetFocusAction'}), set())
+    def test_all_control_flow_groups_and_output_references_are_balanced(self):
+        groups, declared, referenced = [], set(), set()
+        for item in self.document['WFWorkflowActions']:
+            parameters = item['WFWorkflowActionParameters']
+            if 'UUID' in parameters:
+                self.assertNotIn(parameters['UUID'], declared)
+                declared.add(parameters['UUID'])
+            if item['WFWorkflowActionIdentifier'] == PREFIX + 'conditional':
+                mode, group = parameters['WFControlFlowMode'], parameters['GroupingIdentifier']
+                if mode == 0:
+                    groups.append(group)
+                    referenced.add(parameters['WFInput']['Variable']['Value']['OutputUUID'])
+                else:
+                    self.assertEqual(group, groups[-1])
+                    if mode == 2:
+                        groups.pop()
+        self.assertEqual(groups, [])
+        self.assertTrue(referenced <= declared)
 
     def test_document_has_no_sensitive_or_network_actions(self):
         names = {item['WFWorkflowActionIdentifier'] for item in self.document['WFWorkflowActions']}
         self.assertEqual(names, {PREFIX + suffix for suffix in (
-            'comment', 'text.trimwhitespace', 'conditional', 'getfocus', 'dnd.set', 'output')})
+            'comment', 'text.trimwhitespace', 'conditional', 'dnd.getfocus', 'dnd.set', 'output')})
         self.assertEqual(self.document['WFWorkflowImportQuestions'], [])
         self.assertNotIn('WFWorkflowUserInfo', self.document)
 

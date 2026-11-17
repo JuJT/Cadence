@@ -2,8 +2,8 @@
 """Build and sign the reviewable Focus helper with Apple's public shortcuts CLI.
 
 The file format is the exported Shortcuts document format. No private framework
-is loaded or called: its installed action *data* only resolves the Get Current
-Focus identifier instead of guessing it. Missing descriptors/signing fail closed.
+is loaded or called. Only Apple's public shortcuts command signs the document.
+Exported action identifiers are explicit and versioned; signing fails closed.
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import uuid
 
 NAME = 'Cadenza Concentration'
 PREFIX = 'is.workflow.actions.'
+GET_FOCUS_ACTION = PREFIX + 'dnd.getfocus'
 NAMESPACE = uuid.UUID('d6d1a98c-7159-4aca-8393-91733ac2fb34')
 
 
@@ -57,9 +58,7 @@ def branch(label, input_value, condition, body, comparison=None):
             action(PREFIX + 'conditional', GroupingIdentifier=group, WFControlFlowMode=2)]
 
 
-def build_workflow(get_focus_action):
-    if not get_focus_action.startswith(PREFIX) or any(c.isspace() for c in get_focus_action):
-        raise ValueError('Invalid Focus action identifier')
+def build_workflow():
     input_id, focus_id = identifier('input'), identifier('current-focus')
     shortcut_input = {'WFSerializationType': 'WFTextTokenString',
                       'Value': {'string': '\ufffc',
@@ -77,14 +76,14 @@ def build_workflow(get_focus_action):
         action(PREFIX + 'text.trimwhitespace', UUID=input_id, WFInput=shortcut_input)]
     actions += branch('probe-branch', input_ref, 4, [output('cadenza-focus-v1')], 'probe')
     actions += branch('enable-branch', input_ref, 4, [
-        action(get_focus_action, UUID=focus_id),
+        action(GET_FOCUS_ACTION, UUID=focus_id),
         *branch('existing-focus', focus_ref, 100, [output('kept')]),
         action(PREFIX + 'dnd.set', Enabled=True, AssertionType='Turned Off'),
         output('enabled')], 'on')
     actions += branch('disable-branch', input_ref, 4, [
         action(PREFIX + 'dnd.set', Enabled=False), output('disabled')], 'off')
     actions += [output('cadenza-focus-v1')]
-    return {'WFWorkflowClientVersion': '2607.0.4',
+    return {'WFWorkflowName': NAME, 'WFWorkflowClientVersion': '2607.0.4',
             'WFWorkflowMinimumClientVersion': 900,
             'WFWorkflowMinimumClientVersionString': '900',
             'WFWorkflowIcon': {'WFWorkflowIconStartColor': 1440408063,
@@ -96,48 +95,6 @@ def build_workflow(get_focus_action):
             'WFWorkflowActions': actions}
 
 
-def focus_identifiers(catalog):
-    """Extract action identifiers from installed Apple action descriptors only."""
-    result = set()
-    def visit(value, path=()):
-        if isinstance(value, dict):
-            if value.get('ActionClass') == 'WFGetFocusAction':
-                for candidate in (*reversed(path), value.get('Identifier'), value.get('ActionIdentifier')):
-                    if isinstance(candidate, str) and candidate.startswith(PREFIX):
-                        result.add(candidate)
-                        break
-            for key, child in value.items():
-                visit(child, (*path, key))
-        elif isinstance(value, list):
-            for child in value:
-                visit(child, path)
-    visit(catalog)
-    return result
-
-
-def resolve_get_focus_action():
-    roots = [Path('/System/Library/PrivateFrameworks/ActionKit.framework/Resources'),
-             Path('/System/Library/PrivateFrameworks/WorkflowKit.framework/Resources'),
-             Path('/System/Applications/Shortcuts.app/Contents/Resources')]
-    paths = set()
-    for root in roots:
-        if root.exists():
-            # Framework Resources is a symlink on macOS. Resolve it explicitly:
-            # glob does not recurse through nested directory symlinks.
-            for path in root.resolve().glob('**/*Action*.plist'):
-                if path.is_file() and path.stat().st_size <= 8 * 1024 * 1024:
-                    paths.add(path.resolve())
-    found = set()
-    for path in sorted(paths):
-        try:
-            found.update(focus_identifiers(plistlib.loads(path.read_bytes())))
-        except (ValueError, plistlib.InvalidFileException):
-            continue
-    if len(found) != 1:
-        raise RuntimeError('Installed Shortcuts descriptors could not identify Get Current Focus uniquely; no shortcut generated')
-    return next(iter(found))
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=Path('Resources/Shortcuts'))
@@ -145,8 +102,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if sys.platform != 'darwin':
         parser.error('Signing requires macOS and the Apple shortcuts command')
-    focus_action = resolve_get_focus_action()
-    workflow = build_workflow(focus_action)
+    workflow = build_workflow()
     unsigned = plistlib.dumps(workflow, fmt=plistlib.FMT_BINARY, sort_keys=False)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.reports.mkdir(parents=True, exist_ok=True)
@@ -165,7 +121,7 @@ def main(argv=None):
             raise RuntimeError('Apple shortcuts sign did not produce the expected signed archive')
         destination.write_bytes(data)
     (args.reports / 'focus-shortcut-source.plist').write_bytes(plistlib.dumps(workflow, sort_keys=False))
-    report = {'shortcut': NAME, 'getFocusAction': focus_action,
+    report = {'shortcut': NAME, 'getFocusAction': GET_FOCUS_ACTION,
               'signedByAppleShortcutsCLI': True, 'signingMode': 'anyone',
               'sourceSHA256': hashlib.sha256(unsigned).hexdigest(),
               'signedSHA256': hashlib.sha256(data).hexdigest(), 'signedBytes': len(data),
