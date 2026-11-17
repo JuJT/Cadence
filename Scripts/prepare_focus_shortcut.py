@@ -116,13 +116,15 @@ def focus_identifiers(catalog):
 
 
 def resolve_get_focus_action():
-    roots = [Path('/System/Library/PrivateFrameworks/ActionKit.framework'),
-             Path('/System/Library/PrivateFrameworks/WorkflowKit.framework'),
+    roots = [Path('/System/Library/PrivateFrameworks/ActionKit.framework/Resources'),
+             Path('/System/Library/PrivateFrameworks/WorkflowKit.framework/Resources'),
              Path('/System/Applications/Shortcuts.app/Contents/Resources')]
     paths = set()
     for root in roots:
         if root.exists():
-            for path in root.glob('**/*Actions*.plist'):
+            # Framework Resources is a symlink on macOS. Resolve it explicitly:
+            # glob does not recurse through nested directory symlinks.
+            for path in root.resolve().glob('**/*Action*.plist'):
                 if path.is_file() and path.stat().st_size <= 8 * 1024 * 1024:
                     paths.add(path.resolve())
     found = set()

@@ -40,13 +40,14 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import plistlib
-          roots = [Path('/System/Library/PrivateFrameworks/ActionKit.framework'),
-                   Path('/System/Library/PrivateFrameworks/WorkflowKit.framework'),
+          roots = [Path('/System/Library/PrivateFrameworks/ActionKit.framework/Resources'),
+                   Path('/System/Library/PrivateFrameworks/WorkflowKit.framework/Resources'),
                    Path('/System/Applications/Shortcuts.app/Contents/Resources')]
           for root in roots:
               print(str(root), 'present=', root.exists())
               if root.exists():
-                  paths = sorted(set(path.resolve() for path in root.glob('**/*Actions*.plist')))[:30]
+                  print('Resource names:', [path.name for path in sorted(root.resolve().iterdir())][:40])
+                  paths = sorted(set(path.resolve() for path in root.resolve().glob('**/*Action*.plist')))[:30]
                   print('Action descriptor files:', [str(path) for path in paths])
           PY
       - name: Conserver le fichier signé dans un brouillon privé de publication
