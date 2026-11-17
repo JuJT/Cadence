@@ -29,10 +29,10 @@ jobs:
           persist-credentials: false
       - name: Vérifier les branches du document
         shell: bash
-        run: python3 -m unittest discover -s Scripts -p 'test_focus_shortcut.py'
-      - name: Construire et signer avec Raccourcis Apple
+        run: python3 -m unittest discover -s Scripts -p 'test_*focus_shortcut.py'
+      - name: Vérifier le raccourci préparé MIT et sa signature Apple
         shell: bash
-        run: python3 Scripts/prepare_focus_shortcut.py
+        run: python3 Scripts/verify_prebuilt_focus_shortcut.py
       - name: Conserver le fichier signé dans un brouillon privé de publication
         if: success()
         shell: bash
@@ -42,13 +42,15 @@ jobs:
           set -euo pipefail
           tag="focus-check-${GITHUB_RUN_ID}"
           cat > dist/reports/focus-release-notes.md <<EOF
-          Raccourci Concentration signé par la commande Apple shortcuts sign --mode anyone.
+          Raccourci Concentration HongMix Focus sous MIT, figé par révision et SHA256.
+          La chaîne Apple, la signature AEA et le graphe d’actions exact sont vérifiés.
 
           Révision : ${GITHUB_SHA}
           Run : https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           Les tests de document et la signature ne valident pas l’exécution sur iPhone.
           EOF
-          gh release create "$tag" 'Resources/Shortcuts/Cadenza Concentration.shortcut' \
+          gh release create "$tag" 'Resources/Shortcuts/HongMix Focus.shortcut' \
+            Resources/Shortcuts/HongMix-LICENSE.txt dist/reports/focus-upstream-source.py \
             dist/reports/focus-shortcut.json dist/reports/focus-shortcut-source.plist \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft \
             --title 'Cadenza · raccourci Concentration à vérifier sur iPhone' \
