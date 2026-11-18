@@ -17,7 +17,7 @@ enum PronoteUITestFixtures {
         func timestamp(_ value: Date) -> SchoolJSON { .string(formatter.string(from: value)) }
         func subject(_ name: String) -> SchoolJSON { .object(["name": .string(name)]) }
         func grade(_ points: Double) -> SchoolJSON { .object(["kind": .number(0), "points": .number(points)]) }
-        let capabilities = ["grades", "evaluations", "attendance", "news", "discussions", "menus", "contents", "account", "gradebook", "homepage"]
+        let capabilities = ["grades", "evaluations", "attendance", "news", "discussions", "menus", "contents", "account", "gradebook", "homepage", "compose"]
         let period = PronotePeriod(id: "fixture-period", name: "Période fictive", kind: 0,
                                    startDate: date(-30), endDate: date(60))
         let profile = PronoteProfile(displayName: "Alex Exemple", establishment: "Établissement fictif",
@@ -59,6 +59,10 @@ enum PronoteUITestFixtures {
                 "creator": .string("Professeur fictif"), "date": timestamp(date(-1, hour: 16)),
                 "numberOfMessagesUnread": .number(0), "closed": .bool(true)
             ])])]),
+            "recipients": .array([.object([
+                "id": .string("fixture-teacher"), "name": .string("Enseignant fictif"),
+                "kind": .number(3), "subjects": .array([]), "isPrincipal": .bool(false)
+            ])]),
             "discussion:fixture-discussion": .object([
                 "defaultReplyMessageID": .string("fixture-sent-message"),
                 "drafts": .array([]), "canIncludeStudentsAndParents": .bool(false),

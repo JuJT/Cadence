@@ -637,6 +637,25 @@ final class AppStore: ObservableObject {
         await loadPortalValue(key: "discussion:" + id) { try await self.schoolService.fetchThread(id) }
     }
 
+    func loadPronoteNews(_ id: String) async {
+        guard !id.isEmpty, id.utf8.count <= 512, !isUITestSession else { return }
+        await loadInitialPortal()
+        await loadPortalValue(key: "news:" + id) {
+            let value = try await self.schoolService.fetchNewsDetail(id)
+            guard value["id"]?.stringValue == id, value["detailsRequired"]?.boolValue == false,
+                  ["information", "survey"].contains(value["is"]?.stringValue ?? "") else {
+                throw PronoteServiceError.failure("UnsupportedNewsFormat")
+            }
+            return value
+        }
+    }
+
+    func loadPronoteRecipients() async {
+        await loadInitialPortal()
+        guard !isUITestSession, pronoteProfile?.capabilities.contains("compose") == true else { return }
+        await loadPortalValue(key: "recipients") { try await self.schoolService.fetchRecipients() }
+    }
+
     func loadPronoteResource(_ id: String) async {
         guard !id.isEmpty, id.utf8.count <= 512, !isUITestSession else { return }
         await loadInitialPortal()
@@ -675,11 +694,60 @@ final class AppStore: ObservableObject {
             _ = await updatePortal(epoch: epoch) { cache in
                 guard self.portalOperations[key] == operation else { return }
                 cache.sections[key] = value; cache.updatedAt[key] = Date()
+                if key.hasPrefix("news:"), let id = value["id"]?.stringValue, let list = cache.sections["news"] {
+                    cache.sections["news"] = Self.replacingNewsItem(in: list, id: id, with: value)
+                }
             }
         } catch {
             guard epoch == schoolEpoch, portalOperations[key] == operation, !(error is CancellationError) else { return }
             pronotePortalErrors[key] = error.localizedDescription
             if case PronoteServiceError.security = error { handleSchoolError(error, epoch: epoch) }
+        }
+    }
+
+    private static func replacingNewsItem(in list: SchoolJSON, id: String, with replacement: SchoolJSON) -> SchoolJSON {
+        if var items = list.arrayValues {
+            for index in items.indices where items[index]["id"]?.stringValue == id { items[index] = replacement }
+            return .array(items)
+        }
+        guard var object = list.objectValues else { return list }
+        for key in ["items", "news"] {
+            guard let items = object[key], items.arrayValues != nil else { continue }
+            object[key] = replacingNewsItem(in: items, id: id, with: replacement)
+        }
+        return .object(object)
+    }
+
+    @discardableResult
+    func composePronoteMessage(recipientIDs: [String], subject: String, text: String) async -> Bool {
+        let subject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ids = Array(Set(recipientIDs)).sorted(), epoch = schoolEpoch
+        guard !isUITestSession, pronoteProfile?.capabilities.contains("compose") == true,
+              !ids.isEmpty, ids.count <= 20, ids.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 512 }),
+              !subject.isEmpty, subject.utf16.count <= 200, !text.isEmpty, text.utf16.count <= 20_000,
+              !remoteWriteOperations.contains("compose") else { return false }
+        let cached = pronotePortal.sections["recipients"]
+        let recipients = cached?.arrayValues ?? cached?["recipients"]?.arrayValues ?? []
+        let available = Set(recipients.filter { $0["kind"]?.integerValue == 3 }.compactMap { $0["id"]?.stringValue })
+        guard Set(ids).isSubset(of: available) else {
+            pronotePortalErrors["compose"] = "Actualisez les destinataires puis choisissez à nouveau les enseignants."
+            return false
+        }
+        remoteWriteOperations.insert("compose"); pronotePortalErrors["compose"] = nil
+        defer { if epoch == schoolEpoch { remoteWriteOperations.remove("compose") } }
+        do {
+            try await schoolService.compose(recipientIDs: ids, subject: subject, text: text)
+            guard epoch == schoolEpoch else { return false }
+            portalOperations["discussions"] = nil
+            pronotePortalLoading.remove("discussions")
+            await loadPronoteSection("discussions")
+            return epoch == schoolEpoch
+        } catch {
+            guard epoch == schoolEpoch else { return false }
+            pronotePortalErrors["compose"] = error.localizedDescription
+            if case PronoteServiceError.security = error { handleSchoolError(error, epoch: epoch) }
+            return false
         }
     }
 
@@ -714,6 +782,18 @@ final class AppStore: ObservableObject {
         defer { if epoch == schoolEpoch { remoteWriteOperations.remove(key) } }
         do {
             try await schoolService.acknowledge(id)
+            guard epoch == schoolEpoch else { return false }
+            // This flag follows the successful explicit RPC, never an article opening.
+            _ = await updatePortal(epoch: epoch) { cache in
+                if var detail = cache.sections["news:" + id]?.objectValues {
+                    detail["acknowledged"] = .bool(true)
+                    let updated = SchoolJSON.object(detail)
+                    cache.sections["news:" + id] = updated
+                    if let list = cache.sections["news"] { cache.sections["news"] = Self.replacingNewsItem(in: list, id: id, with: updated) }
+                }
+            }
+            guard epoch == schoolEpoch else { return false }
+            await loadPronoteNews(id)
             guard epoch == schoolEpoch else { return false }
             portalOperations["news"] = nil
             pronotePortalLoading.remove("news")

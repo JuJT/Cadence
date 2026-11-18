@@ -27,13 +27,23 @@ export function createRuntime(api,native) {
     for (const name of ['BadCredentialsError','AccountDisabledError','AuthenticateError','AccessDeniedError','SuspendedIPError','SessionExpiredError','RateLimitedError','BusyPageError','PageUnavailableError','UnreachableError']) {
       if(api[name]&&e instanceof api[name])return {name,message:name};
     }
-    const recognized=['SecureStorageUnavailable','InvalidCredential','NotConnected','UnsupportedSection','InvalidPeriod','NetworkUnavailable','MissingDiscussion','MissingResource','ResponseTooLarge'];
+    const recognized=['SecureStorageUnavailable','InvalidCredential','NotConnected','UnsupportedSection','InvalidPeriod','NetworkUnavailable','MissingDiscussion','MissingResource','ResponseTooLarge','UnsupportedNewsFormat'];
     return {name:recognized.includes(e?.message)?e.message:'PronoteError',message:'La requête PRONOTE n’a pas abouti.'};
   }
   function clearData(){threads.clear();newsItems.clear();resources.clear();discussionsCache=null;}
   function requireSession(){if(!authenticated||!session?.userResource)throw Error('NotConnected');}
   function requireCapability(name){if(!profileFor(session).capabilities.includes(name))throw Error('UnsupportedSection');}
+  function requireCompose(kind){requireCapability('discussions');requireCapability('compose');if(kind!==3)throw Error('UnsupportedSection');}
+  function messageContent(text){return session.user.authorizations?.hasAdvancedDiscussionEditor?
+    text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\r?\n/g,'<br>'):text;}
   function period(id){const list=session.instance.periods??[];const found=id?list.find(x=>x.id===id):list.find(x=>x.startDate<=new Date()&&x.endDate>=new Date())||list[0];if(!found)throw Error('InvalidPeriod');return found;}
+  function weekRange(args){
+    const selected=typeof args.periodID==='string'&&args.periodID.startsWith('week:')?args.periodID.slice(5):null;
+    const start=localDayArgument(selected??args.dateDay??args.date??new Date().toISOString());
+    start.setDate(start.getDate()-((start.getDay()+6)%7));
+    const end=new Date(start);end.setDate(end.getDate()+7);
+    return {start,end};
+  }
   function discussionID(item){const id=item.participantsMessageID??item.id;return id==null?null:String(id);}
   async function fetchDiscussions(){
     requireCapability('discussions');
@@ -49,6 +59,16 @@ export function createRuntime(api,native) {
     if(session.user.authorizations?.canReadDiscussions===false)throw Error('UnsupportedSection');
     if(!threads.has(String(id)))await fetchDiscussions();
     const item=threads.get(String(id));if(!item)throw Error('MissingDiscussion');return item;
+  }
+  async function findNews(id){
+    requireCapability('news');
+    if(!newsItems.has(String(id))){const list=await api.news(session);for(const item of list.items??[])newsItems.set(String(item.id),item);}
+    const item=newsItems.get(String(id));if(!item)throw Error('MissingResource');
+    if(item.detailsRequired===true){
+      if(typeof api.cadenzaNewsDetail!=='function')throw Error('UnsupportedNewsFormat');
+      const detailed=await api.cadenzaNewsDetail(session,String(id));newsItems.set(String(id),detailed);return detailed;
+    }
+    return item;
   }
   async function command(name,args={}) {
     if(name==='discover')return safeJSON(await api.geolocation({latitude:args.latitude,longitude:args.longitude},fetcher));
@@ -107,16 +127,17 @@ export function createRuntime(api,native) {
       if(section==='evaluations')return safeJSON(await api.evaluations(session,p()));
       if(section==='gradebook')return safeJSON(await api.gradebook(session,p()));
       if(section==='attendance')return safeJSON(await api.notebook(session,p()));
-      if(section==='menus')return safeJSON(await api.menus(session,localDayArgument(args.dateDay??args.date??new Date().toISOString())));
+      if(section==='menus')return safeJSON(await api.menus(session,weekRange(args).start));
       if(section==='account')return safeJSON(await api.account(session));
       if(section==='homepage')return safeJSON(await api.homepage(session));
       if(section==='news') {const value=await api.news(session);for(const item of value.items??[])newsItems.set(item.id,item);return safeJSON(value);}
       if(section==='discussions') return fetchDiscussions();
-      if(section==='contents') {const value=await api.resourcesFromIntervals(session,localDayArgument(args.startDay??args.start),localDayArgument(args.endDay??args.end));
+      if(section==='contents') {const range=weekRange(args);const value=await api.resourcesFromIntervals(session,range.start,range.end);
         for(const item of value)resources.set(item.id,item);return safeJSON(value);}
       throw Error('UnsupportedSection');
     }
     if(name==='resource') {requireCapability('contents');const r=await api.resource(session,args.id);resources.set(r.id,r);return {resource:safeJSON(r),course_content:mapResource(r)};}
+    if(name==='newsDetail')return safeJSON(await findNews(args.id));
     if(name==='discussion') {
       const item=await findDiscussion(args.id);
       return safeJSON(await api.discussionMessages(session,item,false));
@@ -126,17 +147,24 @@ export function createRuntime(api,native) {
       if(!item.messages)await api.discussionMessages(session,item,false);
       if(item.messages?.sendAction==null)throw Error('UnsupportedSection');
       if(!String(args.text??'').trim()||String(args.text).length>20000)throw Error('InvalidCredential');
-      const text=String(args.text);const content=session.user.authorizations?.hasAdvancedDiscussionEditor?
-        text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\r?\n/g,'<br>'):text;
-      await api.discussionSendMessage(session,item,content);return {sent:true};}
-    if(name==='acknowledge') {requireCapability('news');const item=newsItems.get(args.id);if(!item)throw Error('MissingResource');
-      if(item.is!=='information'||item.needToAcknowledge!==true||item.acknowledged===true)throw Error('UnsupportedSection');
+      await api.discussionSendMessage(session,item,messageContent(String(args.text)));return {sent:true};}
+    if(name==='acknowledge') {const item=await findNews(args.id);
+      if(item.is!=='information')throw Error('UnsupportedSection');
+      if(item.acknowledged===true)return {acknowledged:true};
+      if(item.needToAcknowledge!==true)throw Error('UnsupportedSection');
       await api.newsInformationAcknowledge(session,item);return {acknowledged:true};}
-    if(name==='recipients'){requireCapability('discussions');if(session.user.authorizations?.canDiscuss===false)throw Error('UnsupportedSection');return safeJSON(await api.newDiscussionRecipients(session,args.kind??3));}
-    if(name==='compose') {requireCapability('discussions');if(session.user.authorizations?.canDiscuss===false)throw Error('UnsupportedSection');const recipients=await api.newDiscussionRecipients(session,args.kind??3);
-      const selected=recipients.filter(r=>(args.recipientIDs??[]).includes(r.id));
-      if(!selected.length||!String(args.subject??'').trim()||!String(args.text??'').trim())throw Error('InvalidCredential');
-      await api.newDiscussion(session,args.subject,args.text,selected);return {sent:true};}
+    if(name==='recipients'){const kind=args.kind??3;requireCompose(kind);return safeJSON(await api.newDiscussionRecipients(session,kind));}
+    if(name==='compose') {
+      const kind=args.kind??3;requireCompose(kind);
+      const ids=args.recipientIDs,subject=typeof args.subject==='string'?args.subject.trim():'',text=typeof args.text==='string'?args.text:'';
+      if(!Array.isArray(ids)||!ids.length||ids.length>20||!ids.every(x=>typeof x==='string'&&x.length>0&&x.length<=256)||new Set(ids).size!==ids.length||
+        !subject||subject.length>200||!text.trim()||text.length>20000)throw Error('InvalidCredential');
+      const recipients=await api.newDiscussionRecipients(session,kind);
+      const permitted=new Map(recipients.filter(r=>r.kind===3).map(r=>[String(r.id),r]));
+      // Never send a silently reduced recipient list after permission changes.
+      if(!ids.every(id=>permitted.has(id)))throw Error('UnsupportedSection');
+      const selected=ids.map(id=>permitted.get(id));
+      await api.newDiscussion(session,subject,messageContent(text),selected);return {sent:true};}
     throw Error('UnsupportedSection');
   }
   return {command,replyFetch,classify};

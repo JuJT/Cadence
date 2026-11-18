@@ -69,8 +69,10 @@ export const tabNames = {198:'grades',89:'contents',88:'homework',16:'timetable'
 export function profileFor(session) {
   const resource=session.userResource;
   const tabs=new Set([...(session.user?.authorizations?.tabs??[]),...Array.from(resource?.tabs?.keys?.()??[])]);
+  const capabilities=[...new Set([...tabs].map(x=>tabNames[x]).filter(Boolean).concat('homepage'))];
+  if(capabilities.includes('discussions')&&session.user?.authorizations?.canDiscuss===true&&session.user?.authorizations?.canDiscussWithTeachers===true)capabilities.push('compose');
   return {displayName:resource?.name??session.user?.name??'',establishment:resource?.establishmentName??'',className:resource?.className??null,
     resourceID:String(resource?.id??''),resources:(session.user?.resources??[]).map(r=>({id:String(r.id),name:r.name,className:r.className??null})),
-    capabilities:[...new Set([...tabs].map(x=>tabNames[x]).filter(Boolean).concat('homepage'))],
+    capabilities,
     periods:(session.instance?.periods??[]).map(p=>({...p,startDate:schoolISO(p.startDate),endDate:schoolISO(p.endDate)}))};
 }

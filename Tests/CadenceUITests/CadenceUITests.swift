@@ -101,6 +101,50 @@ final class CadenceUITests: XCTestCase {
     }
 
     @MainActor
+    func testPronoteMessageDraftCanBeCancelledWithoutSending() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        tap(app.buttons["pronote.portal"], in: app)
+        tap(app.buttons["pronote.portal.discussions"], in: app)
+        XCTAssertTrue(app.navigationBars["Messagerie"].waitForExistence(timeout: 4))
+        tap(app.buttons["pronote.compose.open"], in: app)
+        XCTAssertTrue(app.navigationBars["Nouveau message"].waitForExistence(timeout: 4))
+
+        let recipient = app.buttons["pronote.compose.recipient.fixture-teacher"]
+        tap(recipient, in: app)
+        XCTAssertEqual(recipient.value as? String, "Sélectionné")
+        // SwiftUI's vertically expanding TextField may expose a native text
+        // view depending on iOS. Match the actual editable control in either form.
+        let subject = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND (elementType == %@ OR elementType == %@)",
+            "pronote.compose.subject", NSNumber(value: XCUIElement.ElementType.textField.rawValue),
+            NSNumber(value: XCUIElement.ElementType.textView.rawValue))).firstMatch
+        tap(subject, in: app)
+        subject.typeText("Brouillon fictif de test")
+        let message = app.textViews["pronote.compose.text"]
+        tap(message, in: app)
+        message.typeText("Texte entièrement fictif, annulé sans envoi.")
+        XCTAssertEqual(subject.value as? String, "Brouillon fictif de test")
+        XCTAssertEqual(message.value as? String, "Texte entièrement fictif, annulé sans envoi.")
+        XCTAssertTrue(app.buttons["pronote.compose.send"].isEnabled)
+        XCTAssertEqual(app.alerts.count, 0)
+        capture(app, name: "pronote-nouveau-message-brouillon")
+
+        // Only cancellation is exercised. The send button and its confirmation
+        // are never touched, and --uitesting forbids remote writes in AppStore.
+        tap(app.buttons["pronote.compose.cancel"], in: app)
+        XCTAssertTrue(app.navigationBars["Messagerie"].waitForExistence(timeout: 4))
+        XCTAssertFalse(app.navigationBars["Nouveau message"].exists)
+        XCTAssertTrue(app.buttons["pronote.discussion.fixture-discussion"].exists)
+        XCTAssertEqual(app.alerts.count, 0)
+        let context = XCTAttachment(string: "Brouillon entièrement fictif : destinataire synthétique, aucun clic Envoyer, aucune confirmation, aucun message transmis.")
+        context.name = "pronote-brouillon-contexte"
+        context.lifetime = .keepAlways
+        add(context)
+    }
+
+    @MainActor
     func testCourseDateNavigationAndSubjectNames() throws {
         let app = XCUIApplication()
         app.launchArguments = testArguments(["--uitesting-courses"])

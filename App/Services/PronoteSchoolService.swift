@@ -12,6 +12,7 @@ enum PronoteServiceError: Error, LocalizedError {
             case "BadCredentialsError", "AuthenticateError": return "Les identifiants ou le code de sécurité PRONOTE ne sont pas valides."
             case "AccountDisabledError": return "Ce compte est désactivé par l’établissement."
             case "AccessDeniedError", "UnsupportedSection": return "Cette rubrique n’est pas accessible avec ce compte PRONOTE."
+            case "UnsupportedNewsFormat": return "Ces informations utilisent un format PRONOTE encore non pris en charge. Les données déjà enregistrées sont conservées."
             case "SuspendedIPError", "RateLimitedError": return "PRONOTE limite temporairement les connexions. Patientez avant de réessayer."
             case "NotConnected", "InvalidCredential", "SessionExpiredError": return "Reconnectez votre compte PRONOTE. Les données enregistrées restent disponibles."
             case "SecureStorageUnavailable": return "Le trousseau privé n’est pas disponible. Déverrouillez l’iPhone et réessayez."
@@ -112,6 +113,7 @@ actor PronoteSchoolService {
     }
 
     func fetchThread(_ id: String) async throws -> SchoolJSON { try Self.decode(SchoolJSON.self, await enqueue("discussion", body: ["id": id])) }
+    func fetchNewsDetail(_ id: String) async throws -> SchoolJSON { try Self.decode(SchoolJSON.self, await enqueue("newsDetail", body: ["id": id])) }
     func fetchResource(_ id: String) async throws -> (SchoolJSON, [SchoolCourseContent]) {
         let data = try await enqueue("resource", body: ["id": id])
         struct ResourceReply: Decodable { let resource: SchoolJSON; let course_content: [SchoolCourseContent] }
@@ -119,6 +121,12 @@ actor PronoteSchoolService {
         return (reply.resource, reply.course_content)
     }
     func reply(_ id: String, text: String) async throws { _ = try await enqueue("reply", body: ["id": id, "text": text]) }
+    func fetchRecipients() async throws -> SchoolJSON {
+        try Self.decode(SchoolJSON.self, await enqueue("recipients", body: ["kind": 3]))
+    }
+    func compose(recipientIDs: [String], subject: String, text: String) async throws {
+        _ = try await enqueue("compose", body: ["kind": 3, "recipientIDs": recipientIDs, "subject": subject, "text": text])
+    }
     func acknowledge(_ id: String) async throws { _ = try await enqueue("acknowledge", body: ["id": id]) }
     func signOut() async throws { _ = try await reset(deleteCredential: true) }
 

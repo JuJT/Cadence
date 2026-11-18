@@ -47,6 +47,7 @@ private enum PronotePortalSection: String, CaseIterable, Identifiable {
         }
     }
     var usesPeriod: Bool { [.grades, .evaluations, .attendance, .gradebook].contains(self) }
+    var usesWeek: Bool { self == .contents || self == .menus }
 }
 
 struct PronotePortalView: View {
@@ -106,6 +107,8 @@ private struct PronoteSectionView: View {
     let section: PronotePortalSection
     @EnvironmentObject private var store: AppStore
     @State private var periodID = ""
+    @State private var weekDate = Date()
+    @State private var showComposer = false
     private var periods: [PronotePeriod] {
         (store.pronoteProfile ?? store.pronotePortal.profile)?.periods.sorted { $0.startDate > $1.startDate } ?? []
     }
@@ -113,9 +116,11 @@ private struct PronoteSectionView: View {
     private var value: SchoolJSON? { store.pronotePortal.sections[cacheKey] }
     private var loading: Bool { store.pronotePortalLoading.contains(cacheKey) || store.pronotePortalLoading.contains(section.rawValue) }
     private var error: String? { store.pronotePortalErrors[cacheKey] ?? store.pronotePortalErrors[section.rawValue] }
+    private var canCompose: Bool { (store.pronoteProfile ?? store.pronotePortal.profile)?.capabilities.contains("compose") == true }
 
     var body: some View {
         AtelierPage(lazy: true) {
+            if section.usesWeek { weekPicker }
             if section.usesPeriod && !periods.isEmpty { periodPicker }
             PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey], loading: loading, error: error)
             if let value { sectionContent(value) }
@@ -128,11 +133,16 @@ private struct PronoteSectionView: View {
         .task(id: cacheKey) { await reload() }
         .refreshable { await reload() }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if section == .discussions && canCompose {
+                    Button("Nouveau message", systemImage: "square.and.pencil") { showComposer = true }
+                        .accessibilityIdentifier("pronote.compose.open")
+                }
                 Button { Task { await reload() } } label: { Image(systemName: "arrow.clockwise") }
                     .disabled(loading).accessibilityLabel("Actualiser " + section.title.lowercased())
             }
         }
+        .sheet(isPresented: $showComposer) { NavigationStack { PronoteComposeView() } }
     }
 
     private var periodPicker: some View {
@@ -144,6 +154,59 @@ private struct PronoteSectionView: View {
                 ForEach(periods) { Text($0.name).tag($0.id) }
             }.pickerStyle(.menu)
         }.padding(.horizontal, 4)
+    }
+
+    private var weekPicker: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Button { moveWeek(-1) } label: {
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Semaine précédente")
+                .accessibilityIdentifier("pronote.week.previous")
+                Spacer(minLength: 0)
+                DatePicker("Choisir une semaine", selection: Binding(get: { weekDate }, set: selectWeek), displayedComponents: .date)
+                    .datePickerStyle(.compact).labelsHidden()
+                    .environment(\.calendar, SchoolDateCodec.parisCalendar)
+                    .environment(\.timeZone, SchoolDateCodec.parisCalendar.timeZone)
+                    .accessibilityLabel("Choisir une date de la semaine")
+                    .accessibilityIdentifier("pronote.week.date")
+                Spacer(minLength: 0)
+                Button { moveWeek(1) } label: {
+                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Semaine suivante")
+                .accessibilityIdentifier("pronote.week.next")
+            }.tint(Atelier.blue).disabled(loading)
+            Text(weekCaption).font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                .accessibilityIdentifier("pronote.week.range")
+        }
+    }
+
+    private var weekStart: Date {
+        SchoolDateCodec.parisCalendar.dateInterval(of: .weekOfYear, for: weekDate)?.start
+            ?? SchoolDateCodec.parisCalendar.startOfDay(for: weekDate)
+    }
+
+    private var weekCaption: String {
+        let end = SchoolDateCodec.parisCalendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+        return "Du " + PronoteText.date(weekStart) + " au " + PronoteText.date(end)
+    }
+
+    private func moveWeek(_ offset: Int) {
+        if let date = SchoolDateCodec.parisCalendar.date(byAdding: .day, value: offset * 7, to: weekDate) { selectWeek(date) }
+    }
+
+    private func selectWeek(_ date: Date) {
+        weekDate = date
+        let start = SchoolDateCodec.parisCalendar.dateInterval(of: .weekOfYear, for: date)?.start
+            ?? SchoolDateCodec.parisCalendar.startOfDay(for: date)
+        let formatter = DateFormatter()
+        formatter.calendar = SchoolDateCodec.parisCalendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = SchoolDateCodec.parisCalendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        periodID = "week:" + formatter.string(from: start)
     }
 
     private func reload() async { await store.loadPronoteSection(section.rawValue, periodID: periodID.isEmpty ? nil : periodID) }
@@ -319,42 +382,71 @@ private struct PronoteNewsDetail: View {
     @State private var acknowledged = false
     @State private var failed = false
     private var id: String? { value["id"]?.stringValue }
+    private var cacheKey: String { "news:" + (id ?? "") }
+    private var listed: SchoolJSON? {
+        guard let id, let list = store.pronotePortal.sections["news"] else { return nil }
+        return PronoteText.items(list, keys: ["items", "news"]).first { $0["id"]?.stringValue == id }
+    }
+    private var current: SchoolJSON { store.pronotePortal.sections[cacheKey] ?? listed ?? value }
+    private var loading: Bool { store.pronotePortalLoading.contains(cacheKey) }
+    private var needsDetails: Bool { requiresDetails(current) }
+    private var shouldFetchDetails: Bool { requiresDetails(listed ?? value) }
+    private var articleText: String? {
+        for entry in [current["content"], current["question"]?["content"]] {
+            if let text = PronoteText.text(entry), !text.isEmpty { return text }
+        }
+        return nil
+    }
     var body: some View {
         AtelierPage(lazy: true) {
+            PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey], loading: loading, error: store.pronotePortalErrors[cacheKey])
             AtelierCard {
-                CadenceSectionHeader(title: PronoteText.text(value["title"]) ?? "Information", subtitle: PronoteText.text(value["author"]))
-                if let date = value["creationDate"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
-                if let content = PronoteText.text(value["content"]), !content.isEmpty { Text(content).textSelection(.enabled) }
-                if let question = value["question"], let content = PronoteText.text(question["content"]), !content.isEmpty { Text(content).textSelection(.enabled) }
-                PronoteAttachments(value: value["attachments"] ?? .array([]))
+                CadenceSectionHeader(title: PronoteText.text(current["title"]) ?? "Information", subtitle: PronoteText.text(current["author"]))
+                if let date = current["creationDate"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
+                if needsDetails {
+                    Label(loading ? "Chargement du contenu de cette information…" : "Le contenu de cette information n’est pas encore disponible sur cet iPhone.", systemImage: "doc.text.magnifyingglass")
+                        .font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                } else {
+                    if let articleText { Text(articleText).textSelection(.enabled) }
+                    PronoteAttachments(value: current["attachments"] ?? .array([]))
+                }
             }
-            ForEach(Array((value["questions"]?.arrayValues ?? []).enumerated()), id: \.offset) { _, question in
+            if needsDetails && !loading, let id {
+                SecondaryAction(title: "Charger le contenu", symbol: "arrow.clockwise") { Task { await store.loadPronoteNews(id) } }
+            }
+            ForEach(Array((needsDetails ? [] : current["questions"]?.arrayValues ?? []).enumerated()), id: \.offset) { _, question in
                 AtelierCard {
                     PronoteReadableFields(value: question, labels: ["title": "Question", "content": "Détail", "textInputAnswer": "Votre réponse"])
                     PronoteAttachments(value: question["attachments"] ?? .array([]))
                 }
             }
-            if value["is"]?.stringValue == "survey" {
+            if !needsDetails && current["is"]?.stringValue == "survey" {
                 Text("Ce sondage est consultable ici. Les réponses se font depuis PRONOTE.").font(.caption).foregroundStyle(CadenceColors.secondary)
             }
-            if value["needToAcknowledge"]?.boolValue == true {
-                if acknowledged || value["acknowledged"]?.boolValue == true {
+            if !needsDetails && current["needToAcknowledge"]?.boolValue == true {
+                if acknowledged || current["acknowledged"]?.boolValue == true {
                     Label("Réception confirmée", systemImage: "checkmark.circle.fill").foregroundStyle(CadenceColors.positive)
                 } else if id != nil {
                     ProminentAction(title: sending ? "Envoi…" : "Accuser réception", symbol: "checkmark.message") { confirming = true }
-                        .disabled(sending)
+                        .disabled(sending || loading)
                 }
             }
             if failed { Text("La confirmation n’a pas pu être envoyée. Réessayez lorsque la connexion est disponible.").font(.caption).foregroundStyle(CadenceColors.secondary) }
         }
         .navigationTitle("Information").navigationBarTitleDisplayMode(.inline)
+        .task(id: id) { if shouldFetchDetails, let id { await store.loadPronoteNews(id) } }
+        .refreshable { if let id { await store.loadPronoteNews(id) } }
         .alert("Confirmer la réception ?", isPresented: $confirming) {
             Button("Annuler", role: .cancel) {}
             Button("Accuser réception") { Task { await acknowledge() } }
         } message: { Text("Un accusé de réception sera envoyé à votre établissement dans PRONOTE.") }
     }
+    private func requiresDetails(_ value: SchoolJSON) -> Bool {
+        if let required = value["detailsRequired"]?.boolValue { return required }
+        return value["detailRequired"]?.boolValue == true
+    }
     private func acknowledge() async {
-        guard let id, !sending else { return }
+        guard let id, !sending, !needsDetails, !loading else { return }
         sending = true
         acknowledged = await store.acknowledgePronoteNews(id)
         failed = !acknowledged; sending = false
@@ -438,6 +530,141 @@ private struct PronoteThreadView: View {
         let success = await store.replyPronoteThread(threadID, text: text)
         if success { reply = "" }
         failed = !success; sending = false
+    }
+}
+
+private struct PronoteComposeRecipient: Identifiable {
+    let id: String
+    let name: String
+    let subjects: String?
+}
+
+private struct PronoteComposeView: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedIDs: Set<String> = []
+    @State private var search = ""
+    @State private var subject = ""
+    @State private var text = ""
+    @State private var confirming = false
+    @State private var sending = false
+    @State private var failed = false
+    private var profile: PronoteProfile? { store.pronoteProfile ?? store.pronotePortal.profile }
+    private var allowed: Bool { profile?.capabilities.contains("compose") == true }
+    private var identity: String { [profile?.establishment, profile?.resourceID, profile?.displayName].compactMap { $0 }.joined(separator: "|") }
+    private var recipients: [PronoteComposeRecipient] {
+        let cache = store.pronotePortal.sections["recipients"]
+        let values = cache?.arrayValues ?? cache?["recipients"]?.arrayValues ?? []
+        var seen = Set<String>()
+        return values.compactMap { value in
+            guard value["kind"]?.integerValue == 3, let id = value["id"]?.stringValue, !id.isEmpty,
+                  let name = PronoteText.text(value["name"]), !name.isEmpty, seen.insert(id).inserted else { return nil }
+            return PronoteComposeRecipient(id: id, name: name, subjects: PronoteText.text(value["subjects"]))
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+    private var filteredRecipients: [PronoteComposeRecipient] {
+        guard !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return recipients }
+        return recipients.filter { $0.name.localizedStandardContains(search) || ($0.subjects?.localizedStandardContains(search) ?? false) }
+    }
+    private var selectedRecipients: [PronoteComposeRecipient] { recipients.filter { selectedIDs.contains($0.id) } }
+    private var ready: Bool {
+        allowed && !sending && !selectedIDs.isEmpty && selectedIDs.count <= 20 && selectedRecipients.count == selectedIDs.count &&
+        !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && subject.utf16.count <= 200 &&
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.utf16.count <= 20_000
+    }
+
+    var body: some View {
+        AtelierPage(lazy: true) {
+            if allowed {
+                recipientsCard
+                messageCard
+                if failed {
+                    Label(store.pronotePortalErrors["compose"] ?? "Le message n’a pas pu être envoyé. Votre texte est conservé pour réessayer.", systemImage: "exclamationmark.circle")
+                        .font(.footnote).foregroundStyle(CadenceColors.secondary)
+                }
+            } else {
+                EmptyCard(title: "Création de message indisponible", symbol: "bubble.left", description: "Votre établissement ne permet pas de commencer une discussion avec ce compte.")
+            }
+        }
+        .navigationTitle("Nouveau message").navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Annuler") { dismiss() }.disabled(sending).accessibilityIdentifier("pronote.compose.cancel")
+            }
+        }
+        .interactiveDismissDisabled(sending)
+        .task { await store.loadPronoteRecipients() }
+        .refreshable { await store.loadPronoteRecipients() }
+        .onChange(of: identity) { _, _ in selectedIDs = []; subject = ""; text = ""; confirming = false; failed = false }
+        .alert("Envoyer ce message ?", isPresented: $confirming) {
+            Button("Annuler", role: .cancel) {}
+            Button("Envoyer") { Task { await send() } }
+        } message: {
+            Text("À : " + selectedRecipients.map(\.name).joined(separator: ", ") + "\nObjet : " + subject.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+    }
+
+    private var recipientsCard: some View {
+        AtelierCard {
+            CadenceSectionHeader(title: "Destinataires", subtitle: selectedIDs.isEmpty ? "Choisissez un ou plusieurs enseignants" : "\(selectedIDs.count) enseignant\(selectedIDs.count > 1 ? "s" : "") sélectionné\(selectedIDs.count > 1 ? "s" : "")")
+            TextField("Rechercher un enseignant", text: $search).autocorrectionDisabled()
+            if store.pronotePortalLoading.contains("recipients") { ProgressView("Chargement des destinataires…") }
+            if let error = store.pronotePortalErrors["recipients"] { Text(error).font(.caption).foregroundStyle(CadenceColors.secondary) }
+            ForEach(filteredRecipients) { recipient in
+                recipientButton(recipient)
+            }
+            if recipients.isEmpty && !store.pronotePortalLoading.contains("recipients") {
+                Text("Aucun enseignant disponible. Actualisez les destinataires en tirant vers le bas.").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+            } else if filteredRecipients.isEmpty {
+                Text("Aucun enseignant ne correspond à cette recherche.").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+            }
+        }
+    }
+
+    private func recipientButton(_ recipient: PronoteComposeRecipient) -> some View {
+        let selected = selectedIDs.contains(recipient.id)
+        return Button {
+            if selected { selectedIDs.remove(recipient.id) }
+            else { selectedIDs.insert(recipient.id) }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(Atelier.blue)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recipient.name).font(.subheadline.weight(.medium)).foregroundStyle(CadenceColors.ink)
+                    if let subjects = recipient.subjects, !subjects.isEmpty { Text(subjects).font(.caption).foregroundStyle(CadenceColors.secondary) }
+                }
+                Spacer(minLength: 0)
+            }.frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).disabled(sending || (!selected && selectedIDs.count >= 20))
+        .accessibilityValue(selected ? "Sélectionné" : "Non sélectionné")
+        .accessibilityIdentifier("pronote.compose.recipient." + recipient.id)
+    }
+
+    private var messageCard: some View {
+        AtelierCard {
+            Text("Objet").font(.headline)
+            TextField("Objet du message", text: $subject, axis: .vertical)
+                .disabled(sending).accessibilityIdentifier("pronote.compose.subject")
+            if subject.utf16.count > 200 { Text("L’objet doit contenir au maximum 200 caractères.").font(.caption).foregroundStyle(.orange) }
+            Divider()
+            Text("Message").font(.headline)
+            TextEditor(text: $text).frame(minHeight: 180).scrollContentBackground(.hidden)
+                .disabled(sending).accessibilityLabel("Texte du nouveau message")
+                .accessibilityIdentifier("pronote.compose.text")
+            if text.utf16.count > 20_000 { Text("Le message est trop long. Limitez-le à 20 000 caractères.").font(.caption).foregroundStyle(.orange) }
+            ProminentAction(title: sending ? "Envoi…" : "Envoyer le message", symbol: "paperplane") { confirming = true }
+                .disabled(!ready).accessibilityIdentifier("pronote.compose.send")
+        }
+    }
+
+    private func send() async {
+        guard ready else { return }
+        sending = true; failed = false
+        let success = await store.composePronoteMessage(recipientIDs: selectedRecipients.map(\.id), subject: subject, text: text)
+        sending = false
+        if success { dismiss() }
+        else { failed = true }
     }
 }
 

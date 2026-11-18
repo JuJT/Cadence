@@ -76,10 +76,28 @@ test('unsupported homework and section capabilities make no request',async()=>{
 });
 test('resource interval and menu days use Paris-day arguments',async()=>{
   const f=fixture();await login(f);
-  await f.runtime.command('section',{...windowArgs,section:'contents'});
+  await f.runtime.command('section',{...windowArgs,section:'contents',dateDay:'2026-11-18'});
   await f.runtime.command('section',{section:'menus',date:'2026-11-16T23:00:00Z',dateDay:'2026-11-17'});
   assert.equal(f.trace.find(x=>Array.isArray(x)&&x[0]==='contents')[1].getDate(),16);
-  assert.equal(f.trace.find(x=>Array.isArray(x)&&x[0]==='menus')[1].getDate(),17);
+  assert.equal(f.trace.find(x=>Array.isArray(x)&&x[0]==='menus')[1].getDate(),16);
+});
+test('contents defaults to the current school week instead of a broad or annual range',async()=>{
+  const f=fixture();await login(f);
+  await f.runtime.command('section',{section:'contents',dateDay:'2026-11-18',startDay:'2026-09-01',endDay:'2027-08-31'});
+  const call=f.trace.find(x=>Array.isArray(x)&&x[0]==='contents');
+  assert.equal(call[1].getFullYear(),2026);assert.equal(call[1].getMonth(),10);assert.equal(call[1].getDate(),16);
+  assert.equal(call[2].getDate(),23);assert.equal(call[1].getDay(),1);
+});
+test('explicit content and menu weeks override today and cross the school-year boundary',async()=>{
+  const f=fixture();await login(f);
+  const args={periodID:'week:2026-12-28',dateDay:'2026-11-18'};
+  await f.runtime.command('section',{...args,section:'contents'});
+  await f.runtime.command('section',{...args,section:'menus'});
+  const content=f.trace.find(x=>Array.isArray(x)&&x[0]==='contents');
+  const menu=f.trace.find(x=>Array.isArray(x)&&x[0]==='menus');
+  assert.equal(content[1].getMonth(),11);assert.equal(content[1].getDate(),28);
+  assert.equal(content[2].getFullYear(),2027);assert.equal(content[2].getMonth(),0);assert.equal(content[2].getDate(),4);
+  assert.equal(menu[1].getTime(),content[1].getTime());
 });
 test('consuming credential is durable before authentication and replacement before parameters',async()=>{
   const f=fixture();await f.runtime.command('resume',credential);
@@ -153,4 +171,28 @@ test('selected resource survives token rotation',async()=>{
   const f=fixture();const second={...f.resource,id:'second-fixture',name:'Deuxième profil fictif'};f.session.user.resources.push(second);
   await f.runtime.command('resume',{...credential,resourceID:second.id});
   assert.equal(f.session.userResource.id,second.id);assert.equal(f.writes.at(-1).resourceID,second.id);
+});
+
+test('news detail lazily restores a refreshed session reference without acknowledging it',async()=>{
+  const f=fixture();await login(f);let lists=0,details=0;
+  const metadata={id:'news-fixture',title:'Information fictive',is:'information',detailsRequired:true};
+  f.api.news=async()=>{lists++;return {categories:[],items:[metadata]};};
+  f.api.cadenzaNewsDetail=async(s,id)=>{assert.equal(s,f.session);assert.equal(id,metadata.id);details++;return {...metadata,detailsRequired:false,content:'Texte fictif',cache:{token:'hidden-fixture'}};};
+  f.api.newsInformationAcknowledge=async()=>{throw Error('No automatic acknowledgment');};
+  const detail=await f.runtime.command('newsDetail',{id:metadata.id});
+  assert.equal(detail.detailsRequired,false);assert.equal(detail.content,'Texte fictif');assert.equal('cache'in detail,false);
+  await f.runtime.command('newsDetail',{id:metadata.id});
+  assert.equal(lists,1);assert.equal(details,1);
+});
+
+test('legacy news detail stays available and unknown formats never become a fake empty article',async()=>{
+  const f=fixture();await login(f);let details=0;
+  const legacy={id:'legacy-fixture',is:'information',content:'Texte fictif existant'};
+  const modern={id:'modern-fixture',is:'information',detailsRequired:true};
+  f.api.news=async()=>({items:[legacy,modern],categories:[]});
+  f.api.cadenzaNewsDetail=async()=>{details++;throw Error('UnsupportedNewsFormat');};
+  assert.equal((await f.runtime.command('newsDetail',{id:legacy.id})).content,legacy.content);
+  await assert.rejects(f.runtime.command('newsDetail',{id:modern.id}),/UnsupportedNewsFormat/);
+  await assert.rejects(f.runtime.command('newsDetail',{id:'missing-fixture'}),/MissingResource/);
+  assert.equal(details,1);
 });
