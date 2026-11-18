@@ -1,0 +1,30 @@
+name: Cadenza · vérifier le pont JavaScriptCore PRONOTE
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_image:
+        description: 'Runner macOS standard gratuit du dépôt public'
+        type: choice
+        options: [macos-26-intel, macos-26]
+        default: macos-26-intel
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cadenza-pawnote-runtime-check
+  cancel-in-progress: false
+
+jobs:
+  runtime:
+    if: github.event.repository.private == false
+    runs-on: ${{ inputs.runner_image }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compiler et vérifier le pont natif isolé
+        shell: bash
+        run: bash Scripts/test_pawnote_runtime.sh
