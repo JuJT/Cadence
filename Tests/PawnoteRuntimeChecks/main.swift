@@ -184,6 +184,9 @@ private struct PawnoteRuntimeChecks {
         let runtime = PawnoteRuntime(testScript: script, commandTimeout: 5, onCredential: { _ in probe.record() })
         let raw = try await runtime.call("opaque", payload: empty, schoolHost: schoolHost)
         try check(raw == Data("opaque-envelope".utf8), "opaque command envelope returned unchanged")
+        for _ in 0..<200 {
+            _ = try await runtime.call("echo", payload: empty, schoolHost: schoolHost)
+        }
         let random = try object(await runtime.call("random", payload: empty, schoolHost: schoolHost))
         try check(random["count"] as? Int == 64 && random["array"] as? Bool == true && random["bytes"] as? Bool == true && random["varied"] as? Bool == true, "secure byte array")
         let promise = try object(await runtime.call("promise", payload: empty, schoolHost: schoolHost))

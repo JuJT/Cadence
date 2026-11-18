@@ -184,7 +184,7 @@ final class PawnoteRuntime: @unchecked Sendable {
             }
             // The command envelope belongs to the JS/service contract. It is
             // returned byte-for-byte as UTF-8; this bridge never decodes it.
-            if operation.finish(.success(data)) { self.clean(operation, reset: false) }
+            operation.finish(.success(data), beforeResuming: { self.clean(operation, reset: false) })
         }
         let setTimer: @convention(block) (String, Double) -> Void = { [weak self] id, delay in
             self?.setTimer(id: id, delayMS: delay, epoch: epoch)
@@ -271,7 +271,7 @@ final class PawnoteRuntime: @unchecked Sendable {
     }
 
     private func fail(_ operation: PawnoteRuntimeOperation, error: Error) {
-        if operation.finish(.failure(error)) { clean(operation, reset: true) }
+        operation.finish(.failure(error), beforeResuming: { self.clean(operation, reset: true) })
     }
 
     private func clearAsyncResources(notifyJavaScript: Bool = false) {
@@ -359,7 +359,7 @@ private final class PawnoteRuntimeOperation: @unchecked Sendable {
         }
         if cancel { timer.cancel() }
     }
-    @discardableResult func finish(_ result: Result<Data, Error>) -> Bool {
+    @discardableResult func finish(_ result: Result<Data, Error>, beforeResuming: (() -> Void)? = nil) -> Bool {
         let values = lock.pawnoteLocked { () -> ([PawnoteRuntimeWaiter], DispatchSourceTimer?)? in
             guard !finished else { return nil }
             finished = true
@@ -369,6 +369,9 @@ private final class PawnoteRuntimeOperation: @unchecked Sendable {
         }
         guard let values else { return false }
         values.1?.cancel()
+        // A successful caller may enqueue its next command as soon as the
+        // continuation resumes. Release the completed VM lease first.
+        beforeResuming?()
         values.0.forEach { $0.finish(result) }
         return true
     }
