@@ -274,7 +274,14 @@ final class PawnoteRuntime: @unchecked Sendable {
         if operation.finish(.failure(error)) { clean(operation, reset: true) }
     }
 
-    private func clearAsyncResources() {
+    private func clearAsyncResources(notifyJavaScript: Bool = false) {
+        if notifyJavaScript, let clear = resources.context?.objectForKeyedSubscript("clearTimeout"),
+           !clear.isUndefined, !clear.isNull {
+            // Normal completion keeps the context. Drop its platform.js Map
+            // callbacks too, rather than only cancelling their native sources.
+            // The native clearTimer bridge may mutate timers during this call.
+            for id in Array(timers.keys) { _ = clear.call(withArguments: [id]) }
+        }
         timers.values.forEach { $0.cancel() }
         timers.removeAll()
         fetches.removeAll()
@@ -282,9 +289,9 @@ final class PawnoteRuntime: @unchecked Sendable {
 
     private func clean(_ operation: PawnoteRuntimeOperation, reset: Bool) {
         guard gate.isCurrent(operation) else { return }
-        clearAsyncResources()
+        clearAsyncResources(notifyJavaScript: !reset)
         transport.cancel(operationID: operation.id)
-        if reset {
+        if reset || resources.context?.exception != nil {
             generation = UUID()
             resources.reset()
             transport.clearCookies()

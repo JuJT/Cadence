@@ -115,9 +115,14 @@ globalThis.__cadenzaCommand = function(id, command, json) {
   if (command === 'clearTimer') {
     const cancelled = 'cancel-'+id, timerID = 'timer-'+id;
     timerOwners[cancelled] = {id:id,counter:-1};
-    __cadenzaNative.setTimer(cancelled, 1); __cadenzaNative.clearTimer(cancelled);
+    __cadenzaNative.setTimer(cancelled, 1); globalThis.clearTimeout(cancelled);
     timerOwners[timerID] = {id:id,counter:1}; __cadenzaNative.setTimer(timerID, 20); return;
   }
+  if (command === 'leaveTimer') {
+    const timerID = 'left-'+id; timerOwners[timerID] = {id:id,counter:-1};
+    __cadenzaNative.setTimer(timerID,60000); __cadenzaNative.complete(id,'{}'); return;
+  }
+  if (command === 'timerCount') { __cadenzaNative.complete(id,JSON.stringify({count:Object.keys(timerOwners).length})); return; }
   if (command === 'never') { __cadenzaNative.credential('{"started":true}'); return; }
   if (command === 'spin') {
     const until = Date.now()+800; while (Date.now()<until) {}
@@ -133,6 +138,7 @@ globalThis.__cadenzaTimerFire = function(id) {
   const owner = timerOwners[id]; delete timerOwners[id];
   if (owner) __cadenzaNative.complete(owner.id, JSON.stringify({counter:owner.counter}));
 };
+globalThis.clearTimeout = function(id) { delete timerOwners[String(id)]; __cadenzaNative.clearTimer(String(id)); };
 """#
 
 @main
@@ -186,6 +192,9 @@ private struct PawnoteRuntimeChecks {
         try check(saved["saved"] as? Bool == true && probe.count == 1 && !probe.onMain, "credential synchronous off main")
         let timer = try object(await runtime.call("clearTimer", payload: empty, schoolHost: schoolHost))
         try check(timer["counter"] as? Int == 1, "cancelled timer cannot complete command")
+        _ = try await runtime.call("leaveTimer", payload: empty, schoolHost: schoolHost)
+        let timerCount = try object(await runtime.call("timerCount", payload: empty, schoolHost: schoolHost))
+        try check(timerCount["count"] as? Int == 0, "normal completion drops retained JavaScript timer callbacks")
         do {
             _ = try await runtime.call("random", payload: encoded(["count": 65537]), schoolHost: schoolHost)
             throw CheckError.failed("oversized random rejected")
