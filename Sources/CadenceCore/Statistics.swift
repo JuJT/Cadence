@@ -1,10 +1,12 @@
 import Foundation
 
 public struct StudyTotals: Equatable, Sendable {
+    /// Retained accounting provenance for older exports and widget snapshots.
+    /// Product categories use `courses` and `revisions`.
     public var courseMeasured: TimeInterval
     public var courseEstimated: TimeInterval
     public var revisions: TimeInterval
-    public var total: TimeInterval { courseMeasured + courseEstimated + revisions }
+    public var total: TimeInterval { courses + revisions }
     public var courses: TimeInterval { courseMeasured + courseEstimated }
     public init(courseMeasured: TimeInterval = 0, courseEstimated: TimeInterval = 0, revisions: TimeInterval = 0) {
         self.courseMeasured = courseMeasured; self.courseEstimated = courseEstimated; self.revisions = revisions
@@ -34,8 +36,8 @@ public enum Statistics {
             guard let subjectID = occurrence.subjectID, occurrence.end > occurrence.start else { continue }
             // Measured time replaces the estimate for the entire occurrence, including other days.
             if let linked = occurrence.linkedSessionID, sessionIDs.contains(linked) { continue }
-            if occurrence.school?.canceled == true || occurrence.school?.exempted == true { continue }
             var status = occurrence.accountingStatus
+            if (occurrence.school?.canceled == true || occurrence.school?.exempted == true) && status != .confirmed { continue }
             if [.scheduled, .inProgressScheduled].contains(status), !occurrence.sourceMissing,
                occurrence.school != nil || state.settings.autoCreditCourses {
                 status = occurrence.end <= now ? .estimated : status

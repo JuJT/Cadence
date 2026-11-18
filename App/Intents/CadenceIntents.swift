@@ -133,7 +133,7 @@ struct CourseTimeIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<Double> {
         let value = ShortcutCommands.totals()
-        let dialog = IntentDialog(stringLiteral: "Cours confirmés ou mesurés : \(CompactDuration.text(value.courseMeasured)). Cours estimés : \(CompactDuration.text(value.courseEstimated)).")
+        let dialog = IntentDialog(stringLiteral: "Cours : \(CompactDuration.text(value.courses)).")
         return .result(value: value.courseMeasured + value.courseEstimated, dialog: dialog)
     }
 }
@@ -155,7 +155,7 @@ struct TotalTimeIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<Double> {
         let value = ShortcutCommands.totals()
         return .result(value: value.total, dialog: IntentDialog(stringLiteral:
-            "Total : \(CompactDuration.text(value.total)), dont \(CompactDuration.text(value.courseEstimated)) de cours estimés."))
+            "Total : \(CompactDuration.text(value.total)). Cours : \(CompactDuration.text(value.courses)). Révisions : \(CompactDuration.text(value.revisions))."))
     }
 }
 

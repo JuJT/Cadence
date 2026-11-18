@@ -108,9 +108,12 @@ public enum BackupCodec {
                 guard let session = sessions[linkedID], session.linkedOccurrenceID == occurrence.id, session.kind == .course, session.subjectID == occurrence.subjectID else { throw CadenceError.invalidBackup("Une association séance/cours est incohérente.") }
             }
             if occurrence.accountingStatus == .measured && occurrence.linkedSessionID == nil { throw CadenceError.invalidBackup("Un cours mesuré n’a pas de séance associée.") }
+            if let choice = occurrence.localStatusOverride, ![.absent, .ignored, .cancelled, .confirmed].contains(choice) {
+                throw CadenceError.invalidBackup("Un choix local de suivi est invalide.")
+            }
             if let start = occurrence.pendingStart, let end = occurrence.pendingEnd, end <= start { throw CadenceError.invalidDates }
             if let replacement = occurrence.supersededByOccurrenceID {
-                guard replacement != occurrence.id, let target = occurrences[replacement], target.supersededByOccurrenceID == nil, occurrence.linkedSessionID == nil else { throw CadenceError.invalidBackup("Une fusion de cours est incohérente.") }
+                guard replacement != occurrence.id, let target = occurrences[replacement], target.supersededByOccurrenceID == nil else { throw CadenceError.invalidBackup("Une fusion de cours est incohérente.") }
             }
             if let school = occurrence.school {
                 guard !school.eventID.isEmpty, !school.subjectName.isEmpty, validDate(school.startAt), validDate(school.endAt), school.endAt > school.startAt else { throw CadenceError.invalidSchoolSnapshot }
@@ -120,6 +123,10 @@ public enum BackupCodec {
             guard !homework.id.isEmpty, !homework.source.subject.isEmpty, validDate(homework.source.deadline), validDate(homework.lastSeenAt), homework.localUpdatedAt.map(validDate) ?? true else { throw CadenceError.invalidSchoolSnapshot }
             if let subjectID = homework.subjectID, !subjectIDs.contains(subjectID) { throw CadenceError.subjectNotFound }
             if let minutes = homework.source.lengthMinutes, !minutes.isFinite || minutes < 0 { throw CadenceError.invalidDuration }
+            if let localID = homework.localID, localID.isEmpty { throw CadenceError.invalidSchoolSnapshot }
+            if let aliases = homework.sourceIdentityAliases, aliases.count > 100 || aliases.contains(where: { $0.isEmpty || $0.utf8.count > 4096 }) {
+                throw CadenceError.invalidSchoolSnapshot
+            }
         }
         if let defaultID = state.settings.defaultSubjectID, !subjectIDs.contains(defaultID) { throw CadenceError.subjectNotFound }
     }

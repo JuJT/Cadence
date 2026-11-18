@@ -1,0 +1,14 @@
+{
+  "name": "cadenza-pronote-runtime",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "postinstall": "node apply-pawnote-patch.mjs",
+    "build": "node build.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": { "@blockshub/pawnote-lts": "1.6.4" },
+  "devDependencies": { "esbuild": "0.25.12" }
+}

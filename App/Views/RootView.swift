@@ -53,7 +53,7 @@ struct RootView: View {
                 case .statistiques: StatisticsView()
                 }
             }
-            .modifier(CadenceTabEntrance(isSelected: selected == section))
+            .environment(\.cadenceTabIsActive, selected == section && !showSettings)
             .background(CadenceBackground(animated: false))
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {

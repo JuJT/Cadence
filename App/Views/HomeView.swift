@@ -8,8 +8,12 @@ struct HomeView: View {
     @ScaledMetric(relativeTo: .largeTitle) private var totalFontSize = 42.0
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            let totals = Statistics.totals(state: store.state, in: Atelier.day(context.date), now: context.date)
+        CadenceTimelineView(interval: 30) { now in
+            let week = Calendar.current.dateInterval(of: .weekOfYear, for: now) ?? Atelier.day(now)
+            let days = weekDays(in: week, now: now)
+            let weekTotals = days.reduce(StudyTotals()) { $0 + $1.totals }
+            let totals = days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: now) })?.totals ?? StudyTotals()
+            let recent = Array(store.state.sessions.sorted { $0.startedAt > $1.startedAt }.prefix(5))
             AtelierPage {
                 if store.needsRecovery {
                     AtelierCard {
@@ -26,9 +30,9 @@ struct HomeView: View {
                     ActiveSessionCard(session: active) { store.route = "revision" }
                 }
                 if let next = store.state.visibleOccurrences.filter({
-                    $0.start > context.date && !$0.sourceMissing && $0.school?.canceled != true && $0.school?.exempted != true
+                    $0.start > now && !$0.sourceMissing && $0.school?.canceled != true && $0.school?.exempted != true
                         && ![.cancelled, .ignored, .absent].contains($0.accountingStatus)
-                }).sorted(by: { $0.start < $1.start }).first {
+                }).min(by: { $0.start < $1.start }) {
                     NavigationLink { CourseDetailView(occurrenceID: next.id) } label: {
                         nextCourseCard(next)
                     }.buttonStyle(.plain)
@@ -51,14 +55,26 @@ struct HomeView: View {
                         }
                     }.buttonStyle(.plain)
                 }
+                NavigationLink { PronotePortalView() } label: {
+                    AtelierCard {
+                        HStack {
+                            Label("Mon espace PRONOTE", systemImage: "graduationcap")
+                                .font(.headline)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.secondary)
+                        }
+                        Text(store.pronoteProfile?.establishment ?? "Notes, contenus de cours et vie scolaire")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }.buttonStyle(.plain).accessibilityIdentifier("pronote.portal")
                 ProminentAction(title: "Nouvelle séance", symbol: "play.fill") { showNewSession = true }
                     .accessibilityIdentifier("session.new")
                 if store.state.schoolSync != nil || !store.state.homework.isEmpty {
-                    NavigationLink { HomeworkView() } label: { homeworkCard(now: context.date) }
+                    NavigationLink { HomeworkView() } label: { homeworkCard(now: now) }
                         .buttonStyle(.plain).accessibilityIdentifier("home.homework")
                 }
                 Button { store.route = "statistiques" } label: {
-                    weekCard(now: context.date)
+                    weekCard(days: days, totals: weekTotals)
                 }.buttonStyle(.plain)
                 HStack {
                     Text("Historique récent").font(.headline)
@@ -81,9 +97,9 @@ struct HomeView: View {
                     }
                 } else {
                     AtelierCard {
-                        ForEach(Array(store.state.sessions.sorted(by: { $0.startedAt > $1.startedAt }).prefix(5))) { session in
+                        ForEach(recent) { session in
                             NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session) }.buttonStyle(.plain)
-                            if session.id != store.state.sessions.sorted(by: { $0.startedAt > $1.startedAt }).prefix(5).last?.id { Divider() }
+                            if session.id != recent.last?.id { Divider() }
                         }
                     }
                 }
@@ -124,13 +140,9 @@ struct HomeView: View {
                 }
             }
             VStack(spacing: 12) {
-                summaryRow("Cours", detail: "Mesurés ou confirmés", seconds: totals.courseMeasured, color: Atelier.blue)
+                summaryRow("Cours", detail: nil, seconds: totals.courses, color: Atelier.blue)
                 Divider().overlay(Color.white.opacity(0.25))
                 summaryRow("Révisions", detail: nil, seconds: totals.revisions, color: Atelier.revision)
-                if totals.courseEstimated > 0 {
-                    Divider().overlay(Color.white.opacity(0.25))
-                    summaryRow("Cours estimés", detail: "D’après l’emploi du temps", seconds: totals.courseEstimated, color: .cyan)
-                }
             }
         }
     }
@@ -202,10 +214,7 @@ struct HomeView: View {
         }.foregroundStyle(CadenceColors.ink)
     }
 
-    private func weekCard(now: Date) -> some View {
-        let interval = Calendar.current.dateInterval(of: .weekOfYear, for: now) ?? Atelier.day(now)
-        let totals = Statistics.totals(state: store.state, in: interval, now: now)
-        let days = weekDays(in: interval, now: now)
+    private func weekCard(days: [HomeDayTotal], totals: StudyTotals) -> some View {
         return AtelierCard {
             HStack {
                 Label("Cette semaine", systemImage: "chart.bar.xaxis")
@@ -250,7 +259,7 @@ struct HomeView: View {
         Group {
             if total > 0 {
                 Chart(days) { day in
-                    BarMark(x: .value("Jour", day.date, unit: .day), y: .value("Cours", (day.totals.courseMeasured + day.totals.courseEstimated) / 3600))
+                    BarMark(x: .value("Jour", day.date, unit: .day), y: .value("Cours", day.totals.courses / 3600))
                         .foregroundStyle(LinearGradient(colors: [Atelier.blue.opacity(0.55), Atelier.blue], startPoint: .top, endPoint: .bottom))
                         .cornerRadius(3)
                     BarMark(x: .value("Jour", day.date, unit: .day), y: .value("Révisions", day.totals.revisions / 3600))
@@ -273,7 +282,7 @@ struct HomeView: View {
     private func dailyRing(_ totals: StudyTotals) -> some View {
         Chart {
             if totals.total > 0 {
-                SectorMark(angle: .value("Cours", totals.courseMeasured + totals.courseEstimated), innerRadius: .ratio(0.75), angularInset: 2)
+                SectorMark(angle: .value("Cours", totals.courses), innerRadius: .ratio(0.75), angularInset: 2)
                     .foregroundStyle(LinearGradient(colors: [.cyan.opacity(0.55), Atelier.blue], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .cornerRadius(7)
                 SectorMark(angle: .value("Révisions", totals.revisions), innerRadius: .ratio(0.75), angularInset: 2)
@@ -286,7 +295,7 @@ struct HomeView: View {
         }
         .shadow(color: Atelier.blue.opacity(totals.total > 0 ? 0.17 : 0), radius: 8, x: 0, y: 4)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Répartition du jour : cours \(Atelier.duration(totals.courseMeasured + totals.courseEstimated)), révisions \(Atelier.duration(totals.revisions))")
+        .accessibilityLabel("Répartition du jour : cours \(Atelier.duration(totals.courses)), révisions \(Atelier.duration(totals.revisions))")
     }
 }
 
@@ -381,8 +390,8 @@ struct ActiveSessionCard: View {
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(.secondary)
                 }
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(Atelier.clock(session.elapsed(at: context.date))).font(.title2.monospacedDigit().bold()).foregroundStyle(Atelier.color(for: session.kind))
+                CadenceTimelineView(interval: 1, paused: session.isPaused) { now in
+                    Text(Atelier.clock(session.elapsed(at: now))).font(.title2.monospacedDigit().bold()).foregroundStyle(Atelier.color(for: session.kind))
                 }
             }.foregroundStyle(.primary)
         }.buttonStyle(.plain)

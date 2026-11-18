@@ -22,6 +22,7 @@ public enum CadenceEngine {
         state.settings.defaultSubjectID = subjectID
         if let occurrenceID, let i = state.occurrences.firstIndex(where: { $0.id == occurrenceID }) {
             state.occurrences[i].linkedSessionID = session.id
+            state.occurrences[i].localStatusOverride = nil
             state.occurrences[i].status = .measured
             state.occurrences[i].previousStatus = nil
             state.occurrences[i].subjectID = subjectID
@@ -98,6 +99,7 @@ public enum CadenceEngine {
         guard let oi = state.occurrences.firstIndex(where: { $0.id == occurrenceID }) else { throw CadenceError.occurrenceNotFound }
         state.sessions[si].linkedOccurrenceID = occurrenceID
         state.occurrences[oi].linkedSessionID = sessionID
+        state.occurrences[oi].localStatusOverride = nil
         state.occurrences[oi].subjectID = session.subjectID
         state.occurrences[oi].status = state.occurrences[oi].sourceMissing ? .needsReview : .measured
         state.occurrences[oi].previousStatus = state.occurrences[oi].sourceMissing ? .measured : nil
@@ -111,6 +113,7 @@ public enum CadenceEngine {
         if let si = state.sessions.firstIndex(where: { $0.id == state.occurrences[oi].linkedSessionID }) { state.sessions[si].linkedOccurrenceID = nil }
         state.occurrences[oi].linkedSessionID = nil
         state.occurrences[oi].status = .ignored
+        state.occurrences[oi].localStatusOverride = .ignored
         state.occurrences[oi].previousStatus = nil
     }
 
@@ -121,6 +124,7 @@ public enum CadenceEngine {
         let duration = seconds ?? state.occurrences[i].end.timeIntervalSince(state.occurrences[i].start)
         guard duration.isFinite && duration > 0 else { throw CadenceError.invalidDuration }
         state.occurrences[i].confirmedSeconds = duration
+        state.occurrences[i].localStatusOverride = nil
         state.occurrences[i].status = .confirmed
         state.occurrences[i].previousStatus = nil
         state.occurrences[i].userEdited = true
@@ -133,6 +137,7 @@ public enum CadenceEngine {
         if status == .confirmed { try confirm(state: &state, occurrenceID: occurrenceID); return }
         guard status != .measured else { throw CadenceError.incompatibleLink }
         state.occurrences[i].status = status
+        state.occurrences[i].localStatusOverride = [.absent, .ignored, .cancelled].contains(status) ? status : nil
         state.occurrences[i].previousStatus = nil
         state.occurrences[i].userEdited = true
         state.occurrences[i].identityUncertain = false
@@ -184,6 +189,7 @@ public enum CadenceEngine {
             state.occurrences[oi].linkedSessionID = nil
             // Explicit deletion removes its credited course, without resurrecting an estimate.
             state.occurrences[oi].status = .ignored
+            state.occurrences[oi].localStatusOverride = .ignored
             state.occurrences[oi].previousStatus = nil
             state.occurrences[oi].userEdited = true
         }
@@ -252,7 +258,7 @@ public enum CadenceEngine {
 
     private static func requireLink(state: CadenceState, subjectID: UUID, kind: SessionKind, sessionID: UUID?, occurrenceID: UUID) throws {
         guard let occurrence = state.occurrences.first(where: { $0.id == occurrenceID }) else { throw CadenceError.occurrenceNotFound }
-        guard occurrence.supersededByOccurrenceID == nil else { throw CadenceError.occurrenceNotFound }
+        guard occurrence.supersededByOccurrenceID == nil || (sessionID != nil && occurrence.linkedSessionID == sessionID) else { throw CadenceError.occurrenceNotFound }
         guard kind == .course && (occurrence.subjectID == nil || occurrence.subjectID == subjectID) else { throw CadenceError.incompatibleLink }
         if let linked = occurrence.linkedSessionID, linked != sessionID { throw CadenceError.alreadyLinked }
     }

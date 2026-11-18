@@ -23,7 +23,7 @@ struct SettingsView: View {
                 }
             }
             Section("Votre organisation") {
-                NavigationLink { SchoolConnectionView() } label: { Label("Connexion PRONOTE via Supabase", systemImage: "calendar.badge.clock") }
+                NavigationLink { SchoolConnectionView() } label: { Label("Connexion PRONOTE", systemImage: "calendar.badge.clock") }
                 NavigationLink { SubjectsView() } label: { Label("Matières et mots-clés", systemImage: "books.vertical") }
                 Picker("Matière par défaut", selection: Binding(get: { store.state.settings.defaultSubjectID }, set: { id in var settings = store.state.settings; settings.defaultSubjectID = id; store.updateSettings(settings) })) {
                     Text("Première matière disponible").tag(nil as UUID?)
@@ -41,6 +41,9 @@ struct SettingsView: View {
                 NavigationLink { SessionCompanionView() } label: { Label("Concentration et musique", systemImage: "headphones") }
                 Toggle("Live Activities", isOn: Binding(get: { store.state.settings.liveActivityEnabled }, set: { enabled in var settings = store.state.settings; settings.liveActivityEnabled = enabled; store.updateSettings(settings) }))
                 NavigationLink { IntegrationsHelpView() } label: { Label("Widgets, Raccourcis et Apple Watch", systemImage: "square.stack.3d.up") }
+            }
+            Section("À propos") {
+                NavigationLink("Sources et licences") { CadenzaLicensesView() }
             }
             Section("Diagnostic") {
                 Text(store.storageDiagnostic).font(.footnote).textSelection(.enabled)
@@ -78,6 +81,27 @@ struct SettingsView: View {
             exportName = csv ? "Cadenza-durees" : "Cadenza-sauvegarde"
             showExporter = true
         } catch { store.errorMessage = error.localizedDescription }
+    }
+}
+
+private struct CadenzaLicensesView: View {
+    @State private var text = ""
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Link("Code source de Cadenza", destination: URL(string: "https://github.com/JuJT/Cadence")!)
+                Text(text).font(.footnote).textSelection(.enabled)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding()
+        }
+        .navigationTitle("Sources et licences").navigationBarTitleDisplayMode(.inline)
+        .task {
+            let value = await Task.detached(priority: .utility) {
+                let url = Bundle.main.url(forResource: "Licenses", withExtension: "txt", subdirectory: "Legal")
+                    ?? Bundle.main.url(forResource: "Licenses", withExtension: "txt")
+                return url.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "Les licences accompagnent les sources de cette version."
+            }.value
+            text = value
+        }
     }
 }
 
@@ -120,11 +144,9 @@ struct CalendarSettingsView: View {
                 NavigationLink("Matières et alias") { SubjectsView() }
                 TextField("Mots à exclure, séparés par des virgules", text: $keywords).onSubmit { saveKeywords() }
                 Button("Enregistrer les exclusions") { saveKeywords() }
-                Toggle("Compter les cours passés comme estimés", isOn: Binding(get: { store.state.settings.autoCreditCourses }, set: { enabled in
-                    var settings = store.state.settings; settings.autoCreditCourses = enabled; store.updateSettings(settings)
-                }))
+                Label("Cours terminés comptés automatiquement", systemImage: "checkmark.circle")
             } header: { Text("3 · Classement et comptabilisation") } footer: {
-                Text("Cette option est désactivée au départ. Si vous l’activez, les horaires terminés sont comptés comme estimés, séparément du temps mesuré. Une absence compte toujours pour zéro.")
+                Text("Les cours terminés rejoignent la catégorie Cours. Vous pouvez retirer un cours qui n’a pas eu lieu ; une absence compte pour zéro.")
             }
             Section {
                 Button {

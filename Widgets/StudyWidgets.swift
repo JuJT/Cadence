@@ -7,7 +7,7 @@ struct WeekWidget: Widget {
             WeekWidgetView(entry: entry).containerBackground(for: .widget) { WidgetCanvas() }
         }
         .configurationDisplayName("Ma semaine")
-        .description("Sept jours de cours et de révisions, avec les estimations séparées.")
+        .description("Sept jours de cours et de révisions.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -29,7 +29,7 @@ struct AccessoryStudyWidget: Widget {
             AccessoryStudyWidgetView(entry: entry).containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Temps d’étude")
-        .description("Les durées mesurées et confirmées du jour sur l’écran verrouillé.")
+        .description("Votre temps de cours et de révisions du jour sur l’écran verrouillé.")
         .supportedFamilies([.accessoryRectangular, .accessoryInline])
     }
 }

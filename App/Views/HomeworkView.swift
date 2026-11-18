@@ -6,18 +6,10 @@ private enum HomeworkFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-private enum HomeworkBucket: Int, CaseIterable, Identifiable {
-    case overdue, today, tomorrow, later, completed
-    var id: Int { rawValue }
-    var title: String {
-        switch self {
-        case .overdue: return "En retard"
-        case .today: return "Aujourd’hui"
-        case .tomorrow: return "Demain"
-        case .later: return "Plus tard"
-        case .completed: return "Terminés"
-        }
-    }
+private struct HomeworkDateGroup: Identifiable {
+    let date: Date
+    let items: [HomeworkItem]
+    var id: Date { date }
 }
 
 struct HomeworkView: View {
@@ -27,8 +19,8 @@ struct HomeworkView: View {
     @State private var search = ""
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            page(now: context.date)
+        CadenceTimelineView(interval: 30) { now in
+            page(now: now)
         }
         .navigationTitle("Devoirs")
         .navigationBarTitleDisplayMode(.large)
@@ -51,7 +43,9 @@ struct HomeworkView: View {
     private func page(now: Date) -> some View {
         let items = filteredHomework(now: now)
         let worked = HomeworkPresentation.workedSeconds(state: store.state, now: now)
-        return AtelierPage {
+        let groups = Dictionary(grouping: items) { SchoolDateCodec.parisCalendar.startOfDay(for: $0.source.deadline) }
+            .map { HomeworkDateGroup(date: $0.key, items: $0.value) }.sorted { $0.date < $1.date }
+        return AtelierPage(lazy: true) {
             Picker("État des devoirs", selection: $filter) {
                 ForEach(HomeworkFilter.allCases) { value in Text(value.rawValue).tag(value) }
             }
@@ -65,8 +59,8 @@ struct HomeworkView: View {
                             ? "Connectez votre compte scolaire dans Réglages pour retrouver vos devoirs PRONOTE. Les devoirs synchronisés restent disponibles hors connexion."
                             : "Aucun devoir ne correspond à ces filtres.")
             }
-            ForEach(HomeworkBucket.allCases) { bucket in
-                homeworkSection(bucket, items: items, worked: worked, now: now)
+            ForEach(groups) { group in
+                homeworkSection(group, worked: worked, now: now)
             }
             Label(store.schoolStatus, systemImage: "arrow.triangle.2.circlepath")
                 .font(.caption).foregroundStyle(CadenceColors.secondary)
@@ -90,11 +84,9 @@ struct HomeworkView: View {
         }.padding(.horizontal, 6)
     }
 
-    @ViewBuilder private func homeworkSection(_ bucket: HomeworkBucket, items: [HomeworkItem], worked: [String: TimeInterval], now: Date) -> some View {
-        let group = items.filter { HomeworkPresentation.bucket($0, now: now) == bucket }
-        if !group.isEmpty {
-            CadenceSectionHeader(title: bucket.title)
-            ForEach(group) { item in
+    private func homeworkSection(_ group: HomeworkDateGroup, worked: [String: TimeInterval], now: Date) -> some View {
+        Section {
+            ForEach(group.items) { item in
                 NavigationLink { HomeworkDetailView(homeworkID: item.id) } label: {
                     HomeworkRow(item: item, subject: Atelier.subject(item.subjectID, in: store.state),
                                 workedSeconds: worked[item.id, default: 0], now: now)
@@ -102,6 +94,11 @@ struct HomeworkView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("homework.row." + item.id)
             }
+        } header: {
+            CadenceSectionHeader(title: HomeworkPresentation.deadline(group.date),
+                                 subtitle: HomeworkPresentation.relativeDay(group.date, now: now))
+                .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("homework.date." + HomeworkPresentation.dayKey(group.date))
         }
     }
 
@@ -135,9 +132,9 @@ struct HomeworkDetailView: View {
     private var item: HomeworkItem? { store.state.homework.first { $0.id == homeworkID } }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
+        CadenceTimelineView(interval: 60) { now in
             if let item {
-                details(item, now: context.date)
+                details(item, now: now)
             } else {
                 AtelierPage { EmptyCard(title: "Devoir indisponible", symbol: "checklist", description: "Ce devoir n’est pas disponible dans le cache local.") }
             }
@@ -155,7 +152,6 @@ struct HomeworkDetailView: View {
 
     private func details(_ item: HomeworkItem, now: Date) -> some View {
         let subject = Atelier.subject(item.subjectID, in: store.state)
-        let seconds = HomeworkPresentation.workedSeconds(state: store.state, now: now)[item.id, default: 0]
         return AtelierPage {
             AtelierCard {
                 HStack(alignment: .top, spacing: 12) {
@@ -191,9 +187,7 @@ struct HomeworkDetailView: View {
             AtelierCard {
                 Label("Temps consacré à ce devoir", systemImage: "timer")
                     .font(.subheadline).foregroundStyle(.secondary)
-                Text(Atelier.clock(seconds)).font(.title2.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(CadenceColors.ink)
-                    .accessibilityIdentifier("homework.worked.time")
+                HomeworkWorkedClock(homeworkID: item.id)
                 if store.state.activeSession?.activeHomeworkID == item.id {
                     Label(store.state.activeSession?.isPaused == true ? "Séance en pause" : "Devoir en cours", systemImage: "timer")
                         .font(.subheadline).foregroundStyle(Atelier.blue)
@@ -398,25 +392,37 @@ private struct HomeworkStateBadge: View {
 }
 
 private enum HomeworkPresentation {
-    static func bucket(_ item: HomeworkItem, now: Date) -> HomeworkBucket {
-        if item.isDone { return .completed }
+    static func relativeDay(_ date: Date, now: Date) -> String? {
         let calendar = SchoolDateCodec.parisCalendar
         let today = calendar.startOfDay(for: now)
-        let due = calendar.startOfDay(for: item.source.deadline)
-        if due < today { return .overdue }
-        if due == today { return .today }
-        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: today), due == tomorrow { return .tomorrow }
-        return .later
+        if date == today { return "Aujourd’hui" }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: today), date == tomorrow { return "Demain" }
+        return nil
     }
 
     static func deadline(_ date: Date) -> String {
+        deadlineFormatter.string(from: date)
+    }
+
+    static func dayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
+
+    private static let deadlineFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = SchoolDateCodec.parisCalendar
         formatter.timeZone = SchoolDateCodec.parisCalendar.timeZone
         formatter.locale = Locale(identifier: "fr_FR")
         formatter.dateStyle = .long; formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
+        return formatter
+    }()
+
+    private static let dayKeyFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = SchoolDateCodec.parisCalendar
+        formatter.timeZone = SchoolDateCodec.parisCalendar.timeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 
     static func workedSeconds(state: CadenceState, now: Date) -> [String: TimeInterval] {
         Statistics.homeworkSeconds(state: state, in: DateInterval(start: .distantPast, end: now), now: now)
@@ -440,5 +446,31 @@ private enum HomeworkPresentation {
                   resource.url.host != nil else { return false }
             return seen.insert(resource.url.absoluteString).inserted
         }
+    }
+}
+
+/// Only this number ticks once a second, not the description, documents or form.
+private struct HomeworkWorkedClock: View {
+    let homeworkID: String
+    @EnvironmentObject private var store: AppStore
+
+    var body: some View {
+        let reference = Date()
+        let baseline = HomeworkPresentation.workedSeconds(state: store.state, now: reference)[homeworkID, default: 0]
+        let session = store.state.activeSession
+        let segment = session?.homeworkWorkSegments?.last
+        let running = session?.isPaused == false && segment?.homeworkID == homeworkID && segment?.end == nil
+        Group {
+            if running {
+                CadenceTimelineView(interval: 1) { now in
+                    value(baseline + max(0, now.timeIntervalSince(reference)))
+                }
+            } else { value(baseline) }
+        }
+    }
+
+    private func value(_ seconds: TimeInterval) -> some View {
+        Text(Atelier.clock(seconds)).font(.title2.monospacedDigit().weight(.semibold))
+            .foregroundStyle(CadenceColors.ink).accessibilityIdentifier("homework.worked.time")
     }
 }

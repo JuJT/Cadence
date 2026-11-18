@@ -107,10 +107,10 @@ struct RevisionView: View {
     }
 
     private func sessionStatistics(_ active: StudySession) -> some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            let dayTotals = Statistics.totals(state: store.state, in: Atelier.day(context.date), now: context.date)
-            let week = Calendar.current.dateInterval(of: .weekOfYear, for: context.date) ?? Atelier.day(context.date)
-            let subjectTotals = Statistics.bySubject(state: store.state, in: week, now: context.date)[active.subjectID] ?? StudyTotals()
+        CadenceTimelineView(interval: 30) { now in
+            let dayTotals = Statistics.totals(state: store.state, in: Atelier.day(now), now: now)
+            let week = Calendar.current.dateInterval(of: .weekOfYear, for: now) ?? Atelier.day(now)
+            let subjectTotals = Statistics.bySubject(state: store.state, in: week, now: now)[active.subjectID] ?? StudyTotals()
             AtelierCard {
                 if dynamicTypeSize.isAccessibilitySize {
                     sessionMetric("Aujourd’hui", detail: "Cours et révisions", seconds: dayTotals.total, symbol: "stopwatch")
@@ -160,10 +160,10 @@ private struct SessionDial: View {
     @State private var animatedSessionID: UUID?
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
+        CadenceTimelineView(interval: 1, paused: session.isPaused) { now in
             if dynamicTypeSize >= .xxLarge {
                 AtelierCard {
-                    dialContent(now: context.date)
+                    dialContent(now: now)
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }.frame(maxWidth: 520)
             } else {
@@ -186,7 +186,7 @@ private struct SessionDial: View {
                     Circle()
                         .stroke(Color.white.opacity(colorScheme == .dark ? 0.13 : 0.65), lineWidth: 1)
                         .padding(18)
-                    dialContent(now: context.date).padding(36)
+                    dialContent(now: now).padding(36)
                 }
                 .aspectRatio(1, contentMode: .fit).frame(maxWidth: 420)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: session.isPaused)

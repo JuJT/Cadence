@@ -47,16 +47,25 @@ final class SchoolCoreTests: XCTestCase {
 
     func testSourceScheduleRoomAndAssessmentChangesKeepOccurrenceUUID() throws {
         var state = makeState()
-        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base)
+        var initial = event()
+        initial.subjectID = "42"
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([initial]), now: base)
         let id = state.occurrences[0].id
         var moved = event(start: base.addingTimeInterval(900))
-        moved.classrooms = ["B12"]; moved.isTest = true
+        moved.classrooms = ["B12"]; moved.isTest = true; moved.subjectID = "42"
         try SchoolReconciler.sync(state: &state, snapshot: snapshot([moved]), now: base)
         XCTAssertEqual(state.visibleOccurrences.count, 1)
         XCTAssertEqual(state.occurrences[0].id, id)
         XCTAssertEqual(state.occurrences[0].start, moved.startAt)
         XCTAssertEqual(state.occurrences[0].school?.classrooms, ["B12"])
         XCTAssertEqual(state.occurrences[0].school?.isTest, true)
+        var directProvider = moved
+        directProvider.eventID = "0xA0|2026-11-16T08:25:00"
+        directProvider.subjectID = "0x2A"
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([directProvider]), now: base)
+        XCTAssertEqual(state.visibleOccurrences.count, 1)
+        XCTAssertEqual(state.visibleOccurrences[0].id, id, "Exact source name and slot bridge an ID encoding change")
+        XCTAssertEqual(state.visibleOccurrences[0].school?.subjectID, directProvider.subjectID)
     }
 
     func testCompositeUpstreamIdentifierCanMoveWhenBaseIsUnique() throws {
@@ -268,7 +277,7 @@ final class SchoolCoreTests: XCTestCase {
         XCTAssertEqual(totals(state).revisions, 600)
     }
 
-    func testTwoMeasuredLegacyCoursesAreNotSilentlyMerged() throws {
+    func testDuplicateCardsAreArchivedWithoutMergingOrLosingTheirMeasuredSessions() throws {
         var state = makeState()
         let subject = state.subjects[0].id
         for id in ["one", "two"] {
@@ -280,11 +289,171 @@ final class SchoolCoreTests: XCTestCase {
         }
         try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(7200))
         XCTAssertEqual(state.sessions.count, 2)
-        XCTAssertEqual(state.visibleOccurrences.count, 2)
+        XCTAssertEqual(state.visibleOccurrences.count, 1)
+        XCTAssertEqual(state.occurrences.count, 2)
         XCTAssertEqual(Set(state.sessions.map(\.notes)), Set(["one", "two"]))
-        XCTAssertTrue(state.visibleOccurrences.contains { $0.identityUncertain })
+        let archived = try XCTUnwrap(state.occurrences.first { $0.supersededByOccurrenceID != nil })
+        let archivedSession = try XCTUnwrap(state.sessions.first { $0.linkedOccurrenceID == archived.id })
+        XCTAssertEqual(archived.linkedSessionID, archivedSession.id)
+        var edited = archivedSession
+        edited.notes = "Note toujours modifiable dans l’historique"
+        try CadenceEngine.updateSession(state: &state, session: edited)
+        XCTAssertEqual(state.sessions.first { $0.id == edited.id }?.notes, edited.notes)
         XCTAssertEqual(totals(state).courseEstimated, 0)
+        XCTAssertEqual(totals(state).courses, 3600)
         try BackupCodec.validate(state)
+        XCTAssertEqual(try BackupCodec.decode(BackupCodec.encode(state)), state)
+    }
+
+    func testReligionOrphanVersionsAndRoomChangeProduceOneVisibleCourse() throws {
+        var state = makeState()
+        let religion = Subject(name: "Religion", aliases: [])
+        let previousClassification = Subject(name: "Enseignement catholique", aliases: [])
+        state.subjects += [religion, previousClassification]
+        let name = "ENS.RELIG.CATHOLIQUE"
+        var cancelledSource = event("religion-old", canceled: true, subject: name)
+        cancelledSource.subjectID = "religion-source"
+        cancelledSource.classrooms = ["Ancienne salle"]
+        var activeSource = event("religion-live", subject: name)
+        activeSource.subjectID = "religion-source"
+        activeSource.classrooms = ["Nouvelle salle"]
+        let oldCalendar = CourseOccurrence(calendarIdentifier: "legacy", eventIdentifier: "old-calendar-id",
+            title: name + " - PROFESSEUR TEST - [GROUPE]", start: base, end: base.addingTimeInterval(3600),
+            subjectID: religion.id, status: .cancelled, sourceMissing: true, userEdited: true)
+        let oldSchool = CourseOccurrence(calendarIdentifier: SchoolReconciler.sourceIdentifier, eventIdentifier: cancelledSource.eventID,
+            title: name, start: base, end: base.addingTimeInterval(3600), subjectID: previousClassification.id,
+            status: .cancelled, sourceMissing: true, userEdited: true, school: cancelledSource)
+        let current = CourseOccurrence(calendarIdentifier: SchoolReconciler.sourceIdentifier, eventIdentifier: activeSource.eventID,
+            title: name, start: base, end: base.addingTimeInterval(3600), subjectID: previousClassification.id,
+            status: .needsReview, identityUncertain: true, school: activeSource)
+        state.occurrences = [oldCalendar, oldSchool, current]
+        XCTAssertEqual(state.visibleOccurrences.count, 1, "Unlinked missing cancellations are archives, not extra lessons")
+        for _ in 0..<3 { try SchoolReconciler.sync(state: &state, snapshot: snapshot([activeSource]), now: base.addingTimeInterval(7200)) }
+        XCTAssertEqual(state.visibleOccurrences.count, 1)
+        XCTAssertEqual(state.visibleOccurrences[0].id, current.id)
+        XCTAssertEqual(state.visibleOccurrences[0].school?.classrooms, ["Nouvelle salle"])
+        XCTAssertFalse(state.visibleOccurrences[0].identityUncertain)
+        XCTAssertEqual(state.visibleOccurrences[0].status, .estimated)
+        XCTAssertEqual(state.occurrences.count, 3, "Old records remain available for backup and recovery")
+        XCTAssertEqual(state.occurrences.filter { $0.supersededByOccurrenceID == current.id }.count, 2)
+        XCTAssertEqual(totals(state).courses, 3600)
+        XCTAssertEqual(try BackupCodec.decode(BackupCodec.encode(state)), state)
+    }
+
+    func testCompleteFeedUsesUniqueActiveVersionInsteadOfCancelledRoomTeacherVersions() throws {
+        var state = makeState()
+        var cancelled = event("room-v1", canceled: true)
+        cancelled.classrooms = ["Salle A"]; cancelled.teacherNames = ["Ancien professeur"]
+        var secondCancelled = event("room-v2", canceled: true)
+        secondCancelled.classrooms = ["Salle B"]
+        var active = event("room-v3")
+        active.classrooms = ["Salle C"]; active.teacherNames = ["Professeur actuel"]
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([cancelled]), now: base.addingTimeInterval(7200))
+        let originalID = state.visibleOccurrences[0].id
+        state.occurrences[0].userEdited = true // historical subject edit, not a cancellation choice
+        for _ in 0..<3 {
+            try SchoolReconciler.sync(state: &state, snapshot: snapshot([cancelled, active, secondCancelled]), now: base.addingTimeInterval(7200))
+        }
+        XCTAssertEqual(state.visibleOccurrences.count, 1)
+        XCTAssertEqual(state.visibleOccurrences[0].id, originalID)
+        XCTAssertEqual(state.visibleOccurrences[0].eventIdentifier, active.eventID)
+        XCTAssertEqual(state.visibleOccurrences[0].school?.teacherNames, active.teacherNames)
+        XCTAssertEqual(state.visibleOccurrences[0].school?.classrooms, active.classrooms)
+        XCTAssertEqual(state.visibleOccurrences[0].status, .estimated)
+        XCTAssertEqual(totals(state).courses, 3600)
+    }
+
+    func testCachedReligionRepairWorksOfflineWithoutInventingASynchronizationOrChangingHomework() throws {
+        var state = makeState()
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()], homework: [homework()]), now: base)
+        let lastSync = state.schoolSync
+        let settings = state.settings
+        let current = state.visibleOccurrences[0]
+        state.occurrences[0].status = .needsReview
+        state.occurrences[0].identityUncertain = true
+        let old = CourseOccurrence(calendarIdentifier: "legacy", eventIdentifier: "old-room", title: "MATH - PROFESSEUR - ANCIENNE SALLE",
+            start: base, end: base.addingTimeInterval(3600), subjectID: state.subjects[0].id,
+            status: .cancelled, sourceMissing: true, userEdited: true)
+        state.occurrences.append(old)
+        try CadenceEngine.setHomeworkCompletion(state: &state, homeworkID: "hw-1", isDone: true, at: base)
+        let work = state.homework
+        let result = try SchoolReconciler.repairCachedOccurrences(state: &state, now: base.addingTimeInterval(7200))
+        XCTAssertEqual(result.mergedDuplicates, 1)
+        XCTAssertEqual(state.visibleOccurrences.map(\.id), [current.id])
+        XCTAssertEqual(state.visibleOccurrences[0].status, .estimated)
+        XCTAssertEqual(state.visibleOccurrences[0].lastSeenAt, current.lastSeenAt)
+        XCTAssertEqual(state.schoolSync, lastSync)
+        XCTAssertEqual(state.settings, settings)
+        XCTAssertEqual(state.homework, work)
+        XCTAssertEqual(totals(state).courses, 3600)
+        let stable = state
+        try SchoolReconciler.repairCachedOccurrences(state: &state, now: base.addingTimeInterval(7200))
+        XCTAssertEqual(state, stable)
+    }
+
+    func testRemoteCancellationCanBeUndoneWithoutTurningGenericEditsIntoExclusions() throws {
+        var state = makeState()
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(7200))
+        let id = state.visibleOccurrences[0].id
+        state.occurrences[0].userEdited = true
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event(canceled: true)]), now: base.addingTimeInterval(7200))
+        XCTAssertEqual(state.visibleOccurrences[0].status, .cancelled)
+        XCTAssertEqual(totals(state).courses, 0)
+        for _ in 0..<2 { try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(7200)) }
+        XCTAssertEqual(state.visibleOccurrences[0].id, id)
+        XCTAssertEqual(state.visibleOccurrences[0].status, .estimated)
+        XCTAssertEqual(totals(state).courses, 3600)
+        XCTAssertNil(state.visibleOccurrences[0].localStatusOverride)
+    }
+
+    func testExplicitLocalCancellationAndAbsencePersistUntilAutomaticTrackingIsRestored() throws {
+        var state = makeState()
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(7200))
+        let id = state.visibleOccurrences[0].id
+        for choice in [CourseStatus.absent, .cancelled, .ignored] {
+            try CadenceEngine.setStatus(state: &state, occurrenceID: id, status: choice)
+            for _ in 0..<2 { try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(7200)) }
+            XCTAssertEqual(state.visibleOccurrences[0].localStatusOverride, choice)
+            XCTAssertEqual(state.visibleOccurrences[0].status, choice)
+            XCTAssertEqual(totals(state).courses, 0)
+            state = try BackupCodec.decode(BackupCodec.encode(state))
+        }
+        try CadenceEngine.setStatus(state: &state, occurrenceID: id, status: .scheduled)
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(7200))
+        XCTAssertNil(state.visibleOccurrences[0].localStatusOverride)
+        XCTAssertEqual(totals(state).courses, 3600)
+        try CadenceEngine.setStatus(state: &state, occurrenceID: id, status: .ignored)
+        try CadenceEngine.confirm(state: &state, occurrenceID: id, seconds: 1800)
+        XCTAssertNil(state.visibleOccurrences[0].localStatusOverride)
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event(canceled: true)]), now: base.addingTimeInterval(7200))
+        XCTAssertEqual(totals(state).courses, 1800, "A personal actual duration is preserved independently of a later source cancellation")
+    }
+
+    func testTwoDistinctActiveSourceIDsAreNeverCollapsedBasedOnRoomMetadataAlone() throws {
+        var state = makeState()
+        var one = event("parallel-a"); one.classrooms = ["A"]
+        var two = event("parallel-b"); two.classrooms = ["B"]
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([one, two]), now: base.addingTimeInterval(7200))
+        XCTAssertEqual(state.visibleOccurrences.count, 2)
+        XCTAssertEqual(Set(state.visibleOccurrences.map(\.eventIdentifier)), Set([one.eventID, two.eventID]))
+        XCTAssertFalse(state.occurrences.contains { $0.supersededByOccurrenceID != nil })
+        XCTAssertEqual(totals(state).courses, 0, "An ambiguous feed must not invent a second automatic duration")
+    }
+
+    func testUnifiedCoursesCategoryIncludesAutomaticAndActualTimeWithLegacyProvenancePreserved() throws {
+        var state = makeState()
+        try CadenceEngine.addManual(state: &state, subjectID: state.subjects[0].id, kind: .course,
+            start: base.addingTimeInterval(7200), end: base.addingTimeInterval(8400))
+        try CadenceEngine.addManual(state: &state, subjectID: state.subjects[0].id, kind: .revision,
+            start: base.addingTimeInterval(9000), end: base.addingTimeInterval(9600))
+        try SchoolReconciler.sync(state: &state, snapshot: snapshot([event()]), now: base.addingTimeInterval(10_000))
+        let total = totals(state)
+        XCTAssertEqual(total.courses, 4800)
+        XCTAssertEqual(total.revisions, 600)
+        XCTAssertEqual(total.total, total.courses + total.revisions)
+        XCTAssertEqual(total.courseMeasured, 1200)
+        XCTAssertEqual(total.courseEstimated, 3600)
+        XCTAssertEqual(try BackupCodec.decode(BackupCodec.encode(state)), state)
     }
 
     func testWindowDoesNotRemoveOlderHistoryAndInvalidResponseIsAtomic() throws {

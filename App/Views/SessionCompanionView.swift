@@ -1,124 +1,96 @@
+import AVKit
+import MediaPlayer
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct SessionCompanionView: View {
     @ObservedObject private var companion = SessionCompanionService.shared
     @Environment(\.dismiss) private var dismiss
-    @State private var showAudioPicker = false
-    @State private var showFocusSetup = false
 
     var body: some View {
         List {
-            Section("Musique") {
-                if let track = companion.currentTrack {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Label(track.title, systemImage: "music.note").font(.headline).lineLimit(3)
-                        Slider(value: Binding(get: { companion.position }, set: { companion.seek(to: $0) }), in: 0...max(1, companion.duration))
-                            .accessibilityLabel("Position dans le fichier audio")
-                        HStack {
-                            Text(audioTime(companion.position))
-                            Spacer()
-                            Text(audioTime(companion.duration))
-                        }.font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        HStack(spacing: 24) {
-                            Button("Précédent", systemImage: "backward.end.fill") { companion.previousTrack() }
-                                .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
-                            Button(companion.isPlaying ? "Pause" : "Lire", systemImage: companion.isPlaying ? "pause.fill" : "play.fill") { companion.toggleAudio() }
-                                .labelStyle(.iconOnly).font(.title2).frame(minWidth: 52, minHeight: 52)
-                                .accessibilityIdentifier("companion.audio.toggle")
-                            Button("Suivant", systemImage: "forward.end.fill") { companion.nextTrack() }
-                                .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
-                        }.frame(maxWidth: .infinity).buttonStyle(.borderless)
-                        HStack {
-                            Image(systemName: "speaker.fill")
-                            Slider(value: $companion.volume, in: 0...1)
-                                .accessibilityLabel("Volume du lecteur Cadenza")
-                            Image(systemName: "speaker.wave.3.fill")
-                        }.foregroundStyle(.secondary)
-                    }.padding(.vertical, 8)
-                }
-                Button("Ajouter depuis Fichiers", systemImage: "folder.badge.plus") { showAudioPicker = true }
-                    .accessibilityIdentifier("companion.audio.import")
-                Button("Ouvrir Deezer", systemImage: "music.note.list") { companion.openDeezer() }
-                Text("Les fichiers ajoutés se lisent ici et restent sur l’iPhone. Pour Deezer ou une lecture déjà lancée ailleurs, utilisez les commandes de l’écran verrouillé ou du Centre de contrôle.")
+            Section("Son de l’iPhone") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Volume", systemImage: "speaker.wave.2.fill").font(.headline)
+                    HStack(spacing: 14) {
+                        SystemAudioVolumeView()
+                            .frame(height: 44)
+                            .accessibilityIdentifier("companion.system.volume")
+                        SystemAudioRoutePickerView()
+                            .frame(width: 44, height: 44)
+                            .accessibilityIdentifier("companion.system.routes")
+                    }
+                    Text("Réglez le volume du son déjà lancé et choisissez sa sortie audio avec AirPlay.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }.padding(.vertical, 6)
+            }
+            Section("Lecture en cours dans une autre app") {
+                Label("Deezer et Fichiers gardent leur lecteur", systemImage: "waveform")
+                Text("Pour mettre en pause, changer de piste ou avancer dans le morceau, ouvrez le Centre de contrôle en glissant depuis l’angle supérieur droit de l’écran. Un appui prolongé sur le lecteur affiche ses commandes.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Text("Cadenza laisse votre musique continuer et ne remplace pas le lecteur de l’autre app.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            if !companion.tracks.isEmpty {
-                Section("Mes fichiers audio") {
-                    ForEach(companion.tracks) { track in
-                        Button { companion.play(track) } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: companion.currentTrackID == track.id && companion.isPlaying ? "waveform" : "play.circle")
-                                Text(track.title).foregroundStyle(.primary)
-                                Spacer(minLength: 4)
-                                if companion.currentTrackID == track.id { Image(systemName: "checkmark").accessibilityLabel("Fichier sélectionné") }
-                            }.frame(minHeight: 38)
-                        }.buttonStyle(.borderless)
+            Section("Ne pas déranger pendant la séance") {
+                if let url = companion.preparedShortcutURL {
+                    ShareLink(item: url, preview: SharePreview(SessionCompanionService.preparedShortcutName, image: Image(systemName: "moon.fill"))) {
+                        Label("Ajouter le raccourci Concentration", systemImage: "plus.circle.fill")
                     }
+                    .accessibilityIdentifier("companion.focus.add")
+                    Text("Ouvrez le fichier avec Raccourcis, puis confirmez Ajouter. Gardez son nom « HongMix Focus ». Les actions sont déjà préparées.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("Raccourci libre sous licence MIT, fourni par HongMix et vérifié avant intégration.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                } else {
+                    Label("Fichier du raccourci indisponible dans cette compilation", systemImage: "exclamationmark.triangle")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
-            }
-            Section("Concentration pendant la séance") {
-                Toggle("Appeler mon raccourci automatiquement", isOn: $companion.focusEnabled)
+                Button("Tester le raccourci ajouté", systemImage: "checkmark.shield") { companion.verifyPreparedFocusShortcut() }
+                    .accessibilityIdentifier("companion.focus.test")
+                Text("Le test ne change aucun mode Concentration.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Toggle("Activer pour mes séances chronométrées", isOn: $companion.focusEnabled)
+                    .disabled(!companion.preparedShortcutVerified && !companion.focusEnabled)
                     .accessibilityIdentifier("companion.focus.enabled")
-                TextField("Nom du raccourci", text: $companion.focusShortcutName)
-                    .autocorrectionDisabled().textInputAutocapitalization(.words)
-                Button("Configurer une fois dans Raccourcis", systemImage: "wand.and.stars") { showFocusSetup = true }
                 if companion.activeSessionID != nil {
                     Button("Activer pour cette séance", systemImage: "moon.fill") { companion.enableFocusForCurrentSession() }
+                        .disabled(!companion.preparedShortcutVerified)
                 }
                 Button("Terminer le mode de cette séance", systemImage: "moon") { companion.disableManagedFocus() }
                     .disabled(!companion.canEndManagedFocus)
                 Text(companion.focusStatusText).font(.footnote).foregroundStyle(.secondary)
-                Text("iOS réserve l’activation de Concentration à Raccourcis. Une pause conserve le mode ; la fin de la séance appelle sa désactivation. Le raccourci conserve tout mode déjà actif.")
+                Text("Après l’ajout initial, Cadenza appelle le raccourci au début et à la fin des séances. Une pause conserve le mode. Un mode déjà actif est conservé.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
         .cadenceListStyle()
-        .navigationTitle("Musique et concentration")
+        .navigationTitle("Son et concentration")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fermer") { dismiss() } } }
-        .fileImporter(isPresented: $showAudioPicker, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
-            switch result {
-            case .success(let urls): companion.importAudio(urls)
-            case .failure(let error): companion.audioError = "Sélection audio impossible : \(error.localizedDescription)"
-            }
-        }
-        .alert("Musique", isPresented: Binding(get: { companion.audioError != nil }, set: { if !$0 { companion.audioError = nil } })) {
-            Button("Compris", role: .cancel) { companion.audioError = nil }
-        } message: { Text(companion.audioError ?? "") }
-        .sheet(isPresented: $showFocusSetup) { NavigationStack { FocusShortcutSetupView() } }
-    }
-
-    private func audioTime(_ value: Double) -> String {
-        let seconds = Int(min(max(value.isFinite ? value : 0, 0), 3_155_760_000))
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+        .accessibilityIdentifier("companion.sheet")
     }
 }
 
-private struct FocusShortcutSetupView: View {
-    @ObservedObject private var companion = SessionCompanionService.shared
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-
-    var body: some View {
-        List {
-            Section("Créer le raccourci") {
-                Text("Dans Raccourcis, créez un raccourci nommé exactement « \(companion.focusShortcutName) ». Il reçoit le texte on ou off de Cadenza.")
-                Text("Si Entrée du raccourci est on : obtenez la concentration actuelle. Si un mode est déjà actif, renvoyez le texte kept sans le modifier. Sinon, activez Ne pas déranger jusqu’à désactivation et renvoyez le texte enabled.")
-                Text("Sinon, désactivez uniquement Ne pas déranger et renvoyez le texte disabled. Utilisez une action Texte en fin de chaque branche pour renvoyer ce résultat.")
-                Text("Le retour à Cadenza est géré automatiquement. N’ajoutez pas une action qui ouvre une autre app à la fin du raccourci.")
-                Button("Ouvrir Raccourcis", systemImage: "arrow.up.forward.app") {
-                    if let url = URL(string: "shortcuts://") { openURL(url) }
-                }
-            }
-            Section("Puis dans Cadenza") {
-                Text("Activez l’appel automatique après avoir configuré le raccourci. Lancez une séance pour vérifier son exécution ; la fin de séance appelle off. L’app ne peut pas créer ce raccourci personnel ni accorder ses autorisations à votre place.")
-                Text("Si le mode Concentration était déjà actif, il est conservé à la fin. Si Raccourcis est annulé ou rencontre une erreur, le chronomètre continue normalement et le diagnostic le signale.")
-            }
-        }
-        .cadenceListStyle()
-        .navigationTitle("Configurer Concentration")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Terminé") { dismiss() } } }
+/// Visible public system control, operated by the user. No hidden slider, KVC,
+/// programmatic volume changes or competing audio session are used.
+private struct SystemAudioVolumeView: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        let view = MPVolumeView(frame: .zero)
+        view.showsVolumeSlider = true
+        view.showsRouteButton = false // Modern route UI is AVRoutePickerView below.
+        view.tintColor = .systemBlue
+        view.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return view
     }
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+}
+
+private struct SystemAudioRoutePickerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView(frame: .zero)
+        view.prioritizesVideoDevices = false
+        view.tintColor = .systemBlue
+        view.activeTintColor = .systemBlue
+        return view
+    }
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }

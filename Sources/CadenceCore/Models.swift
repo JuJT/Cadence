@@ -82,7 +82,7 @@ public enum CourseStatus: String, Codable, CaseIterable, Identifiable, Sendable 
         switch self {
         case .scheduled: return "À venir"
         case .inProgressScheduled: return "Horaire en cours"
-        case .estimated: return "Estimé"
+        case .estimated: return "Terminé"
         case .confirmed: return "Confirmé"
         case .measured: return "Mesuré"
         case .absent: return "Absent"
@@ -140,8 +140,10 @@ public struct CourseOccurrence: Codable, Identifiable, Equatable, Sendable {
     public var identityUncertain: Bool
     public var school: SchoolCourseMetadata?
     public var schoolScheduleOverridden: Bool?
+    /// Explicit local accounting choice. Generic edits never imply an exclusion.
+    public var localStatusOverride: CourseStatus?
     public var supersededByOccurrenceID: UUID?
-    public init(id: UUID = UUID(), calendarIdentifier: String, eventIdentifier: String, externalIdentifier: String? = nil, occurrenceAnchor: Date? = nil, isRecurring: Bool = false, calendarName: String = "", title: String, start: Date, end: Date, subjectID: UUID? = nil, status: CourseStatus = .scheduled, previousStatus: CourseStatus? = nil, confirmedSeconds: TimeInterval? = nil, linkedSessionID: UUID? = nil, sourceMissing: Bool = false, userEdited: Bool = false, lastSeenAt: Date = Date(), sourceFingerprint: String = "", pendingStart: Date? = nil, pendingEnd: Date? = nil, pendingTitle: String? = nil, identityUncertain: Bool = false, school: SchoolCourseMetadata? = nil, schoolScheduleOverridden: Bool? = nil, supersededByOccurrenceID: UUID? = nil) {
+    public init(id: UUID = UUID(), calendarIdentifier: String, eventIdentifier: String, externalIdentifier: String? = nil, occurrenceAnchor: Date? = nil, isRecurring: Bool = false, calendarName: String = "", title: String, start: Date, end: Date, subjectID: UUID? = nil, status: CourseStatus = .scheduled, previousStatus: CourseStatus? = nil, confirmedSeconds: TimeInterval? = nil, linkedSessionID: UUID? = nil, sourceMissing: Bool = false, userEdited: Bool = false, lastSeenAt: Date = Date(), sourceFingerprint: String = "", pendingStart: Date? = nil, pendingEnd: Date? = nil, pendingTitle: String? = nil, identityUncertain: Bool = false, school: SchoolCourseMetadata? = nil, schoolScheduleOverridden: Bool? = nil, localStatusOverride: CourseStatus? = nil, supersededByOccurrenceID: UUID? = nil) {
         self.id = id; self.calendarIdentifier = calendarIdentifier; self.eventIdentifier = eventIdentifier
         self.externalIdentifier = externalIdentifier; self.occurrenceAnchor = occurrenceAnchor; self.isRecurring = isRecurring
         self.calendarName = calendarName; self.title = title; self.start = start; self.end = end
@@ -152,6 +154,7 @@ public struct CourseOccurrence: Codable, Identifiable, Equatable, Sendable {
         self.pendingStart = pendingStart; self.pendingEnd = pendingEnd; self.pendingTitle = pendingTitle
         self.identityUncertain = identityUncertain
         self.school = school; self.schoolScheduleOverridden = schoolScheduleOverridden; self.supersededByOccurrenceID = supersededByOccurrenceID
+        self.localStatusOverride = localStatusOverride
     }
     public var accountingStatus: CourseStatus { status == .needsReview ? previousStatus ?? .needsReview : status }
 
@@ -192,7 +195,12 @@ public struct CadenceState: Codable, Equatable, Sendable {
     public var courseContents: [SchoolCourseContent]
     public var schoolSync: SchoolSyncState?
     public var activeSession: StudySession? { sessions.first { $0.endedAt == nil } }
-    public var visibleOccurrences: [CourseOccurrence] { occurrences.filter { $0.supersededByOccurrenceID == nil } }
+    public var visibleOccurrences: [CourseOccurrence] {
+        occurrences.filter {
+            $0.supersededByOccurrenceID == nil
+                && !($0.sourceMissing && $0.linkedSessionID == nil && $0.accountingStatus == .cancelled)
+        }
+    }
     public init(schemaVersion: Int = 3, subjects: [Subject] = [], sessions: [StudySession] = [], occurrences: [CourseOccurrence] = [], settings: AppSettings = AppSettings(), homework: [HomeworkItem] = [], courseContents: [SchoolCourseContent] = [], schoolSync: SchoolSyncState? = nil) {
         self.schemaVersion = schemaVersion; self.subjects = subjects; self.sessions = sessions
         self.occurrences = occurrences; self.settings = settings

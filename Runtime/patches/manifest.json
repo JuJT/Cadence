@@ -1,0 +1,22 @@
+{
+  "source": "https://github.com/PapillonApp/Papillon/blob/93792b1fde14ad61a931ee4aab08321a0f42be2e/patches/%40blockshub%2Bpawnote-lts%2B1.6.4.patch",
+  "patchSHA256": "6079f4247678cd7a5da759ee8d6251e07bfaaf8ede67c773482b59b48585ae7b",
+  "files": {
+    "node_modules/@blockshub/pawnote-lts/dist/index.d.mts": {
+      "original": "1b3fd8a1905af0fba5f037ec15444cb17d89c40cec098c86dd1c8f96a7c3848b",
+      "patched": "b889ef75afc63741630fd58c2309bcdcb72de7378ce349158306ed83279022b2"
+    },
+    "node_modules/@blockshub/pawnote-lts/dist/index.d.ts": {
+      "original": "1b3fd8a1905af0fba5f037ec15444cb17d89c40cec098c86dd1c8f96a7c3848b",
+      "patched": "b889ef75afc63741630fd58c2309bcdcb72de7378ce349158306ed83279022b2"
+    },
+    "node_modules/@blockshub/pawnote-lts/dist/index.js": {
+      "original": "26f13f4ae6f57f07a772348079135b5189385edaa22fcb7a3f2fa9ef4383e6a9",
+      "patched": "0c72c67133d1452e7a76efa6804284b757b05fc004b2c7bdc5137cc7b21ec379"
+    },
+    "node_modules/@blockshub/pawnote-lts/dist/index.mjs": {
+      "original": "45ee3a9eb4ae7157b5365887f147b4c2c78a1c7890cec9895a7263409ab314b2",
+      "patched": "1147d007e48c23c0cfb3a952ded5249c751be78b348017e07038ba7927542219"
+    }
+  }
+}

@@ -32,7 +32,7 @@ struct TodayWidget: Widget {
                 .containerBackground(for: .widget) { WidgetCanvas() }
         }
         .configurationDisplayName("Cadenza aujourd’hui")
-        .description("Vos durées de cours et de révision du jour, séparées des estimations.")
+        .description("Vos durées de cours et de révisions du jour.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

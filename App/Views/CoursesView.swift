@@ -20,21 +20,8 @@ struct CoursesView: View {
         default: return nil
         }
     }
-    private var occurrences: [CourseOccurrence] {
-        store.state.visibleOccurrences.filter {
-            includes($0.start) && (search.isEmpty || $0.displayTitle(in: store.state.subjects).localizedStandardContains(search) || $0.title.localizedStandardContains(search))
-        }.sorted { $0.start < $1.start }
-    }
-    private var manualSessions: [StudySession] {
-        store.state.sessions.filter {
-            $0.kind == .course && $0.linkedOccurrenceID == nil && includes($0.startedAt) &&
-            (search.isEmpty || $0.topic.localizedStandardContains(search) || (Atelier.subject($0.subjectID, in: store.state)?.name.localizedStandardContains(search) ?? false))
-        }.sorted { $0.startedAt < $1.startedAt }
-    }
-    private var days: [Date] {
-        Set(occurrences.map { calendar.startOfDay(for: $0.start) } + manualSessions.map { calendar.startOfDay(for: $0.startedAt) }).sorted()
-    }
     var body: some View {
+        let groups = dayGroups()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }
@@ -60,14 +47,14 @@ struct CoursesView: View {
                         .accessibilityIdentifier("courses.next")
                     }.padding(6).cadenceSurface(radius: 28)
                 }
-            if days.isEmpty {
+            if groups.isEmpty {
                 EmptyCard(title: "Votre semaine se dessine ici", symbol: "calendar", description: "Connectez votre emploi du temps PRONOTE ou ajoutez un cours manuel.")
             }
-            ForEach(days, id: \.self) { day in
+            ForEach(groups) { group in
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(CourseDisplay.dayTitle(day, calendar: calendar))
+                    Text(CourseDisplay.dayTitle(group.date, calendar: calendar))
                         .font(.headline).foregroundStyle(CadenceColors.ink)
-                    ForEach(occurrences.filter { calendar.isDate($0.start, inSameDayAs: day) }) { occurrence in
+                    ForEach(group.occurrences) { occurrence in
                         HStack(alignment: .top, spacing: 10) {
                             Text(CourseDisplay.time(occurrence.start, course: occurrence))
                                 .font(.caption.monospacedDigit()).foregroundStyle(CadenceColors.secondary)
@@ -76,7 +63,7 @@ struct CoursesView: View {
                                 .buttonStyle(.plain)
                         }
                     }
-                    ForEach(manualSessions.filter { calendar.isDate($0.startedAt, inSameDayAs: day) }) { session in
+                    ForEach(group.manualSessions) { session in
                         NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session).padding(12).cadenceSurface(radius: 18) }
                             .buttonStyle(.plain)
                     }
@@ -104,7 +91,7 @@ struct CoursesView: View {
                     }.padding(17).cadenceSurface()
                 }.buttonStyle(.plain)
                 SecondaryAction(title: "Ajouter un cours", symbol: "plus") { showNew = true }.accessibilityIdentifier("courses.add")
-                Text("Les cours terminés sont comptés automatiquement. Vous pouvez retirer ceux qui n’ont pas eu lieu ; le temps estimé reste distinct du temps mesuré.")
+                Text("Les cours terminés sont comptés automatiquement. Vous pouvez retirer ceux qui n’ont pas eu lieu.")
                     .font(.caption).foregroundStyle(CadenceColors.secondary).padding(.horizontal, 4)
             }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 24)
                 .frame(maxWidth: CadenceTheme.contentWidth).frame(maxWidth: .infinity)
@@ -115,51 +102,70 @@ struct CoursesView: View {
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Ajouter un cours", systemImage: "plus") { showNew = true } } }
         .sheet(isPresented: $showNew) { NavigationStack { NewSessionView(kind: .course) } }
     }
-    private func includes(_ start: Date) -> Bool {
-        guard let interval else { return true }
-        return start >= interval.start && start < interval.end
+    private func dayGroups() -> [CourseDayGroup] {
+        let window = interval
+        let subjects = store.state.subjects
+        func includes(_ date: Date) -> Bool { window.map { date >= $0.start && date < $0.end } ?? true }
+        let courses = store.state.visibleOccurrences.filter {
+            includes($0.start) && (search.isEmpty || $0.displayTitle(in: subjects).localizedStandardContains(search) || $0.title.localizedStandardContains(search))
+        }.sorted { $0.start == $1.start ? $0.id.uuidString < $1.id.uuidString : $0.start < $1.start }
+        let sessions = store.state.sessions.filter {
+            $0.kind == .course && $0.linkedOccurrenceID == nil && includes($0.startedAt) &&
+                (search.isEmpty || $0.topic.localizedStandardContains(search) || (Atelier.subject($0.subjectID, in: store.state)?.name.localizedStandardContains(search) ?? false))
+        }.sorted { $0.startedAt == $1.startedAt ? $0.id.uuidString < $1.id.uuidString : $0.startedAt < $1.startedAt }
+        let coursesByDay = Dictionary(grouping: courses) { calendar.startOfDay(for: $0.start) }
+        let sessionsByDay = Dictionary(grouping: sessions) { calendar.startOfDay(for: $0.startedAt) }
+        return Set(coursesByDay.keys).union(sessionsByDay.keys).sorted().map {
+            CourseDayGroup(date: $0, occurrences: coursesByDay[$0] ?? [], manualSessions: sessionsByDay[$0] ?? [])
+        }
     }
     private func shift(_ direction: Int) { date = calendar.date(byAdding: .day, value: direction * (mode == "Semaine" ? 7 : 1), to: date) ?? date }
 }
 
+private struct CourseDayGroup: Identifiable {
+    let date: Date
+    let occurrences: [CourseOccurrence]
+    let manualSessions: [StudySession]
+    var id: Date { date }
+}
+
 /// School times use Europe/Paris; personal sessions keep the device's normal display zone.
 enum CourseDisplay {
-    private static func formatter(course: CourseOccurrence?) -> DateFormatter {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "fr_FR")
-        f.timeZone = course?.school == nil ? .current : SchoolDateCodec.parisCalendar.timeZone
-        return f
+    private static func calendar(for course: CourseOccurrence) -> Calendar {
+        course.school == nil ? .current : SchoolDateCodec.parisCalendar
+    }
+    private static func formatted(_ date: Date, style: Date.FormatStyle, calendar: Calendar) -> String {
+        var style = style
+        style.calendar = calendar
+        style.timeZone = calendar.timeZone
+        return date.formatted(style)
     }
     static func time(_ date: Date, course: CourseOccurrence) -> String {
-        let f = formatter(course: course); f.timeStyle = .short; f.dateStyle = .none
-        return f.string(from: date)
+        formatted(date, style: Date.FormatStyle(date: .omitted, time: .shortened, locale: Locale(identifier: "fr_FR")), calendar: calendar(for: course))
     }
     static func timeRange(_ course: CourseOccurrence) -> String {
         time(course.start, course: course) + " – " + time(course.end, course: course)
     }
     static func date(_ date: Date, course: CourseOccurrence) -> String {
-        let f = formatter(course: course); f.dateStyle = .full; f.timeStyle = .none
-        return f.string(from: date)
+        formatted(date, style: Date.FormatStyle(date: .complete, time: .omitted, locale: Locale(identifier: "fr_FR")), calendar: calendar(for: course))
     }
     static func shortDay(_ date: Date, course: CourseOccurrence) -> String {
-        let f = formatter(course: course); f.dateFormat = "EEEE d MMM"
-        return f.string(from: date)
+        formatted(date, style: .dateTime.weekday(.wide).day().month(.abbreviated).locale(Locale(identifier: "fr_FR")), calendar: calendar(for: course))
     }
     static func schoolDay(_ date: Date) -> String {
-        let f = formatter(course: nil); f.timeZone = SchoolDateCodec.parisCalendar.timeZone; f.dateStyle = .medium
-        return f.string(from: date)
+        formatted(date, style: Date.FormatStyle(date: .abbreviated, time: .omitted, locale: Locale(identifier: "fr_FR")), calendar: SchoolDateCodec.parisCalendar)
     }
     static func dayTitle(_ date: Date, calendar: Calendar) -> String {
-        let f = formatter(course: nil); f.calendar = calendar; f.timeZone = calendar.timeZone; f.dateFormat = "EEEE d MMMM"
-        return f.string(from: date)
+        formatted(date, style: .dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_FR")), calendar: calendar)
     }
     static func status(_ course: CourseOccurrence, autoCredit: Bool, now: Date = Date()) -> String {
         if course.school?.exempted == true { return "Dispensé" }
         if course.school?.canceled == true { return "Annulé" }
         if course.status == .ignored { return "Non suivi" }
         if course.status == .confirmed { return "Corrigé" }
+        if course.status == .estimated { return "Terminé" }
         if [.scheduled, .inProgressScheduled].contains(course.status), !course.sourceMissing,
-           course.end <= now, course.school != nil || autoCredit { return "Estimé" }
+           course.end <= now, course.school != nil || autoCredit { return "Terminé" }
         return course.status.label
     }
 }
@@ -284,7 +290,7 @@ struct CourseDetailView: View {
                     if let linked = store.state.sessions.first(where: { $0.id == course.linkedSessionID }) {
                         Section("Séance associée") {
                             NavigationLink { SessionEditorView(session: linked) } label: { SessionRow(session: linked) }
-                            Text("La durée de cette séance remplace l’estimation du créneau.").font(.footnote).foregroundStyle(.secondary)
+                            Text("La durée de cette séance remplace celle du créneau, sans compter le cours deux fois.").font(.footnote).foregroundStyle(.secondary)
                             Button("Retirer l’association", systemImage: "link") { showUnlinkConfirmation = true }
                                 .accessibilityIdentifier("course.unlink")
                         }
@@ -325,6 +331,9 @@ struct CourseDetailView: View {
                 }
             } else { EmptyCard(title: "Cours introuvable", symbol: "calendar", description: "Revenez à la liste pour sélectionner un cours.") }
         }.navigationTitle("Détail du cours").navigationBarTitleDisplayMode(.inline)
+            .task(id: occurrence?.school?.lessonResourceID) {
+                if let id = occurrence?.school?.lessonResourceID { await store.loadPronoteResource(id) }
+            }
     }
 }
 
@@ -368,7 +377,7 @@ private struct SessionLinkView: View {
     }
     var body: some View {
         List {
-            Section { Text("Choisissez la séance qui correspond à ce cours. Sa durée remplacera le temps estimé : les deux ne seront pas additionnés.").foregroundStyle(.secondary) }
+            Section { Text("Choisissez la séance qui correspond à ce cours. Sa durée remplacera celle du créneau : ce cours sera compté une seule fois.").foregroundStyle(.secondary) }
             if candidates.isEmpty { EmptyCard(title: "Aucune séance à associer", symbol: "link", description: "Ajoutez d’abord un cours manuel terminé pour cette matière.") }
             ForEach(candidates) { session in
                 Button { store.linkSession(sessionID: session.id, occurrenceID: occurrence.id); if store.errorMessage == nil { dismiss() } } label: { SessionRow(session: session) }

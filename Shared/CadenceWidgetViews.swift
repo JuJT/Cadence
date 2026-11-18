@@ -47,20 +47,19 @@ struct TodayWidgetView: View {
 
     private func total(_ value: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(CompactDuration.text(value.courseMeasured + value.revisions))
+            Text(CompactDuration.text(value.courseMeasured + value.courseEstimated + value.revisions))
                 .font(.system(size: family == .systemSmall ? 28 : 36, weight: .semibold, design: .rounded))
                 .lineLimit(1).minimumScaleFactor(0.75)
             if family == .systemMedium {
-                Text("Mesuré et confirmé").font(.caption2).foregroundStyle(.secondary)
+                Text("Temps d’étude").font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
 
     private func metrics(_ value: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: family == .systemSmall ? 3 : 7) {
-            WidgetMetric(title: "Cours", value: value.courseMeasured, color: WidgetPalette.blue)
+            WidgetMetric(title: "Cours", value: value.courseMeasured + value.courseEstimated, color: WidgetPalette.blue)
             WidgetMetric(title: "Révisions", value: value.revisions, color: WidgetPalette.violet)
-            WidgetMetric(title: "Estimés", value: value.courseEstimated, color: .secondary)
         }.font(.caption2)
     }
 }
@@ -183,7 +182,6 @@ struct WeekWidgetView: View {
                     HStack(spacing: 8) {
                         legend("Cours", color: WidgetPalette.blue)
                         legend("Révisions", color: WidgetPalette.violet)
-                        legend("Estimés", color: .secondary)
                     }
                     SnapshotStamp(date: snapshot.updatedAt)
                 }
@@ -194,12 +192,12 @@ struct WeekWidgetView: View {
         .widgetURL(URL(string: "cadence://statistiques"))
     }
     private func weekTotal(_ days: [WidgetDaySummary]) -> some View {
-        let seconds: Double = days.reduce(0.0) { $0 + $1.measured }
+        let seconds: Double = days.reduce(0.0) { $0 + $1.measured + $1.estimated }
         let duration: String = CompactDuration.text(seconds)
         return Text(duration)
             .font(.system(size: family == .systemSmall ? 23 : 22, weight: .semibold, design: .rounded))
             .lineLimit(1).minimumScaleFactor(0.75)
-            .accessibilityLabel("Mesuré et confirmé cette semaine : " + duration)
+            .accessibilityLabel("Temps d’étude cette semaine : " + duration)
     }
     private func legend(_ title: String, color: Color) -> some View {
         HStack(spacing: 3) { Circle().fill(color).frame(width: 4, height: 4); Text(title) }
@@ -231,10 +229,9 @@ private struct WeekWidgetDayBar: View {
         let locale = Locale(identifier: "fr_FR")
         dayLabel = day.date.formatted(.dateTime.weekday(.narrow).locale(locale))
         let fullDay = day.date.formatted(.dateTime.weekday(.wide).locale(locale))
-        let courses = "cours " + CompactDuration.text(day.courses)
+        let courses = "cours " + CompactDuration.text(day.courses + day.estimated)
         let revisions = "révisions " + CompactDuration.text(day.revisions)
-        let estimated = "estimés " + CompactDuration.text(day.estimated)
-        accessibilitySummary = [fullDay, courses, revisions, estimated].joined(separator: ", ")
+        accessibilitySummary = [fullDay, courses, revisions].joined(separator: ", ")
     }
 
     var body: some View {
@@ -250,23 +247,19 @@ private struct WeekWidgetDayBar: View {
 }
 
 private struct WeekWidgetBarSegments: View {
-    private let estimatedHeight: CGFloat
     private let revisionHeight: CGFloat
     private let courseHeight: CGFloat
 
     init(day: WidgetDaySummary, peak: Double, height: CGFloat) {
         let denominator: Double = max(1, peak)
-        let estimatedRatio: Double = max(0, day.estimated) / denominator
         let revisionRatio: Double = max(0, day.revisions) / denominator
-        let courseRatio: Double = max(0, day.courses) / denominator
-        estimatedHeight = height * CGFloat(estimatedRatio)
+        let courseRatio: Double = max(0, day.courses + day.estimated) / denominator
         revisionHeight = height * CGFloat(revisionRatio)
         courseHeight = height * CGFloat(courseRatio)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            Rectangle().fill(Color.secondary.opacity(0.4)).frame(height: estimatedHeight)
             Rectangle().fill(WidgetPalette.violet).frame(height: revisionHeight)
             Rectangle().fill(WidgetPalette.blue).frame(height: courseHeight)
         }
@@ -337,11 +330,11 @@ struct AccessoryStudyWidgetView: View {
         Group {
             if let value = entry.todaySnapshot {
                 if family == .accessoryInline {
-                    Label("Cadenza · " + CompactDuration.text(value.courseMeasured + value.revisions), systemImage: "book.closed")
+                    Label("Cadenza · " + CompactDuration.text(value.courseMeasured + value.courseEstimated + value.revisions), systemImage: "book.closed")
                 } else {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(CompactDuration.text(value.courseMeasured + value.revisions)).font(.headline)
-                        Text("Cours " + CompactDuration.text(value.courseMeasured) + " · Révisions " + CompactDuration.text(value.revisions))
+                        Text(CompactDuration.text(value.courseMeasured + value.courseEstimated + value.revisions)).font(.headline)
+                        Text("Cours " + CompactDuration.text(value.courseMeasured + value.courseEstimated) + " · Révisions " + CompactDuration.text(value.revisions))
                             .font(.caption).lineLimit(2).minimumScaleFactor(0.85)
                     }
                 }

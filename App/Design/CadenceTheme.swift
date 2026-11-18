@@ -45,32 +45,76 @@ enum Atelier {
     static func subject(_ id: UUID?, in state: CadenceState) -> Subject? { state.subjects.first { $0.id == id } }
 }
 
-/// Slow light fields drift along a smooth, non-repeating path without per-frame blurs.
+private struct CadenceActiveTabKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    var cadenceTabIsActive: Bool {
+        get { self[CadenceActiveTabKey.self] }
+        set { self[CadenceActiveTabKey.self] = newValue }
+    }
+}
+
+/// Keep the view identity stable while suspending its clock outside the visible tab.
+struct CadenceTimelineView<Content: View>: View {
+    let interval: TimeInterval
+    let paused: Bool
+    let content: (Date) -> Content
+    @Environment(\.cadenceTabIsActive) private var activeTab
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var visible = false
+
+    init(interval: TimeInterval, paused: Bool = false, @ViewBuilder content: @escaping (Date) -> Content) {
+        self.interval = interval
+        self.paused = paused
+        self.content = content
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: interval, paused: paused || !visible || !activeTab || scenePhase != .active)) { context in
+            content(context.date)
+        }
+        .onAppear { visible = true }
+        .onDisappear { visible = false }
+    }
+}
+
+/// Diffuse halos move slowly enough to sample at two updates per second.
 struct CadenceBackground: View {
     var animated = true
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.cadenceTabIsActive) private var activeTab
     @State private var isVisible = false
     @State private var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+    @State private var thermalState = ProcessInfo.processInfo.thermalState
 
-    private var motionEnabled: Bool { animated && !reduceMotion && !reduceTransparency && !lowPower }
+    private var motionEnabled: Bool { animated && !reduceMotion && !reduceTransparency && !lowPower && thermalState == .nominal }
 
     var body: some View {
         GeometryReader { geometry in
             if motionEnabled {
-                TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !isVisible || scenePhase != .active)) { context in
+                TimelineView(.animation(minimumInterval: 0.5, paused: !isVisible || !activeTab || scenePhase != .active)) { context in
                     lightFields(size: geometry.size, date: context.date)
                 }
             } else {
                 lightFields(size: geometry.size, date: nil)
             }
         }.ignoresSafeArea().accessibilityHidden(true).allowsHitTesting(false)
-            .onAppear { isVisible = true; lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled }
+            .onAppear {
+                isVisible = true
+                lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+                thermalState = ProcessInfo.processInfo.thermalState
+            }
             .onDisappear { isVisible = false }
             .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange).receive(on: RunLoop.main)) { _ in
                 lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+            }
+            .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification).receive(on: RunLoop.main)) { _ in
+                thermalState = ProcessInfo.processInfo.thermalState
             }
     }
 
@@ -113,31 +157,6 @@ private enum CadenceAuraMotion {
     private static func random(_ index: Double, seed: Double) -> Double {
         let value = sin(index * 12.9898 + seed * 78.233) * 43758.5453
         return value - floor(value)
-    }
-}
-
-/// A short entrance changes presentation only; the tab's navigation state stays intact.
-struct CadenceTabEntrance: ViewModifier {
-    let isSelected: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var progress = 1.0
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(0.8 + 0.2 * progress)
-            .offset(y: reduceMotion ? 0 : (1 - progress) * 6)
-            .task(id: isSelected) {
-                guard isSelected, !reduceMotion, scenePhase == .active,
-                      !ProcessInfo.processInfo.isLowPowerModeEnabled else { progress = 1; return }
-                progress = 0
-                do { try await Task.sleep(nanoseconds: 20_000_000) }
-                catch { progress = 1; return }
-                guard !Task.isCancelled else { progress = 1; return }
-                withAnimation(.easeOut(duration: 0.24)) { progress = 1 }
-            }
-            .onChange(of: reduceMotion) { _, reduced in if reduced { progress = 1 } }
-            .onChange(of: scenePhase) { _, phase in if phase != .active { progress = 1 } }
     }
 }
 
@@ -196,10 +215,14 @@ struct AtelierCard<Content: View>: View {
 
 struct AtelierPage<Content: View>: View {
     let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
+    private let lazy: Bool
+    init(lazy: Bool = false, @ViewBuilder content: () -> Content) { self.lazy = lazy; self.content = content() }
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) { content }
+            Group {
+                if lazy { LazyVStack(alignment: .leading, spacing: 20) { content } }
+                else { VStack(alignment: .leading, spacing: 20) { content } }
+            }
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 24)
                 .frame(maxWidth: CadenceTheme.contentWidth).frame(maxWidth: .infinity)
         }.background(CadenceBackground())

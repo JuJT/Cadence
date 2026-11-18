@@ -213,20 +213,25 @@ public struct SchoolHomework: Codable, Equatable, Sendable, Identifiable {
 
 public struct HomeworkItem: Codable, Equatable, Identifiable, Sendable {
     public var source: SchoolHomework
+    /// Local links survive a provider changing its remote UID representation.
+    public var localID: String?
+    public var sourceIdentityAliases: [String]?
     public var subjectID: UUID?
     public var localCompletionOverride: Bool?
     public var subjectOverridden: Bool?
     public var localUpdatedAt: Date?
     public var lastSeenAt: Date
     public var sourceMissing: Bool
-    public var id: String { source.uid }
+    public var id: String { localID ?? source.uid }
     public var isDone: Bool { localCompletionOverride ?? source.done }
     public var sourceDone: Bool { source.done }
     public init(source: SchoolHomework, subjectID: UUID?, localCompletionOverride: Bool? = nil, subjectOverridden: Bool? = nil,
-                localUpdatedAt: Date? = nil, lastSeenAt: Date = Date(), sourceMissing: Bool = false) {
+                localUpdatedAt: Date? = nil, lastSeenAt: Date = Date(), sourceMissing: Bool = false,
+                localID: String? = nil, sourceIdentityAliases: [String]? = nil) {
         self.source = source; self.subjectID = subjectID; self.localCompletionOverride = localCompletionOverride
         self.subjectOverridden = subjectOverridden
         self.localUpdatedAt = localUpdatedAt; self.lastSeenAt = lastSeenAt; self.sourceMissing = sourceMissing
+        self.localID = localID; self.sourceIdentityAliases = sourceIdentityAliases
     }
     public func isOverdue(at now: Date = Date(), calendar: Calendar = SchoolDateCodec.parisCalendar) -> Bool {
         !isDone && calendar.startOfDay(for: source.deadline) < calendar.startOfDay(for: now)

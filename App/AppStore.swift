@@ -20,12 +20,26 @@ final class AppStore: ObservableObject {
     @Published private(set) var schoolSyncing = false
     @Published private(set) var schoolStatus = "Connexion scolaire à configurer"
     @Published private(set) var schoolError: String?
+    @Published private(set) var pronoteProfile: PronoteProfile?
+    @Published private(set) var pronoteChallenge: PronoteSecurityChallenge?
+    @Published private(set) var pronotePortal = PronotePortalCache()
+    @Published private(set) var pronotePortalLoading: Set<String> = []
+    @Published private(set) var pronotePortalErrors: [String: String] = [:]
 
     private let calendarService = CalendarIntegrationService()
-    private let schoolService = SupabaseSchoolService()
+    private let schoolService = PronoteSchoolService()
+    private let portalRepository = PronotePortalRepository()
     private var lastSchoolAttempt: Date?
     private var schoolEpoch = UUID()
     private var schoolOperation: UUID?
+    private var stateRevision: UInt64 = 0
+    private var schoolCacheRepaired = false
+    private var portalLoaded = false
+    private var portalLoadTask: Task<PronotePortalCache?, Never>?
+    private var portalWriteTail: Task<Bool, Never>?
+    private var portalWriteOperation: UUID?
+    private var portalOperations: [String: UUID] = [:]
+    private var remoteWriteOperations: Set<String> = []
     private var repository: LocalStateRepository?
     private var writesBlocked = false
     var needsRecovery: Bool { writesBlocked }
@@ -81,6 +95,16 @@ final class AppStore: ObservableObject {
             writesBlocked = true
             errorMessage = "Les données locales n’ont pas pu être lues. Le fichier existant est conservé. Restaurez une sauvegarde JSON pour rétablir le suivi. \(error.localizedDescription)"
         }
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--uitesting"),
+           ProcessInfo.processInfo.arguments.contains("--uitesting-school") {
+            pronotePortal = PronoteUITestFixtures.cache()
+            pronoteProfile = pronotePortal.profile
+            portalLoaded = true
+            schoolSignedIn = true
+            schoolStatus = "Données fictives de recette · hors connexion"
+        }
+        #endif
         calendarPermissionDescription = calendarService.permissionDescription
         calendarSources = calendarService.sources()
         lastSyncAt = state.settings.lastCalendarSync
@@ -135,10 +159,12 @@ final class AppStore: ObservableObject {
         do {
             var updated = state
             try mutation(&updated)
+            guard updated != state else { return true }
             try BackupCodec.validate(updated)
             try repository.save(updated)
             let previousSessionID = state.activeSession?.id
             state = updated
+            stateRevision &+= 1
             errorMessage = nil
             SystemIntegrationService.shared.refresh(state: updated)
             if previousSessionID != updated.activeSession?.id {
@@ -323,39 +349,99 @@ final class AppStore: ObservableObject {
     }
 
     func foreground() async {
+        await loadInitialPortal()
+        guard await repairSchoolCache(epoch: schoolEpoch) else { return }
         await refreshSchool(force: false)
-        if !writesBlocked {
-            performMutation { state in
-                CadenceEngine.setAutoCredit(state: &state, enabled: true)
-            }
+    }
+
+    private var isUITestSession: Bool {
+        #if targetEnvironment(simulator)
+        return ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #else
+        return false
+        #endif
+    }
+
+    func findPronoteSchools(latitude: Double, longitude: Double) async throws -> [PronoteSchool] {
+        guard !isUITestSession else { return [] }
+        let epoch = schoolEpoch
+        let schools = try await schoolService.discover(latitude: latitude, longitude: longitude)
+        guard epoch == schoolEpoch, !Task.isCancelled else { throw CancellationError() }
+        return schools
+    }
+
+    @discardableResult
+    func connectPronote(url: String, username: String, password: String, kind: Int = 6) async -> Bool {
+        guard !isUITestSession, !schoolSyncing else { return false }
+        await loadInitialPortal()
+        guard !schoolSyncing else { return false }
+        invalidateSchoolRequests()
+        let epoch = schoolEpoch, operation = UUID()
+        schoolOperation = operation; schoolSyncing = true
+        schoolError = nil; pronoteChallenge = nil; schoolSignedIn = false
+        defer { finishSchoolOperation(operation) }
+        do {
+            let profile = try await schoolService.connect(url: url, username: username, password: password, kind: kind)
+            guard epoch == schoolEpoch else { return false }
+            await installProfile(profile, epoch: epoch)
+            guard epoch == schoolEpoch else { return false }
+            finishSchoolOperation(operation)
+            await refreshSchool(force: true)
+            return epoch == schoolEpoch && schoolSignedIn
+        } catch {
+            handleSchoolError(error, epoch: epoch)
+            return false
         }
     }
 
     @discardableResult
-    func requestSchoolLogin(email: String) async -> Bool {
-        let epoch = schoolEpoch
-        schoolError = nil
-        do { try await schoolService.requestLogin(email: email); return epoch == schoolEpoch }
-        catch { if epoch == schoolEpoch { schoolError = error.localizedDescription }; return false }
+    func completePronoteSecurity(pin: String, password: String, source: String, mode: Int?) async -> Bool {
+        guard !isUITestSession, !schoolSyncing, pronoteChallenge != nil else { return false }
+        let epoch = schoolEpoch, operation = UUID()
+        schoolOperation = operation; schoolSyncing = true; schoolError = nil
+        defer { finishSchoolOperation(operation) }
+        do {
+            let profile = try await schoolService.completeSecurity(pin: pin, password: password, source: source, mode: mode)
+            guard epoch == schoolEpoch else { return false }
+            await installProfile(profile, epoch: epoch)
+            guard epoch == schoolEpoch else { return false }
+            finishSchoolOperation(operation)
+            await refreshSchool(force: true)
+            return epoch == schoolEpoch && schoolSignedIn
+        } catch {
+            handleSchoolError(error, epoch: epoch)
+            return false
+        }
     }
 
     @discardableResult
-    func verifySchoolLogin(email: String, codeOrLink: String) async -> Bool {
+    func selectPronoteResource(_ id: String) async -> Bool {
+        guard !isUITestSession, !schoolSyncing, !id.isEmpty else { return false }
         invalidateSchoolRequests()
-        let epoch = schoolEpoch
-        schoolError = nil
+        let epoch = schoolEpoch, operation = UUID()
+        schoolOperation = operation; schoolSyncing = true; schoolError = nil
+        defer { finishSchoolOperation(operation) }
         do {
-            try await schoolService.verifyLogin(email: email, codeOrLink: codeOrLink)
+            let profile = try await schoolService.selectResource(id)
             guard epoch == schoolEpoch else { return false }
+            await installProfile(profile, epoch: epoch)
+            guard epoch == schoolEpoch else { return false }
+            finishSchoolOperation(operation)
             await refreshSchool(force: true)
-            return epoch == schoolEpoch && schoolSignedIn && schoolError == nil
-        } catch { if epoch == schoolEpoch { schoolError = error.localizedDescription }; return false }
+            return epoch == schoolEpoch && schoolSignedIn
+        } catch {
+            handleSchoolError(error, epoch: epoch)
+            return false
+        }
     }
 
     func disconnectSchool() async {
+        guard !isUITestSession else { return }
         invalidateSchoolRequests()
-        let epoch = schoolEpoch
-        schoolError = nil
+        let epoch = schoolEpoch, operation = UUID()
+        schoolOperation = operation; schoolSyncing = true
+        pronoteChallenge = nil; schoolError = nil
+        defer { finishSchoolOperation(operation) }
         do { try await schoolService.signOut() }
         catch { if epoch == schoolEpoch { schoolError = error.localizedDescription } }
         let signedIn = await schoolService.hasSession
@@ -363,34 +449,149 @@ final class AppStore: ObservableObject {
         guard epoch == schoolEpoch else { return }
         schoolSignedIn = signedIn
         schoolEmail = email
+        if !signedIn { pronoteProfile = nil }
         schoolStatus = signedIn ? "La connexion reste enregistrée · réessayez la déconnexion" : "Déconnecté · données locales conservées"
     }
 
     private func invalidateSchoolRequests() {
         schoolEpoch = UUID(); schoolOperation = nil; schoolSyncing = false
+        lastSchoolAttempt = nil
+        portalOperations = [:]; remoteWriteOperations = []
+        pronotePortalLoading = []; pronotePortalErrors = [:]
+    }
+
+    private func finishSchoolOperation(_ operation: UUID) {
+        if schoolOperation == operation { schoolSyncing = false; schoolOperation = nil }
+    }
+
+    private func handleSchoolError(_ error: Error, epoch: UUID) {
+        guard epoch == schoolEpoch, !(error is CancellationError) else { return }
+        if case PronoteServiceError.security(let challenge) = error {
+            pronoteChallenge = challenge
+            schoolSignedIn = false
+            schoolStatus = "Vérification de sécurité PRONOTE requise"
+        } else {
+            schoolError = error.localizedDescription
+            schoolStatus = state.schoolSync == nil ? "Connexion PRONOTE indisponible" : "Hors connexion · dernier emploi du temps conservé"
+        }
+    }
+
+    /// Load once before a remote operation. A late disk read cannot replace a newly connected account.
+    private func loadInitialPortal() async {
+        guard !portalLoaded else { return }
+        if isUITestSession { portalLoaded = true; return }
+        let epoch = schoolEpoch
+        if portalLoadTask == nil {
+            let repository = portalRepository
+            portalLoadTask = Task { try? await repository.load() }
+        }
+        let cached = await portalLoadTask?.value
+        guard !portalLoaded else { return }
+        portalLoaded = true; portalLoadTask = nil
+        guard epoch == schoolEpoch, let cached else { return }
+        pronotePortal = cached
+        pronoteProfile = cached.profile
+    }
+
+    /// Keep cache writes ordered across section loads and account changes.
+    @discardableResult
+    private func updatePortal(epoch: UUID, _ mutation: @escaping (inout PronotePortalCache) -> Void) async -> Bool {
+        let previous = portalWriteTail, operation = UUID()
+        let task = Task { @MainActor [weak self] () -> Bool in
+            _ = await previous?.value
+            guard let self, epoch == self.schoolEpoch else { return false }
+            var updated = self.pronotePortal
+            mutation(&updated)
+            if updated == self.pronotePortal { return true }
+            do { try await self.portalRepository.save(updated) }
+            catch {
+                guard epoch == self.schoolEpoch else { return false }
+                self.pronotePortalErrors["cache"] = "Le cache scolaire n’a pas pu être enregistré. Les données de cette session restent consultables."
+            }
+            guard epoch == self.schoolEpoch else { return false }
+            self.pronotePortal = updated
+            return true
+        }
+        portalWriteTail = task; portalWriteOperation = operation
+        let result = await task.value
+        if portalWriteOperation == operation { portalWriteTail = nil; portalWriteOperation = nil }
+        return result
+    }
+
+    private func installProfile(_ profile: PronoteProfile, epoch: UUID) async {
+        guard epoch == schoolEpoch else { return }
+        _ = await updatePortal(epoch: epoch) { cache in
+            if let old = cache.profile,
+               old.resourceID != profile.resourceID || old.establishment != profile.establishment || old.displayName != profile.displayName {
+                cache = PronotePortalCache()
+            } else if cache.profile == nil && !cache.sections.isEmpty {
+                cache = PronotePortalCache()
+            }
+            cache.profile = profile
+        }
+        guard epoch == schoolEpoch else { return }
+        pronoteProfile = profile; pronoteChallenge = nil
+        schoolSignedIn = true; schoolEmail = profile.displayName
+        schoolStatus = "Compte PRONOTE connecté"
+    }
+
+    /// Reconcile a value off MainActor, then rebase if a timer action changed the live state meanwhile.
+    private func reconcileSchool(snapshot: SchoolSnapshot?, epoch: UUID) async -> Bool {
+        guard !writesBlocked else { return false }
+        do {
+            for _ in 0..<4 {
+                guard epoch == schoolEpoch, !Task.isCancelled else { return false }
+                let base = state, revision = stateRevision
+                let updated = try await Task.detached(priority: .userInitiated) {
+                    var result = base
+                    if let snapshot { _ = try SchoolReconciler.sync(state: &result, snapshot: snapshot) }
+                    else { _ = try SchoolReconciler.repairCachedOccurrences(state: &result) }
+                    CadenceEngine.setAutoCredit(state: &result, enabled: true)
+                    return result
+                }.value
+                guard epoch == schoolEpoch, !Task.isCancelled else { return false }
+                guard revision == stateRevision else { continue }
+                return performMutation { $0 = updated }
+            }
+            return false
+        } catch {
+            if epoch == schoolEpoch { schoolError = error.localizedDescription }
+            return false
+        }
+    }
+
+    private func repairSchoolCache(epoch: UUID) async -> Bool {
+        guard !schoolCacheRepaired else { return true }
+        let success = await reconcileSchool(snapshot: nil, epoch: epoch)
+        if success, epoch == schoolEpoch { schoolCacheRepaired = true }
+        return success
     }
 
     func refreshSchool(force: Bool = true) async {
         guard !writesBlocked, !schoolSyncing else { return }
+        await loadInitialPortal()
+        let epoch = schoolEpoch
+        guard await repairSchoolCache(epoch: epoch), epoch == schoolEpoch, !schoolSyncing else { return }
         #if targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--uitesting") {
-            schoolSignedIn = state.schoolSync != nil
+            schoolSignedIn = pronoteProfile != nil || state.schoolSync != nil
             schoolStatus = state.schoolSync == nil ? "Suivi manuel" : "Données fictives de recette · hors connexion"
             return
         }
         #endif
-        let epoch = schoolEpoch
         let operation = UUID()
         schoolOperation = operation
         schoolSyncing = true
-        defer { if schoolOperation == operation { schoolSyncing = false; schoolOperation = nil } }
+        defer { finishSchoolOperation(operation) }
         let signedIn = await schoolService.hasSession
         let email = await schoolService.email
         guard epoch == schoolEpoch else { return }
         schoolSignedIn = signedIn
         schoolEmail = email
         guard schoolSignedIn else {
-            schoolStatus = state.schoolSync == nil ? "Connecter PRONOTE via Supabase" : "Cache scolaire disponible · connexion à rétablir"
+            schoolStatus = pronoteChallenge == nil
+                ? (state.schoolSync == nil ? "Connecter mon compte PRONOTE" : "Cache scolaire disponible · connexion PRONOTE à rétablir")
+                : "Vérification de sécurité PRONOTE requise"
             return
         }
         if !force, let lastSchoolAttempt, Date().timeIntervalSince(lastSchoolAttempt) < 300 { return }
@@ -399,19 +600,128 @@ final class AppStore: ObservableObject {
         do {
             let snapshot = try await schoolService.fetchSnapshot()
             guard epoch == schoolEpoch else { return }
-            guard performMutation({ state in _ = try SchoolReconciler.sync(state: &state, snapshot: snapshot) }) else {
-                schoolError = errorMessage; return
+            let profile = await schoolService.currentProfile
+            if let profile { await installProfile(profile, epoch: epoch) }
+            guard epoch == schoolEpoch else { return }
+            let applied = await reconcileSchool(snapshot: snapshot, epoch: epoch)
+            guard epoch == schoolEpoch else { return }
+            guard applied else {
+                schoolError = errorMessage ?? schoolError ?? "L’emploi du temps sera actualisé au prochain rafraîchissement. Vos données sont conservées."
+                return
             }
             lastSyncAt = state.schoolSync?.lastSuccessfulFetch
-            schoolStatus = snapshot.syncState.hasError ? "Cache actualisé · source PRONOTE à vérifier" : "PRONOTE synchronisé avec Supabase"
+            schoolStatus = snapshot.syncState.hasError ? "Cache actualisé · source PRONOTE à vérifier" : "PRONOTE synchronisé directement"
         } catch {
             let signedIn = await schoolService.hasSession
             let email = await schoolService.email
             guard epoch == schoolEpoch else { return }
             schoolSignedIn = signedIn
             schoolEmail = email
-            schoolError = error.localizedDescription
-            schoolStatus = state.schoolSync == nil ? "Connexion scolaire indisponible" : "Hors connexion · dernier emploi du temps conservé"
+            handleSchoolError(error, epoch: epoch)
+        }
+    }
+
+    func loadPronoteSection(_ section: String, periodID: String? = nil) async {
+        let allowed = Set(["grades", "evaluations", "attendance", "news", "discussions", "menus", "contents", "account", "gradebook", "homepage"])
+        guard allowed.contains(section), (periodID?.utf8.count ?? 0) <= 256 else { return }
+        await loadInitialPortal()
+        guard !isUITestSession else { return }
+        if let profile = pronoteProfile, !profile.capabilities.contains(section) { return }
+        let key = section + (periodID.map { ":" + $0 } ?? "")
+        await loadPortalValue(key: key) { try await self.schoolService.fetchSection(section, periodID: periodID) }
+    }
+
+    func loadPronoteThread(_ id: String) async {
+        guard !id.isEmpty, id.utf8.count <= 512, !isUITestSession else { return }
+        await loadInitialPortal()
+        await loadPortalValue(key: "discussion:" + id) { try await self.schoolService.fetchThread(id) }
+    }
+
+    func loadPronoteResource(_ id: String) async {
+        guard !id.isEmpty, id.utf8.count <= 512, !isUITestSession else { return }
+        await loadInitialPortal()
+        let epoch = schoolEpoch
+        await loadPortalValue(key: "resource:" + id) {
+            let (resource, contents) = try await self.schoolService.fetchResource(id)
+            guard epoch == self.schoolEpoch else { throw CancellationError() }
+            if !contents.isEmpty {
+                self.performMutation { state in
+                    for content in contents {
+                        if let index = state.courseContents.firstIndex(where: { $0.id == content.id }) { state.courseContents[index] = content }
+                        else { state.courseContents.append(content) }
+                    }
+                }
+            }
+            return resource
+        }
+    }
+
+    private func loadPortalValue(key: String, fetch: () async throws -> SchoolJSON) async {
+        guard portalOperations[key] == nil else { return }
+        let epoch = schoolEpoch, operation = UUID()
+        portalOperations[key] = operation
+        pronotePortalLoading.insert(key); pronotePortalErrors[key] = nil
+        defer {
+            if portalOperations[key] == operation {
+                portalOperations[key] = nil; pronotePortalLoading.remove(key)
+            }
+        }
+        do {
+            let value = try await fetch()
+            guard epoch == schoolEpoch, portalOperations[key] == operation, !Task.isCancelled else { return }
+            let profile = await schoolService.currentProfile
+            if let profile { await installProfile(profile, epoch: epoch) }
+            guard epoch == schoolEpoch, portalOperations[key] == operation, !Task.isCancelled else { return }
+            _ = await updatePortal(epoch: epoch) { cache in
+                guard self.portalOperations[key] == operation else { return }
+                cache.sections[key] = value; cache.updatedAt[key] = Date()
+            }
+        } catch {
+            guard epoch == schoolEpoch, portalOperations[key] == operation, !(error is CancellationError) else { return }
+            pronotePortalErrors[key] = error.localizedDescription
+            if case PronoteServiceError.security = error { handleSchoolError(error, epoch: epoch) }
+        }
+    }
+
+    @discardableResult
+    func replyPronoteThread(_ id: String, text: String) async -> Bool {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = "reply:" + id, epoch = schoolEpoch
+        guard !isUITestSession, !id.isEmpty, id.utf8.count <= 512, !text.isEmpty,
+              text.utf8.count <= 100_000, !remoteWriteOperations.contains(key) else { return false }
+        remoteWriteOperations.insert(key)
+        defer { if epoch == schoolEpoch { remoteWriteOperations.remove(key) } }
+        do {
+            try await schoolService.reply(id, text: text)
+            guard epoch == schoolEpoch else { return false }
+            // A read started before sending must not suppress the post-send refresh.
+            portalOperations["discussion:" + id] = nil
+            pronotePortalLoading.remove("discussion:" + id)
+            await loadPronoteThread(id)
+            return epoch == schoolEpoch
+        } catch {
+            if epoch == schoolEpoch { pronotePortalErrors["discussion:" + id] = error.localizedDescription }
+            return false
+        }
+    }
+
+    @discardableResult
+    func acknowledgePronoteNews(_ id: String) async -> Bool {
+        let key = "acknowledge:" + id, epoch = schoolEpoch
+        guard !isUITestSession, !id.isEmpty, id.utf8.count <= 512,
+              !remoteWriteOperations.contains(key) else { return false }
+        remoteWriteOperations.insert(key)
+        defer { if epoch == schoolEpoch { remoteWriteOperations.remove(key) } }
+        do {
+            try await schoolService.acknowledge(id)
+            guard epoch == schoolEpoch else { return false }
+            portalOperations["news"] = nil
+            pronotePortalLoading.remove("news")
+            await loadPronoteSection("news")
+            return epoch == schoolEpoch
+        } catch {
+            if epoch == schoolEpoch { pronotePortalErrors["news"] = error.localizedDescription }
+            return false
         }
     }
 
@@ -426,6 +736,8 @@ final class AppStore: ObservableObject {
             self.repository = repository
             invalidateSchoolRequests()
             state = restored
+            stateRevision &+= 1
+            schoolCacheRepaired = false
             lastSyncAt = restored.settings.lastCalendarSync
             writesBlocked = false
             errorMessage = nil

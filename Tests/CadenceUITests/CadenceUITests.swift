@@ -2,6 +2,45 @@ import XCTest
 
 final class CadenceUITests: XCTestCase {
     @MainActor
+    func testPronoteLoginRequiresPublicHTTPSWithoutRequestingLocation() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments()
+        app.launch()
+        tap(app.buttons["Réglages"], in: app)
+        tap(app.buttons["Connexion PRONOTE"], in: app)
+        XCTAssertTrue(app.navigationBars["Connexion PRONOTE"].waitForExistence(timeout: 4))
+        // The login screen does not request GPS. This test never taps nearby or connect.
+        XCTAssertEqual(app.alerts.count, 0)
+        let nearby = app.buttons["school.find.nearby"]
+        XCTAssertTrue(nearby.exists)
+        let url = app.textFields["school.login.url"]
+        let connect = app.buttons["school.login.connect"]
+        tap(url, in: app)
+        url.typeText("http://school-example.index-education.net/pronote/")
+        let username = app.textFields["school.login.username"]
+        tap(username, in: app)
+        username.typeText("compte-fictif-test-ui")
+        let password = app.secureTextFields["school.login.password"]
+        tap(password, in: app)
+        password.typeText("MotDePasseFictif42\n")
+        XCTAssertTrue(reveal(connect, in: app))
+        XCTAssertFalse(connect.isEnabled)
+
+        tap(url, in: app)
+        let invalidValue = (url.value as? String) ?? ""
+        url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: invalidValue.count))
+        url.typeText("https://127.0.0.1/pronote/")
+        XCTAssertFalse(connect.isEnabled)
+
+        let localValue = (url.value as? String) ?? ""
+        url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: localValue.count))
+        url.typeText("https://school-example.index-education.net/pronote/")
+        XCTAssertTrue(connect.isEnabled)
+        capture(app, name: "pronote-connexion-directe-formulaire")
+        // No network authentication and no real credentials are used by this test.
+    }
+
+    @MainActor
     func testMusicAndFocusSheetHasNavigationAndClosesToSession() throws {
         let app = XCUIApplication()
         app.launchArguments = testArguments()
@@ -10,12 +49,55 @@ final class CadenceUITests: XCTestCase {
         tap(app.buttons["session.start"], in: app)
         XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
         tap(app.buttons["session.companion"], in: app)
-        XCTAssertTrue(app.navigationBars["Musique et concentration"].waitForExistence(timeout: 4))
-        XCTAssertTrue(app.buttons["companion.audio.import"].exists)
+        XCTAssertTrue(app.navigationBars["Son et concentration"].waitForExistence(timeout: 4))
+        let volume = app.descendants(matching: .any).matching(identifier: "companion.system.volume").firstMatch
+        XCTAssertTrue(volume.waitForExistence(timeout: 3))
+        XCTAssertTrue(reveal(app.buttons["companion.focus.add"], in: app))
         capture(app, name: "musique-et-concentration")
         tap(app.buttons["Fermer"], in: app)
-        XCTAssertFalse(app.navigationBars["Musique et concentration"].exists)
+        XCTAssertFalse(app.navigationBars["Son et concentration"].exists)
         XCTAssertTrue(reveal(app.buttons["session.pause"], in: app))
+    }
+
+    @MainActor
+    func testPronotePortalReadsSyntheticGradesLessonAndMessages() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        tap(app.buttons["pronote.portal"], in: app)
+        XCTAssertTrue(app.navigationBars["Mon espace scolaire"].waitForExistence(timeout: 4))
+        tap(app.buttons["pronote.portal.grades"], in: app)
+        XCTAssertTrue(app.navigationBars["Notes"].waitForExistence(timeout: 4))
+        XCTAssertTrue(reveal(app.staticTexts["Évaluation fictive — équations"], in: app))
+        capture(app, name: "pronote-notes")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        tap(app.buttons["pronote.portal.contents"], in: app)
+        XCTAssertTrue(app.navigationBars["Contenus des cours"].waitForExistence(timeout: 4))
+        tap(app.buttons["pronote.resource.fixture-resource"], in: app)
+        XCTAssertTrue(app.navigationBars["Contenu du cours"].waitForExistence(timeout: 4))
+        XCTAssertTrue(reveal(app.staticTexts["Leçon fictive : les équations"], in: app))
+        XCTAssertTrue(app.staticTexts["Contenu entièrement fictif : isoler une inconnue puis vérifier la solution."].exists)
+        capture(app, name: "pronote-lecon")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Contenus des cours"].waitForExistence(timeout: 4))
+        app.navigationBars.buttons.firstMatch.tap()
+
+        tap(app.buttons["pronote.portal.discussions"], in: app)
+        XCTAssertTrue(app.navigationBars["Messagerie"].waitForExistence(timeout: 4))
+        tap(app.buttons["pronote.discussion.fixture-discussion"], in: app)
+        XCTAssertTrue(app.navigationBars["Discussion fictive de test"].waitForExistence(timeout: 4))
+        XCTAssertTrue(reveal(app.staticTexts["Message fictif : pensez à relire la leçon."], in: app))
+        XCTAssertFalse(app.textViews["pronote.thread.reply"].exists)
+        capture(app, name: "pronote-messages")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Messagerie"].waitForExistence(timeout: 4))
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Mon espace scolaire"].waitForExistence(timeout: 4))
+        let context = XCTAttachment(string: "Portail PRONOTE testé avec un cache local entièrement fictif. Aucune connexion, aucun message envoyé, aucun accusé de réception et aucune donnée personnelle réelle.")
+        context.name = "pronote-portail-contexte"
+        context.lifetime = .keepAlways
+        add(context)
     }
 
     @MainActor
@@ -227,7 +309,7 @@ final class CadenceUITests: XCTestCase {
         let english = app.buttons["homework.row.fixture-homework-english-tomorrow"]
         let overdue = app.buttons["homework.row.fixture-homework-svt-overdue"]
         let completed = app.buttons["homework.row.fixture-homework-french-done"]
-        XCTAssertTrue(math.waitForExistence(timeout: 4))
+        XCTAssertTrue(reveal(math, in: app))
         XCTAssertFalse(completed.exists)
         tap(app.segmentedControls.buttons["Tous"], in: app)
         XCTAssertTrue(reveal(completed, in: app))
@@ -237,7 +319,18 @@ final class CadenceUITests: XCTestCase {
         XCTAssertFalse(english.exists)
         XCTAssertFalse(completed.exists)
         tap(app.segmentedControls.buttons["À faire"], in: app)
-        XCTAssertTrue(math.waitForExistence(timeout: 3))
+        XCTAssertTrue(reveal(math, in: app))
+        var paris = Calendar(identifier: .gregorian)
+        paris.timeZone = TimeZone(identifier: "Europe/Paris")!
+        let key = DateFormatter()
+        key.calendar = paris; key.timeZone = paris.timeZone; key.locale = Locale(identifier: "en_US_POSIX")
+        key.dateFormat = "yyyy-MM-dd"
+        let todayHeader = app.descendants(matching: .any).matching(identifier: "homework.date." + key.string(from: Date())).firstMatch
+        XCTAssertTrue(reveal(todayHeader, in: app))
+        let tomorrow = paris.date(byAdding: .day, value: 1, to: Date())!
+        let tomorrowHeader = app.descendants(matching: .any).matching(identifier: "homework.date." + key.string(from: tomorrow)).firstMatch
+        XCTAssertTrue(reveal(tomorrowHeader, in: app))
+        XCTAssertFalse(app.staticTexts["Plus tard"].exists)
         scrollToTop(app)
         let context = XCTAttachment(string: "Captures natives de --uitesting-school : cours et devoirs entièrement fictifs, cache isolé du simulateur, sans requête Supabase ni donnée scolaire réelle.")
         context.name = "devoirs-contexte-fictif"
@@ -316,6 +409,33 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(finish.waitForExistence(timeout: 3))
         finish.tap()
         XCTAssertTrue(reveal(app.buttons["session.start"], in: app))
+    }
+
+    @MainActor
+    func testTabNavigationPreservesHomeworkDetailAndFilter() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        let tabs = app.tabBars
+        XCTAssertTrue(tabs.buttons["Devoirs"].waitForExistence(timeout: 8))
+        tabs.buttons["Devoirs"].tap()
+        tap(app.segmentedControls.buttons["Terminés"], in: app)
+        tap(app.buttons["homework.row.fixture-homework-french-done"], in: app)
+        XCTAssertTrue(app.buttons["homework.complete"].waitForExistence(timeout: 4))
+        for title in ["Accueil", "Cours", "Statistiques", "Révision"] { tabs.buttons[title].tap() }
+        tabs.buttons["Devoirs"].tap()
+        XCTAssertTrue(app.buttons["homework.complete"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["homework.complete"].label.contains("Remettre à faire"))
+        app.navigationBars.buttons["Devoirs"].tap()
+        XCTAssertTrue(app.segmentedControls.buttons["Terminés"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.segmentedControls.buttons["Terminés"].isSelected)
+        XCTAssertFalse(app.buttons["homework.row.fixture-homework-math-today"].exists)
+        tabs.buttons["Statistiques"].tap()
+        tap(app.segmentedControls.buttons["Mois"], in: app)
+        XCTAssertFalse(app.staticTexts["Estimés"].exists)
+        XCTAssertFalse(app.staticTexts["Cours estimés"].exists)
+        scrollToTop(app)
+        capture(app, name: "statistiques-deux-categories")
     }
 
     private func testArguments(_ extra: [String] = []) -> [String] {
