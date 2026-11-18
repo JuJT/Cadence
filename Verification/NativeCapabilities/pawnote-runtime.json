@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-18",
+  "testedCommit": "92f308b",
+  "ciRun": "https://github.com/JuJT/Cadence/actions/runs/44257129353",
+  "runner": "macos-26-intel",
+  "swiftLanguageMode": "5",
+  "frameworks": ["JavaScriptCore", "Foundation", "Security"],
+  "compilationPassed": true,
+  "realBundle": {
+    "library": "@blockshub/pawnote-lts",
+    "version": "1.6.4",
+    "bytes": 414949,
+    "sha256": "abb6f96f6fa7f1215c87b80ec0fbb5f5b57c9e2c69320a8c4f8dbcf7675a6576",
+    "bootAndCommandEnvelopePassed": true,
+    "nativeSecureRandomPassed": true,
+    "urlAndSearchParamsPassed": true,
+    "realPawnoteDirectoryMappingAndDistanceSortPassed": true
+  },
+  "nativeChecksPassed": {
+    "opaqueEnvelopeReturnedUnchanged": true,
+    "promiseMicrotasks": true,
+    "secureByteArrayAnd65536ByteBound": true,
+    "credentialCallbackSynchronousAndOffMain": true,
+    "failedPersistenceBlocksFixtureNextStep": true,
+    "exactHTTPSHostAndRedirectPolicy": true,
+    "directoryExactPOSTEndpointWithoutAuthCookies": true,
+    "privateCookieIsolationBetweenInstances": true,
+    "lowercaseHTTPHeadersAndPapillonMobileAgent": true,
+    "announcedAndStreamed8MiBResponseCaps": true,
+    "timersAndTimerCancellation": true,
+    "retainedJavaScriptTimerCallbacksReleasedOnNormalCompletion": true,
+    "identicalCommandCoalescingAndDifferentCommandBusy": true,
+    "taskCancellation": true,
+    "watchdogReturnsWhileSynchronousJavaScriptIsBusy": true,
+    "lateCredentialCallbackIgnoredAfterTimeout": true,
+    "freshContextRecoveryAndPermanentInvalidation": true
+  },
+  "usesRealSchoolNetwork": false,
+  "usesRealCredentialsOrKeychain": false,
+  "iPhoneHardwareVerified": false,
+  "limits": "macOS compilation and isolated protocol checks, including the actual browser bundle. This does not validate a real PRONOTE account, iPhone entitlements, login challenges or server compatibility. A later rebuilt bundle must be checked again."
+}

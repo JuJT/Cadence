@@ -1,50 +1,36 @@
 # Cadenza — Atelier Liquid Glass pour iPhone
 
-Application native SwiftUI pour iPhone, interface française, iOS 17 minimum. Cours et révisions séparés, données locales, cache scolaire privé Supabase et séances personnelles locales. La synchronisation scolaire utilise une connexion initiale sécurisée. La version iPad est abandonnée. Les noms techniques du projet Cadence et les identifiants de stockage restent stables pour préserver les mises à jour.
+Application native SwiftUI française, iPhone uniquement, iOS 17 minimum. Le design Atelier conserve ses surfaces translucides et ses halos bleutés. Les deux catégories de temps sont **Cours** et **Révisions**.
 
-La version **0.3.0** conserve le design Atelier, ajoute les cours et devoirs Supabase, le suivi de chaque devoir dans les séances, des halos mobiles, un lecteur de fichiers audio et une intégration Concentration par Raccourcis. Les cours passés comptent automatiquement, sans confirmation systématique. Voir [les changements et fichiers](docs/FONCTIONNALITES_0.3.0.md), [la connexion scolaire](docs/SUPABASE_CADENZA.md) et [les résultats vérifiés](docs/VERIFICATION.md).
+La version **0.4.0, build 5** se connecte directement à PRONOTE avec Pawnote LTS, la bibliothèque utilisée par Papillon. La recherche d’établissement utilise une position approximative uniquement au choix « Autour de moi », ou une ville/adresse, avec une URL HTTPS manuelle en alternative. Le mot de passe initial n’est pas enregistré ; le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
 
-Voir la [galerie des captures natives](Verification/0.3.0/APERCU.html).
+Cours, devoirs, notes et moyennes, compétences, vie scolaire, informations, messagerie, menus, contenus de cours, bulletin et compte sont présentés selon les droits de l’espace élève. Le cache persistant reste accessible hors connexion. Les messages ne sont envoyés et les informations accusées que sur confirmation dans l’interface. La validation d’un devoir dans Cadenza reste locale.
 
-## Commencer depuis Windows
+## Installer et utiliser
 
-1. Ouvrir [le guide Windows](docs/INSTALLATION_WINDOWS.md). Le projet est généré sur GitHub Actions avec XcodeGen ; aucun Mac personnel ni secret Apple n’est requis par la CI.
-2. Pour mettre à jour l’app déjà testée, installer **Cadenza-iPhone-0.3.0.ipa** avec Sideloadly, le même compte et les mêmes options, par-dessus l’installation existante. Le programme d’essai **CadenceSpike** reste disponible pour un nouvel appareil ; voir [les six essais iPhone](docs/SPIKE_IPHONE.md).
-3. Le fichier principal correspond au schéma **CadenceExtensions** : app complète, widgets et Live Activity. **Cadence** reste le mode autonome ; **CadenceShared** est l’option App Group, qui requiert des droits effectivement provisionnés. Le [guide des widgets](docs/WIDGETS_WINDOWS.md) explique la vérification après resignature.
-4. Sauvegarder régulièrement le JSON dans Fichiers. Renouveler la signature par-dessus la même application et garder le même identifiant de bundle. La conservation des données au renouvellement doit être testée sur l’appareil.
+Installer **Cadenza-iPhone-0.4.0.ipa** par-dessus l’app actuelle avec le même compte et les mêmes options Sideloadly, sans désinstaller. Conserver les extensions et l’auto-renouvellement. Ouvrir ensuite Réglages → Connexion PRONOTE. Voir [la connexion directe](docs/PRONOTE_DIRECT.md), [les composants et changements](docs/FONCTIONNALITES_0.4.0.md), [les capacités natives](docs/CAPACITES_NATIVES.md) et [les résultats vérifiés](docs/VERIFICATION.md).
 
-Tous les schémas partagent le même identifiant d’application : **ils se remplacent sur l’iPhone**. Une sauvegarde doit précéder le passage d’une variante à l’autre. Le mode autonome conserve son propre stockage et ne dépend pas du conteneur d’un widget.
+[Aperçu des captures natives de la version 0.4.0](Verification/0.4.0/APERCU.html), avec données fictives et empreintes des fichiers originaux.
 
-Le workflow `.github/workflows/build-unsigned-ipa.yml` compile les changements de code sur la branche principale d’un dépôt public avec un runner standard gratuit. Les sorties sont placées dans une release **brouillon** ; aucun cache ni artefact Actions payant n’est envoyé sur push. L’envoi facultatif vers les artefacts Actions requiert un lancement manuel et la vérification du quota. Sur un dépôt privé, le calcul reste bloqué tant que le quota gratuit et le blocage de l’usage payant n’ont pas été vérifiés puis explicitement activés. Dépôt demandé : [JuJT/Cadence](https://github.com/JuJT/Cadence).
+Les identifiants `com.cadence.study`, `cadence://` et le fichier `Cadence/cadence-state.json` restent stables. Les noms techniques Cadence préservent la compatibilité des mises à jour ; ils ne correspondent pas à une seconde app.
 
-## Fonctions implémentées
+## Fonctions
 
-- Chronomètre unique, pauses et reprise à partir des dates persistées, historique modifiable, matières et alias configurables.
-- Cours, devoirs et contenus lus depuis une API Supabase authentifiée ; aucun calendrier Apple ou ICS nécessaire au flux scolaire.
-- Rapprochement des occurrences, récurrences et modifications ; conservation des séances personnelles lors des suppressions de source.
-- Cours passés automatiquement estimés, hors annulation, dispense ou exclusion ; temps mesuré prioritaire sur l’estimation d’un cours associé.
-- Statistiques natives Charts, ventilation des cours confirmés/mesurés, des cours estimés et des révisions.
-- Devoirs : filtres, échéances, état local indépendant de PRONOTE et segments de travail dans une séance nouvelle ou déjà active.
-- Sauvegarde JSON schéma 3, lecture des versions 1 et 2, copie avant migration et export CSV français.
-- App Intents et App Shortcuts réels ouvrant l’application ; widgets et Live Activities avec repli explicite si le partage n’est pas disponible.
-- Apparence Système/Claire/Sombre, Dynamic Type et composants Liquid Glass sur iOS 26 avec repli iOS 17.
+- Chronomètre unique, pauses, reprise, matières, alias, historique, sauvegarde JSON et export CSV.
+- Cours passés intégrés automatiquement dans Cours, corrections et exclusions locales, une seule durée pour un cours chronométré et planifié.
+- Devoirs regroupés par date limite exacte, filtres, lancement d’une révision et association au chronomètre actif.
+- Portail PRONOTE depuis l’accueil, ressources liées par leur véritable identifiant et pièces jointes HTTPS.
+- Statistiques Charts Cours/Révisions ; provenance historique conservée en interne pour éviter les doubles comptes.
+- Widgets locaux, Dynamic Island, Live Activities et App Intents.
+- Bouton d’ajout d’un raccourci Concentration signé prêt à importer ; volume système et sélection de sortie audio. Le contrôle universel des pistes d’autres apps n’est pas fourni par les API publiques iOS.
+- Fonds suspendus hors écran/en arrière-plan et en cas d’économie d’énergie ou de chauffe ; calculs de graphiques regroupés, navigation native conservée.
 
-L’application Watch dédiée reste hors de cette livraison. La présence d’une extension compilée ne prouve pas sa signature ni son fonctionnement après resignature. Les rapports et références historiques peuvent encore mentionner l’ancien nom ou l’iPad ; la configuration actuelle cible uniquement l’iPhone.
+## Compiler
 
-## Structure
+`Runtime` contient le code source du moteur Pawnote et le verrouillage des dépendances. `npm ci`, `npm test` puis `npm run build` reconstruisent le bundle local ; les tests ne contiennent ni compte scolaire ni données personnelles. `swift test` exécute le domaine métier. GitHub Actions génère le projet avec XcodeGen, teste le pont JavaScriptCore réel puis compile les variantes iPhone. Les sorties sont placées dans une release **brouillon**, sans stockage Actions payant par défaut sur ce dépôt public.
 
-```text
-App/                 Application, vues SwiftUI, EventKit, persistance, App Intents
-Sources/CadenceCore/  Domaine Swift pur, rapprochement calendrier, exports, calculs
-Tests/               Tests métier et parcours UI pour simulateur
-Widgets/             WidgetKit et régions de la Dynamic Island
-Shared/              Attributs ActivityKit et copie minimale facultative pour widget
-Config/              Plists, confidentialité et droits de la variante expérimentale
-Scripts/             Compilation unsigned, simulateur et diagnostic des bundles
-Reference/           Références originales du kit, absentes des ressources de l’app
-docs/                Installation, données, architecture, recette et statut
-project.yml          Projet XcodeGen
-Package.swift        Noyau testable avec swift test
-```
+Les variantes CadenceSpike, Cadence, CadenceExtensions et CadenceShared partagent le même bundle ID et se remplacent. Le fichier principal utilise **CadenceExtensions**, avec widgets et Live Activity. La présence de capacités dans une IPA non signée ne garantit pas leur conservation après Sideloadly : voir [les widgets](docs/WIDGETS_WINDOWS.md).
 
-Voir [l’architecture](docs/ARCHITECTURE.md), [les données](docs/DONNEES.md), [la recette](docs/RECETTE.md) et [les changements](CHANGELOG.md).
+Le client scolaire n’appelle plus Supabase. Les anciens services, fonctions et tâches PRONOTE du projet Supabase n’ont pas été supprimés ou modifiés par cette version. Les structures historiques restent lisibles.
+
+Sources et licences : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Le code correspondant de la distribution comprenant Pawnote GPL-3.0-or-later est fourni ; le raccourci préfait et sa licence MIT sont inclus. Aucun visuel ni logo Papillon n’est repris.

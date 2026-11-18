@@ -1,0 +1,24 @@
+{
+  "shortcut": "HongMix Focus",
+  "upstreamRepository": "https://github.com/HongMix/HongMix",
+  "upstreamCommit": "9547e0efb15fdcc241559db73a5f2e490d486f19",
+  "license": "MIT",
+  "signedSHA256": "000e760f62e27eea1599f1117f58e349e97506421b19169016bade8adc7344b0",
+  "upstreamSourceSHA256": "a6945dd2dfcf6fd90fe1a61117a4e83f39eff82c23232930f3d8bb052be5b209",
+  "audience": "anyone",
+  "contactIdentityFieldsAbsent": true,
+  "appleRootPinnedAndMatchedOfficialCertificate": true,
+  "certificateChainAndValidityVerified": true,
+  "archiveSignatureVerifiedWithAppleAEA": true,
+  "exactReviewedActionGraph": true,
+  "actionIdentifiers": [
+    "is.workflow.actions.conditional",
+    "is.workflow.actions.detect.text",
+    "is.workflow.actions.dnd.getfocus",
+    "is.workflow.actions.dnd.set",
+    "is.workflow.actions.output"
+  ],
+  "schoolOrAccountDataInDocument": false,
+  "runtimeOnIPhoneVerified": false,
+  "note": "Actual import trust, iPhone permissions and Focus execution remain separate device checks."
+}

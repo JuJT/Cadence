@@ -1,0 +1,2 @@
+Pawnote actual browser bundle checks passed: native crypto/URL primitives, Promise command envelope and mock directory ordering, no real network or credentials.
+Pawnote runtime checks passed: URL/redirect policy, opaque envelope, secure random, private cookies, HTTP caps, synchronous credentials, timers, bounded coalescing, cancellation and off-queue watchdog.

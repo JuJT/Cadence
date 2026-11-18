@@ -1,0 +1,30 @@
+Cadence.app/
+  AppIcon60x60@2x.png
+  AppIcon76x76@2x~ipad.png
+  Assets.car
+  Cadence
+  CadenceSigningIntent.plist
+  HongMix Focus.shortcut
+  HongMix-LICENSE.txt
+  Info.plist
+  Licenses.txt
+  Metadata.appintents/
+  Metadata.appintents/extract.actionsdata
+  Metadata.appintents/nlu/
+  Metadata.appintents/nlu/94c7a091f9185c76e82a675a50ee00d4.version
+  Metadata.appintents/nlu/nlu.lzfse
+  Metadata.appintents/root.ssu.yaml
+  Metadata.appintents/version.json
+  PkgInfo
+  PlugIns/
+  PlugIns/CadenceWidgets.appex/
+  PlugIns/CadenceWidgets.appex/CadenceSigningIntent.plist
+  PlugIns/CadenceWidgets.appex/CadenceWidgets
+  PlugIns/CadenceWidgets.appex/Info.plist
+  PlugIns/CadenceWidgets.appex/PrivacyInfo.xcprivacy
+  PlugIns/CadenceWidgets.appex/_CodeSignature/
+  PrivacyInfo.xcprivacy
+  _CodeSignature/
+  _CodeSignature/CodeResources
+  pawnote.bundle.js
+  runtime-manifest.json

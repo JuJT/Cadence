@@ -1,0 +1,52 @@
+
+> cadenza-pronote-runtime@0.4.0 test
+> node --test tests/*.test.mjs
+
+✔ compose capability requires both current discussion and teacher permissions (3.733083ms)
+✔ recipient lookup only uses permitted teacher kind (2.793292ms)
+✔ a stale recipient choice is rejected without sending to a reduced subset (0.226542ms)
+✔ duplicate and oversized composer inputs fail before fetching recipients (0.368958ms)
+✔ confirmed compose revalidates recipients and sends one escaped plain-text message (0.261542ms)
+✔ composer never resends automatically after an ambiguous send failure (0.253792ms)
+✔ legacy empty news keeps categories and calls only the read endpoint (4.310208ms)
+✔ observed PRONOTE2026 empty form uses listeNatures without inventing rows (0.90125ms)
+✔ modern nonempty news lists metadata without requesting details or marking it read (0.665875ms)
+✔ modern information details use the official read-only request and are cached in the session (0.907667ms)
+✔ modern survey detail keeps all published questions without sending an answer (0.852125ms)
+✔ already complete modern information needs no redundant details request (0.698542ms)
+✔ unknown or malformed news shapes are not silently accepted as empty (2.189583ms)
+✔ malformed, mismatched or incomplete detail replies raise an explicit format error (2.437ms)
+✔ network detail failures propagate and cannot turn into a fabricated empty article (2.244125ms)
+✔ modern raw references are isolated by session (0.810958ms)
+✔ legacy nonempty news still reaches unchanged information and survey decoders (0.615875ms)
+✔ compatibility transform refuses an unexpected or duplicate SDK implementation (0.147375ms)
+✔ school clock maps to Paris in winter and summer regardless of phone timezone (336.299625ms)
+✔ civil-day arguments reject invalid dates (0.357125ms)
+✔ lesson identity survives a changed hour and classroom (0.614042ms)
+✔ homework source identity includes deadline and preserves source state (0.12675ms)
+✔ snapshot uses explicit Paris days and official PRONOTE timetable filtering (3.50925ms)
+✔ unsupported homework and section capabilities make no request (2.1845ms)
+✔ resource interval and menu days use Paris-day arguments (0.49925ms)
+✔ contents defaults to the current school week instead of a broad or annual range (0.225542ms)
+✔ explicit content and menu weeks override today and cross the school-year boundary (0.288916ms)
+✔ consuming credential is durable before authentication and replacement before parameters (0.355917ms)
+✔ interrupted consuming request never restores the previous ready credential (0.280958ms)
+✔ unavailable secure storage prevents consuming authentication (0.195292ms)
+✔ security challenge exposes flags but no protocol context (0.388875ms)
+✔ security mode must be one offered by the server (0.167708ms)
+✔ discussions preserve real participant IDs, avoid circular cache and never mark read (0.570833ms)
+✔ reply re-fetches its reference after a refreshed session and escapes a plain-text editor (0.394ms)
+✔ closed discussions and forbidden accounts cannot send messages (0.325542ms)
+✔ JSON projection drops protocol secrets and cycles but preserves repeated subjects (0.122041ms)
+✔ unknown requested period cannot silently return a different period (0.210083ms)
+✔ selected resource survives token rotation (0.12775ms)
+✔ news detail lazily restores a refreshed session reference without acknowledging it (0.296083ms)
+✔ legacy news detail stays available and unknown formats never become a fake empty article (0.3175ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 609.984209

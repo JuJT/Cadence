@@ -1,0 +1,179 @@
+{
+  "testedAtUTC": "2026-11-18T12:53:08.843Z",
+  "target": "Official Index Education public PRONOTE demonstration, student account",
+  "authenticationAttempts": 4,
+  "requestsTotal": 46,
+  "httpResponses": {
+    "200": 46
+  },
+  "personalCredentialsUsed": false,
+  "schoolRowsSavedOrPublished": false,
+  "tokensSavedOrPublished": false,
+  "schoolWriteActionsPerformed": false,
+  "studentAuthenticationPassed": true,
+  "readChecks": {
+    "initialLogin": true,
+    "capabilities": [
+      "timetable",
+      "contents",
+      "homework",
+      "attendance",
+      "grades",
+      "gradebook",
+      "evaluations",
+      "discussions",
+      "news",
+      "menus",
+      "account",
+      "homepage"
+    ],
+    "periodCount": 8,
+    "deviceTokenIssued": true,
+    "grades": {
+      "itemCount": 47,
+      "serializable": true
+    },
+    "contents": {
+      "itemCount": 41,
+      "serializable": true
+    },
+    "courseResource": {
+      "contentCount": 1
+    },
+    "newsDiagnostic": {
+      "phase": "api",
+      "errorName": "TypeError",
+      "missingProperty": "V"
+    },
+    "discussions": {
+      "itemCount": 0,
+      "serializable": true
+    },
+    "academicPeriodContents": {
+      "resourceCount": 0,
+      "intervalDays": 363,
+      "responseSerializable": true
+    },
+    "localSessionDiscarded": true,
+    "snapshot14Days": {
+      "courseCount": 50,
+      "homeworkCount": 11,
+      "uniqueCourseIDs": true,
+      "positiveIntervals": true
+    },
+    "snapshot61Days": {
+      "courseCount": 198,
+      "homeworkCount": 57,
+      "uniqueCourseIDs": true,
+      "positiveIntervals": true
+    },
+    "contentWindows": {
+      "7Days": {
+        "resourceCount": 20,
+        "intervalDays": 7
+      },
+      "14Days": {
+        "resourceCount": 41,
+        "intervalDays": 14
+      },
+      "61Days": {
+        "resourceCount": 156,
+        "intervalDays": 61
+      },
+      "363Days": {
+        "resourceCount": 0,
+        "intervalDays": 363,
+        "responseSerializable": true
+      }
+    },
+    "providerVersion": [
+      2026,
+      2,
+      8
+    ],
+    "newsMetadataFieldTypes": {
+      "listeNatures": {
+        "_T": "number",
+        "V": {
+          "type": "array",
+          "length": 9,
+          "first": {
+            "L": "string",
+            "N": "string",
+            "estDefaut": "boolean"
+          }
+        }
+      },
+      "listeModesAff": {
+        "type": "array",
+        "length": 1,
+        "first": {
+          "G": "number",
+          "listeActualites": {
+            "_T": "number",
+            "V": {
+              "type": "array",
+              "length": 0
+            }
+          }
+        }
+      },
+      "genreRequeteActualite": "number"
+    },
+    "allSessionsDiscarded": true
+  },
+  "validationLimits": {
+    "personalStudentAccount": false,
+    "nativeKeychainAfterSideloadly": false,
+    "twoFactorOnRealServer": false,
+    "persistentTokenReconnect": false,
+    "messageBodyRead": "No demonstration discussion was available; the list request passed with zero entries.",
+    "annualCourseContentRequest": "The 363-day request returned zero resources; 7/14/61-day requests returned 20/41/156. The app now navigates bounded weekly intervals for course content; no empty school year is inferred.",
+    "news": "The demo returned zero news entries. Its 2026 list schema was verified live, then the read-only lazy detail adapter was derived from the publisher public JavaScript and verified with synthetic information/survey fixtures. Nonempty news on a real server remains to be tested; unsupported variants fail explicitly instead of inventing content.",
+    "demoTokenPolicy": "The publisher demo does not retain reconnect tokens, as documented by the Papillon maintainers. A successful initial demo login cannot validate persistent login.",
+    "authenticatedRealDevice": false
+  },
+  "sources": [
+    "https://www.index-education.com/fr/pronote-info191-demo-des-espaces-web-et-mobile.php",
+    "https://demo.index-education.net/pronote/eleve.html",
+    "https://github.com/bain3/pronotepy/blob/master/pronotepy/test_pronotepy.py",
+    "https://github.com/PapillonApp/papillon-v7/issues/21",
+    "https://demo.index-education.net/pronote/E_3_C_26A61756062CEBB94B47B3C6829978280DB11D70F4823EE0434C06DDCB7796AA_L_1036/eleve_defer.js"
+  ],
+  "reportUpdatedAtUTC": "2026-11-18T14:41:14.784468+00:00",
+  "historicalEndpointDiagnostic": {
+    "news": "PronoteError",
+    "explanation": "The pinned SDK expected listeCategories; the public PRONOTE 2026.2.8 endpoint returned listeNatures. The endpoint itself answered HTTP200. This exact shape is handled by the added compatibility adapter."
+  },
+  "newsCompatibility": {
+    "id": "cadenza-pronote2026-lazy-news-v2",
+    "publicProtocolProvenance": {
+      "sourceURL": "https://demo.index-education.net/pronote/E_3_C_26A61756062CEBB94B47B3C6829978280DB11D70F4823EE0434C06DDCB7796AA_L_1036/eleve_defer.js",
+      "sourceSHA256": "bb67d249720fffe00b3219c85aff891ee99094e992fa37ac7913cbe9cb286fd1",
+      "inspectedAtUTC": "2026-11-18",
+      "providerVersion": [
+        2026,
+        2,
+        8
+      ],
+      "readProtocol": {
+        "function": "PageActualites",
+        "listRequestKind": 0,
+        "detailRequestKind": 1,
+        "detailResponseField": "detailsActualite",
+        "categoryListField": "listeNatures",
+        "articleCategoryField": "nature"
+      },
+      "liveNewsItemsAvailableInDemo": 0,
+      "postListAutoReadOrAck": false
+    },
+    "liveNonemptyNewsAvailable": false,
+    "livePatchedDecoderReauthenticationPerformed": false,
+    "empty2026FormVerifiedWithSyntheticFixtureMatchingLiveFieldTypes": true,
+    "legacyInformationAndSurveySyntheticFixturesPassed": true,
+    "nonempty2026InformationAndSurveySyntheticFixturesPassed": true,
+    "detailLoading": "Lazy, read-only PageActualites request kind1; references held only in the current session; no automatic mark-read or acknowledgment.",
+    "unknownFormats": "Explicit UnsupportedNewsFormat error; existing native cache is preserved.",
+    "nodeTestsPassed": 40
+  }
+}

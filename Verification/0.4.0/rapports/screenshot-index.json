@@ -1,0 +1,195 @@
+{
+  "screenshots": [
+    {
+      "label": "statistiques-sombre_0_A84EB960-710D-4AA6-9AC7-3C4A0C5E58D8.png",
+      "source": "dark/7DDFD6F0-7908-4C80-8F42-2D9D6D08196D.png",
+      "manifest": "dark/manifest.json",
+      "output": "dark/statistiques-sombre_0_a84eb960-710d-4aa6-9ac7-3c4a0c5e58d8.png",
+      "sha256": "02d6e3118b89f82063762b6b1eb2f1b14cde0a2b9947f19b041466d11bb49383"
+    },
+    {
+      "label": "cours-jour-matiere_0_D2963501-16F6-44BA-A100-9E8C9D1778C1.png",
+      "source": "iphone/E6FBCC61-5217-4F02-A76A-0D2DD2C0D72E.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/cours-jour-matiere_0_d2963501-16f6-44ba-a100-9e8c9d1778c1.png",
+      "sha256": "382a661e089b559fc2bdb4594694336be023f57ab2f6668b9bbb35ffc1a90a81"
+    },
+    {
+      "label": "accessibilite-grand-texte_0_CD5A2AA8-137F-44C8-9C72-91488D315543.png",
+      "source": "iphone/63AE77B6-8A25-4EB8-AFB3-0E28496EA2F1.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/accessibilite-grand-texte_0_cd5a2aa8-137f-44c8-9c72-91488d315543.png",
+      "sha256": "b9eacfc1986ebfad5442b4a6589c0e356f6a9518574d76da57f487501e1243a4"
+    },
+    {
+      "label": "statistiques-clair_0_BD33B12F-D7E7-4300-B230-6AF03233CC51.png",
+      "source": "iphone/E0B5B7BB-3344-4BF8-8BA8-C817ABAA2CF4.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/statistiques-clair_0_bd33b12f-d7e7-4300-b230-6af03233cc51.png",
+      "sha256": "e397b4390959fe32408f1aa4aeb77f2816f7b6bf454f6eabd9f19d631bbe6d72"
+    },
+    {
+      "label": "revision-active_0_DA3CA951-793A-4D88-A306-B16D17FD2110.png",
+      "source": "iphone/F4A03EF4-9E48-4C8D-9C7E-BD533EC06173.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/revision-active_0_da3ca951-793a-4d88-a306-b16d17fd2110.png",
+      "sha256": "e410fd483d17d216dd5fda64ceba75fc586834b30405fe22ec4191f585922192"
+    },
+    {
+      "label": "revision-clair_0_9873B84D-20A4-4BB0-9B0C-E5A09A2F42B0.png",
+      "source": "iphone/3FE55CB0-B85B-47BD-BDD7-B38D959F5A2C.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/revision-clair_0_9873b84d-20a4-4bb0-9b0c-e5a09a2f42b0.png",
+      "sha256": "a458fb6508305a013b213b89e251667f2a08179c5328f5ab65cb51cbda098117"
+    },
+    {
+      "label": "cours-clair_0_D0221182-E2D4-47F9-A725-0E2DB93179EC.png",
+      "source": "iphone/56DE8D6D-3A37-49F4-9C74-EF2271EBA4B2.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/cours-clair_0_d0221182-e2d4-47f9-a725-0e2db93179ec.png",
+      "sha256": "85c5c85c83a3e01ed9a9689bf720de66be1911f6cd311d5e473e72adb7c99a3b"
+    },
+    {
+      "label": "accueil-clair_0_34A71EAA-468D-4734-B005-41147DE76350.png",
+      "source": "iphone/BFC5863E-39DA-46B2-95CE-51DA0790A4E2.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/accueil-clair_0_34a71eaa-468d-4734-b005-41147de76350.png",
+      "sha256": "8b86dc82eb116e76480ce505ad31dabfa0c9ea537aaff65e5350c246f7b70f93"
+    },
+    {
+      "label": "musique-et-concentration_0_0FD1E946-192E-4943-AA07-E3B94DDBC9DE.png",
+      "source": "iphone/978F3C57-E200-4164-B2E0-F835836F60CF.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/musique-et-concentration_0_0fd1e946-192e-4943-aa07-e3b94ddbc9de.png",
+      "sha256": "d2b6b694b01c1e7724517ec7216bd66456e18e28709780d0415538147993a340"
+    },
+    {
+      "label": "terminer-seance-alerte_0_D9EB1140-0711-42A9-946F-EBDD6C4984E5.png",
+      "source": "iphone/BF7F45CD-752A-4713-898B-90A182893227.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/terminer-seance-alerte_0_d9eb1140-0711-42a9-946f-ebdd6c4984e5.png",
+      "sha256": "3f3890b01efd255d4fb73b30693a99371f892f8e14fa328688a38aa9ca30af00"
+    },
+    {
+      "label": "nouvelle-seance-formulaire_0_ED33590E-AD86-4B25-B1FB-47A792D5E991.png",
+      "source": "iphone/18C0AE4D-B4A0-4CEB-85B0-1F2688984A40.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/nouvelle-seance-formulaire_0_ed33590e-ad86-4b25-b1fb-47a792d5e991.png",
+      "sha256": "b2df60b17beb71137a85e476b2412874039c0745acab718f266fa38b8de24b1c"
+    },
+    {
+      "label": "nouvelle-seance-feuille_0_ABC79C48-F1D3-4D32-B421-58F90AE1DAD3.png",
+      "source": "iphone/5C07E959-ED62-4738-8D05-566DFB1F636A.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/nouvelle-seance-feuille_0_abc79c48-f1d3-4d32-b421-58f90ae1dad3.png",
+      "sha256": "2ad2d8dd39145002c9ad97ec294afa465ea4e869183edf4c4d6d4447f953eb2e"
+    },
+    {
+      "label": "pronote-connexion-directe-formulaire_0_D2B46BFC-858C-4694-8C2A-B753A88D2A43.png",
+      "source": "iphone/26F10B63-55CA-406C-8EC8-4E478DD106B7.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/pronote-connexion-directe-formulaire_0_d2b46bfc-858c-4694-8c2a-b753a88d2a43.png",
+      "sha256": "7613174d81ea5cf1e8748b961c02440c5d45a1ac88407cd657af9e68cb9ae825"
+    },
+    {
+      "label": "pronote-nouveau-message-brouillon_0_363810C8-36E3-4E7F-9A54-60312578DD85.png",
+      "source": "iphone/7F0A68EE-9384-4094-A6A6-B61DCED5C795.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/pronote-nouveau-message-brouillon_0_363810c8-36e3-4e7f-9a54-60312578dd85.png",
+      "sha256": "c8091ac803765f141de61c7ee87f425c9368bebc686f914b8a519cde311f35d7"
+    },
+    {
+      "label": "pronote-messages_0_162DF9AA-D8F5-4074-A1A1-A52F77A6D31B.png",
+      "source": "iphone/8CB0992E-7E09-41B5-BE71-E5A06CAA0492.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/pronote-messages_0_162df9aa-d8f5-4074-a1a1-a52f77a6d31b.png",
+      "sha256": "0caa00c6df25530fda6bc911b2b6ce74ed4148c99f94b357b58ae89913e2b322"
+    },
+    {
+      "label": "pronote-lecon_0_4D23A47C-3900-4A92-A0DD-066DE546BCD6.png",
+      "source": "iphone/8B3D38EE-E65D-4E93-96CB-D8D386518581.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/pronote-lecon_0_4d23a47c-3900-4a92-a0dd-066de546bcd6.png",
+      "sha256": "cc1a753327f70fbdc115567cfde9737e769de8f14f1417bf25f0981469be6d3c"
+    },
+    {
+      "label": "pronote-notes_0_D5BE695C-BFAF-4549-BD92-7BB25D3AAF9A.png",
+      "source": "iphone/14D3772A-7738-4930-9F4A-A91E0C5ED555.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/pronote-notes_0_d5be695c-bfaf-4549-bd92-7bb25d3aaf9a.png",
+      "sha256": "019540f9a860796e3c0c04d644eccedc485a84c9fe5e6166e0c50500193df092"
+    },
+    {
+      "label": "devoirs-detail_0_267479BB-CC32-404D-9BE6-1FD5C6D5751E.png",
+      "source": "iphone/1BC65899-9E5C-4478-B857-3AD75BB8551E.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/devoirs-detail_0_267479bb-cc32-404d-9be6-1fd5c6d5751e.png",
+      "sha256": "66a7b13e36f25c43b372b91767ec4645ee2db923588a5d3d6479f52dc2c66a32"
+    },
+    {
+      "label": "devoirs-liste_0_19AC0703-77A6-4088-8884-F1689FBD5589.png",
+      "source": "iphone/DA404A80-D51A-420B-8E9C-E472F002DBF0.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/devoirs-liste_0_19ac0703-77a6-4088-8884-f1689fbd5589.png",
+      "sha256": "03cd6470c1b06c4661da5ab2565b5077450dd8f2a1c65f7250c633d30671bff7"
+    },
+    {
+      "label": "devoir-seance-liee_0_93C01E39-A2C6-450F-9368-43984C11A1D6.png",
+      "source": "iphone/657CB501-F257-4DFD-8FAE-A674DE8FA588.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/devoir-seance-liee_0_93c01e39-a2c6-450f-9368-43984c11a1d6.png",
+      "sha256": "14ae932581a22c10c6ec2bf78f7f856c64bae4eac5c2f37f4373950d43bc5a54"
+    },
+    {
+      "label": "vitrine-statistiques_0_6D3C7B6A-BC61-4DAC-AB27-DBE80B16DB16.png",
+      "source": "iphone/BD81039A-D297-4D0E-86A8-C6A42118E260.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-statistiques_0_6d3c7b6a-bc61-4dac-ab27-dbe80b16db16.png",
+      "sha256": "bd2476392b277641005f590be2dcb75b62de552d8a8384ba3d093687115a27db"
+    },
+    {
+      "label": "vitrine-revision-active_0_2BA9148C-3DEC-4DE5-9C0E-F3FFB8769516.png",
+      "source": "iphone/63032296-CD60-4D04-BF86-513B9ED264C5.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-revision-active_0_2ba9148c-3dec-4de5-9c0e-f3ffb8769516.png",
+      "sha256": "cbbdbcc94bf3574b52bf751a74feb5eb853ca087365a496ad2c60311b699ea31"
+    },
+    {
+      "label": "vitrine-emploi-du-temps_0_6A79A319-A66E-46EB-883C-EFC8F392E397.png",
+      "source": "iphone/142955DF-51E2-47A4-BE4A-2A88678C9B14.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-emploi-du-temps_0_6a79a319-a66e-46eb-883c-efc8f392e397.png",
+      "sha256": "02092eed9d5c40934983b47d7b0bee878a61f8f96863296f6daeaf5ebfe86e6e"
+    },
+    {
+      "label": "vitrine-accueil_0_2A6ADE49-70D4-45C0-BCF5-C817E5DDE8F3.png",
+      "source": "iphone/9D7821EB-DFA5-4BC1-B71D-3F524742828D.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/vitrine-accueil_0_2a6ade49-70d4-45c0-bcf5-c817e5dde8f3.png",
+      "sha256": "0124b9a258f94dd303442521f437fbc59f1859ce9a33f2cdd61f08a3cdd39aee"
+    },
+    {
+      "label": "statistiques-deux-categories_0_5E13E7FF-557C-4627-84B3-DA560F9D8D4D.png",
+      "source": "iphone/D42B83B2-0ABD-4D9C-86BD-6C111A4759D4.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/statistiques-deux-categories_0_5e13e7ff-557c-4627-84b3-da560f9d8d4d.png",
+      "sha256": "efe68e091ba08d9172027c8e382ee7c41d2fe2717a54763ef154b8ed3537bb08"
+    },
+    {
+      "label": "widgets-apercu-simulateur-bas_0_B97D7134-95A7-4F14-A65D-FF4BFBFFDD1F.png",
+      "source": "iphone/74F2DC34-BCC0-43DE-B822-F20D3D3730E5.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/widgets-apercu-simulateur-bas_0_b97d7134-95a7-4f14-a65d-ff4bfbffdd1f.png",
+      "sha256": "40f51b56e211eded38a3ac792776e1f48992d803f93979bfaacd62958db0cf51"
+    },
+    {
+      "label": "widgets-apercu-simulateur-haut_0_91753008-A40A-418A-8988-148BB39BE2F6.png",
+      "source": "iphone/F3F0A969-94BA-4EB1-8D2D-DBEFA2F69665.png",
+      "manifest": "iphone/manifest.json",
+      "output": "iphone/widgets-apercu-simulateur-haut_0_91753008-a40a-418a-8988-148bb39be2f6.png",
+      "sha256": "34d3bd80dbe7868ae94ac1775bcf37d2ee7528890cbb263a5e61453807073734"
+    }
+  ],
+  "warnings": [],
+  "provenance": "pièces jointes XCTest réellement exportées; fichiers copiés sans modification"
+}

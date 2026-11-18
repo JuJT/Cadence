@@ -1,165 +1,215 @@
 {
   "app": "Cadenza",
+  "version": "0.4.0",
+  "build": "5",
   "devices": [
     "iPhone"
   ],
-  "version": "0.3.0",
-  "build": "4",
-  "date": "2026-11-17",
-  "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-  "commit": "5f3e66c9c178ca482674d16d4ca9dec388eb7767",
+  "date": "2026-11-18",
+  "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+  "commit": "ffe0013fa0589791dae70e31bb7f38ca16969339",
   "conclusion": "success",
-  "xcode": "Xcode 26.6\nBuild version 17F113",
   "tests": {
-    "swiftCore": 65,
-    "python": 13,
-    "widgetSerializationAndSignatureParser": "passed",
-    "nativeUI": 11
+    "swiftCore": 78,
+    "python": 22,
+    "node": 40,
+    "nativeUI": 15,
+    "javascriptCore": "actual bundle and transport checks passed",
+    "focusShortcut": "signed artifact independently verified"
+  },
+  "runtime": {
+    "library": "@blockshub/pawnote-lts",
+    "version": "1.6.4",
+    "sha256": "5737b1f641291209a5d6fa3c90ed9fe02b29f837c4ec26d9b2180fbe5d8934b0",
+    "patch": "PapillonApp/Papillon, pinned source in Runtime/patches",
+    "bytes": 421420,
+    "license": "GPL-3.0-or-later",
+    "sdkSourceHash": "1147d007e48c23c0cfb3a952ded5249c751be78b348017e07038ba7927542219",
+    "compatibility": {
+      "id": "cadenza-pronote2026-lazy-news-v2",
+      "source": "https://demo.index-education.net/pronote/eleve.html",
+      "protocol": {
+        "sourceURL": "https://demo.index-education.net/pronote/E_3_C_26A61756062CEBB94B47B3C6829978280DB11D70F4823EE0434C06DDCB7796AA_L_1036/eleve_defer.js",
+        "sourceSHA256": "bb67d249720fffe00b3219c85aff891ee99094e992fa37ac7913cbe9cb286fd1",
+        "inspectedAtUTC": "2026-11-18",
+        "providerVersion": "2026.2.8"
+      },
+      "news2026Empty": "supported",
+      "news2026Nonempty": "lazy read-only detail; strict known forms; unrecognized forms preserve cache with an explicit error"
+    }
   },
   "captures": [
     {
       "file": "statistiques-sombre.png",
-      "sha256": "7120b09f9cf8e7b598e84a912b5aba6ec5814aa260af3cbffcc6291229b8a580",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "02d6e3118b89f82063762b6b1eb2f1b14cde0a2b9947f19b041466d11bb49383",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "cours-jour-matiere.png",
-      "sha256": "9a32d1c2704e523e3bbc80ea0d3d813e16ed5205a0075ee9c7f2d4cbc8492c51",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "382a661e089b559fc2bdb4594694336be023f57ab2f6668b9bbb35ffc1a90a81",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "accessibilite-grand-texte.png",
-      "sha256": "dba963f37840772253b4fb529ed9b4a80fa015040d8dc1186b66dc8a4ad5d0ab",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "b9eacfc1986ebfad5442b4a6589c0e356f6a9518574d76da57f487501e1243a4",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "statistiques-clair.png",
-      "sha256": "3b0145050a7d5fb1663e1844a612fc83c961e0fa85dc401f5c8479f889351d8b",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "e397b4390959fe32408f1aa4aeb77f2816f7b6bf454f6eabd9f19d631bbe6d72",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "revision-active.png",
-      "sha256": "556303ff5efa3cfa48a6d5f91d4e866b8ddeae3b107a826b93d7603edaa0b778",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "e410fd483d17d216dd5fda64ceba75fc586834b30405fe22ec4191f585922192",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "revision-clair.png",
-      "sha256": "d22303e2f1e92bcb1be1029bb4a0c2cbd39fd6b7dc94626bd50965f11dc34c74",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "a458fb6508305a013b213b89e251667f2a08179c5328f5ab65cb51cbda098117",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "cours-clair.png",
-      "sha256": "c288c6a4678294d41025541854c80cae0c6cbae6b9f2c9b6f13d94da99a99160",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "85c5c85c83a3e01ed9a9689bf720de66be1911f6cd311d5e473e72adb7c99a3b",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "accueil-clair.png",
-      "sha256": "05f48f3729b7962924cea30654b3b84b02e7979c0c4e6b8adf71058db0b6dba7",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "8b86dc82eb116e76480ce505ad31dabfa0c9ea537aaff65e5350c246f7b70f93",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "musique-et-concentration.png",
-      "sha256": "ce75aeeef48dd56a714704efa6dbc59b1f4cfdf1494b86bc69d70f423bcb315f",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "d2b6b694b01c1e7724517ec7216bd66456e18e28709780d0415538147993a340",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "terminer-seance-alerte.png",
-      "sha256": "029e83161eef5f5016a947001ee8787fdd590b6d451113cfe9b72406f47e144b",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "3f3890b01efd255d4fb73b30693a99371f892f8e14fa328688a38aa9ca30af00",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "nouvelle-seance-formulaire.png",
-      "sha256": "b3610128259d08aebdbcbf88b9020b133b9de9fbea90b4ec2bf9a4c34a9c080d",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "b2df60b17beb71137a85e476b2412874039c0745acab718f266fa38b8de24b1c",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "nouvelle-seance-feuille.png",
-      "sha256": "6c4295a3b44c4f3418219d62f0cfd6a36175645c142add4f6496405ec906dee8",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "2ad2d8dd39145002c9ad97ec294afa465ea4e869183edf4c4d6d4447f953eb2e",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
+    },
+    {
+      "file": "pronote-connexion-directe-formulaire.png",
+      "sha256": "7613174d81ea5cf1e8748b961c02440c5d45a1ac88407cd657af9e68cb9ae825",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
+    },
+    {
+      "file": "pronote-nouveau-message-brouillon.png",
+      "sha256": "c8091ac803765f141de61c7ee87f425c9368bebc686f914b8a519cde311f35d7",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
+    },
+    {
+      "file": "pronote-messages.png",
+      "sha256": "0caa00c6df25530fda6bc911b2b6ce74ed4148c99f94b357b58ae89913e2b322",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
+    },
+    {
+      "file": "pronote-lecon.png",
+      "sha256": "cc1a753327f70fbdc115567cfde9737e769de8f14f1417bf25f0981469be6d3c",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
+    },
+    {
+      "file": "pronote-notes.png",
+      "sha256": "019540f9a860796e3c0c04d644eccedc485a84c9fe5e6166e0c50500193df092",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "devoirs-detail.png",
-      "sha256": "c3b7eeff726e26b1e97433904c8af0342c31faa8904a09dd84b8d664dcfda9a8",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "66a7b13e36f25c43b372b91767ec4645ee2db923588a5d3d6479f52dc2c66a32",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "devoirs-liste.png",
-      "sha256": "f059635ef8ffae3c968e634ea5770a22ef1d2b0a0967cd8f9698e80cc5390ff9",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "03cd6470c1b06c4661da5ab2565b5077450dd8f2a1c65f7250c633d30671bff7",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "devoir-seance-liee.png",
-      "sha256": "eb07c92a0dc986d51039b376146e4fad1903ef6ae49ff790d49d582e34b6bc60",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "14ae932581a22c10c6ec2bf78f7f856c64bae4eac5c2f37f4373950d43bc5a54",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "vitrine-statistiques.png",
-      "sha256": "691e98789b58cd02495005452fa729c19fd0a9b46eea505676dcd0214fc3c7dd",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "bd2476392b277641005f590be2dcb75b62de552d8a8384ba3d093687115a27db",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "vitrine-revision-active.png",
-      "sha256": "730e0a2c0e6198dfbaa73062f874d67afdd4c712c28a19f60db22218a691056f",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "cbbdbcc94bf3574b52bf751a74feb5eb853ca087365a496ad2c60311b699ea31",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "vitrine-emploi-du-temps.png",
-      "sha256": "adc5891c28a64557b239f5361b414296248572ded22a08a27a5a2ae02363f35d",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "02092eed9d5c40934983b47d7b0bee878a61f8f96863296f6daeaf5ebfe86e6e",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "vitrine-accueil.png",
-      "sha256": "92bb8547dc9d2cfd2de1dcb912d106d60d8aafbd62ccdbc30bac6628a2649932",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Unmodified native XCTest simulator capture; school/showcase fixtures are fictitious"
+      "sha256": "0124b9a258f94dd303442521f437fbc59f1859ce9a33f2cdd61f08a3cdd39aee",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
+    },
+    {
+      "file": "statistiques-deux-categories.png",
+      "sha256": "efe68e091ba08d9172027c8e382ee7c41d2fe2717a54763ef154b8ed3537bb08",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "widgets-apercu-simulateur-bas.png",
-      "sha256": "1f338bc899d0e1db5eb405cea3aba8c2e42112437c6352d8bb5efa0a47dd47a3",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Simulated widget component preview with fictitious data, not SpringBoard installation"
+      "sha256": "40f51b56e211eded38a3ac792776e1f48992d803f93979bfaacd62958db0cf51",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     },
     {
       "file": "widgets-apercu-simulateur-haut.png",
-      "sha256": "0f33bd8954f49d0cbf056866f52fab5f6f6e76020499d16137c84b7d2c7deee0",
-      "run": "https://github.com/JuJT/Cadence/actions/runs/43974418769",
-      "nature": "Simulated widget component preview with fictitious data, not SpringBoard installation"
+      "sha256": "34d3bd80dbe7868ae94ac1775bcf37d2ee7528890cbb263a5e61453807073734",
+      "run": "https://github.com/JuJT/Cadence/actions/runs/44347981845",
+      "nature": "Unmodified native XCTest capture; all school and showcase data are fictitious. Widget images are component previews, not a SpringBoard installation."
     }
   ],
   "ipas": [
     {
       "file": "CadenceSpike-unsigned.ipa",
-      "sha256": "3a3b669f09a57e99385398f1c528fa08103ddb82e749d0d0f0dd06cd711ec2d6",
-      "bytes": 3048397,
+      "sha256": "3e4c5a48bc6495aa3833754d811c2b8b39a5bcc7df1c43f8d1d4560e7d13573e",
+      "bytes": 3653825,
       "extensions": [
         "CadenceWidgets.appex"
       ],
-      "keychainSharing": {
-        "extensionAndAppPresent": true,
-        "commonCadenceGroupInExecutableSignatures": false,
-        "templateMetadataOnly": false,
-        "commonGroupPermittedByEveryProfile": false,
-        "readyForPhysicalReadTest": false,
-        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
-      },
       "authIsolation": {
         "privateAppGroupPresent": false,
         "privateAppGroupIsDefault": false,
@@ -170,13 +220,32 @@
         "privateGroupPermittedByAppProfile": false,
         "readyForPhysicalPrivateStorageTest": false,
         "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      },
+      "keychainSharing": {
+        "extensionAndAppPresent": true,
+        "commonCadenceGroupInExecutableSignatures": false,
+        "templateMetadataOnly": false,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
       }
     },
     {
       "file": "Cadence-unsigned.ipa",
-      "sha256": "e3247cc0cf5ef2c709d7db288912f0c23b102ee19ef143ca142e61fa8b154803",
-      "bytes": 2919902,
+      "sha256": "d31fd414722fabe977a747ad81c3270dea7005e7f54640c8ffb0b984cdae994c",
+      "bytes": 3528100,
       "extensions": [],
+      "authIsolation": {
+        "privateAppGroupPresent": false,
+        "privateAppGroupIsDefault": false,
+        "extensionEntitlementsReadable": true,
+        "extensionHasAppPrivateGroup": false,
+        "isolatedInExecutableMetadata": false,
+        "templateMetadataOnly": false,
+        "privateGroupPermittedByAppProfile": false,
+        "readyForPhysicalPrivateStorageTest": false,
+        "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      },
       "keychainSharing": {
         "extensionAndAppPresent": false,
         "commonCadenceGroupInExecutableSignatures": false,
@@ -184,34 +253,15 @@
         "commonGroupPermittedByEveryProfile": false,
         "readyForPhysicalReadTest": false,
         "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
-      },
-      "authIsolation": {
-        "privateAppGroupPresent": false,
-        "privateAppGroupIsDefault": false,
-        "extensionEntitlementsReadable": true,
-        "extensionHasAppPrivateGroup": false,
-        "isolatedInExecutableMetadata": false,
-        "templateMetadataOnly": false,
-        "privateGroupPermittedByAppProfile": false,
-        "readyForPhysicalPrivateStorageTest": false,
-        "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
       }
     },
     {
       "file": "CadenceExtensions-unsigned.ipa",
-      "sha256": "cb7a5cf950eb8ed49da0af338e6552b20c1a20f42362414b5f59d8d419eca811",
-      "bytes": 3149654,
+      "sha256": "0d1ac918bd6afc353135b3d48c1bc9d9432b28c05cb3ee4ebc7dccf3857162db",
+      "bytes": 3760525,
       "extensions": [
         "CadenceWidgets.appex"
       ],
-      "keychainSharing": {
-        "extensionAndAppPresent": true,
-        "commonCadenceGroupInExecutableSignatures": true,
-        "templateMetadataOnly": true,
-        "commonGroupPermittedByEveryProfile": false,
-        "readyForPhysicalReadTest": false,
-        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
-      },
       "authIsolation": {
         "privateAppGroupPresent": true,
         "privateAppGroupIsDefault": true,
@@ -222,23 +272,23 @@
         "privateGroupPermittedByAppProfile": false,
         "readyForPhysicalPrivateStorageTest": false,
         "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      },
+      "keychainSharing": {
+        "extensionAndAppPresent": true,
+        "commonCadenceGroupInExecutableSignatures": true,
+        "templateMetadataOnly": true,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
       }
     },
     {
       "file": "CadenceShared-unsigned.ipa",
-      "sha256": "f6a73f5c10c71504e6aa9d8abc191948770d14d01071203040878ccf14cb814e",
-      "bytes": 3108718,
+      "sha256": "2d4ed47de48646b65ffc8b5e60079680f6aa6d4ed9bb0d7284d8337e2756e253",
+      "bytes": 3719274,
       "extensions": [
         "CadenceWidgets.appex"
       ],
-      "keychainSharing": {
-        "extensionAndAppPresent": true,
-        "commonCadenceGroupInExecutableSignatures": false,
-        "templateMetadataOnly": false,
-        "commonGroupPermittedByEveryProfile": false,
-        "readyForPhysicalReadTest": false,
-        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
-      },
       "authIsolation": {
         "privateAppGroupPresent": false,
         "privateAppGroupIsDefault": false,
@@ -249,9 +299,16 @@
         "privateGroupPermittedByAppProfile": false,
         "readyForPhysicalPrivateStorageTest": false,
         "note": "Métadonnées seulement ; contrôler la signature après resignature et tester le trousseau privé sur iPhone."
+      },
+      "keychainSharing": {
+        "extensionAndAppPresent": true,
+        "commonCadenceGroupInExecutableSignatures": false,
+        "templateMetadataOnly": false,
+        "commonGroupPermittedByEveryProfile": false,
+        "readyForPhysicalReadTest": false,
+        "note": "Le test physique doit confirmer la lecture du résumé. Une signature ad-hoc ne permet pas l’installation."
       }
     }
   ],
-  "backendAudit": "SUPABASE_AUDIT.json",
-  "limits": "The real deployed API was tested separately with verified email authentication. The iPhone was unavailable: post-Sideloadly Keychain/widget access, physical audio/Focus setup, and actual motion performance are not hardware-validated. Unsigned ad-hoc metadata is not an Apple provisioning profile."
+  "limits": "No personal PRONOTE credentials or actual iPhone used in CI. Public demo results are recorded separately; the demo cannot validate persistent token renewal. Physical Sideloadly widget sharing, Focus import/permissions, heat and global third-party media controls are not established by a successful build."
 }

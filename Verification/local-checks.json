@@ -1,14 +1,14 @@
 {
-  "date": "2026-11-16",
-  "generatedAtUTC": "2026-11-16T22:52:46.638730+00:00",
+  "date": "2026-11-18",
+  "generatedAtUTC": "2026-11-18T17:20:14.435644+00:00",
   "swiftSyntaxParser": "tree-sitter-swift (analyse syntaxique, sans vérification des types Apple)",
-  "swiftFiles": 44,
+  "swiftFiles": 54,
   "errors": [],
   "yamlJSONPlistAndPythonSyntax": "OK",
   "appIcon": "1024x1024 RGB opaque ; nouvelle icône Cadenza générée avec imagegen, original et prompt conservés",
   "pythonTests": {
-    "executed": 13,
-    "passed": 13
+    "executed": 22,
+    "passed": 22
   },
   "swiftCoreTestsLocal": "Non exécutés localement ; tests du noyau et compilation Apple délégués à la CI macOS",
   "scope": "Vérifications locales uniquement ; résultats Xcode dans docs/VERIFICATION.md",

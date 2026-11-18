@@ -1,32 +1,13 @@
-# Données et sauvegardes
+# Données, migration et sauvegardes
 
-## Stockage
+Le suivi d’étude garde son fichier `Application Support/Cadence/cadence-state.json`, son format compatible et une génération précédente récupérable. Les séances, matières, alias, notes et associations restent conservés. Les anciennes sauvegardes sont toujours lisibles.
 
-Aucune donnée scolaire réelle n’est fournie dans l’installation. Après connexion, les cours et devoirs sont lus depuis l’API privée Supabase et conservés en cache. Les séances personnelles, notes et alias restent sur l’iPhone et ne sont pas envoyés au serveur. Les jetons sont dans le trousseau privé, hors du JSON et du résumé widgets.
+La version 0.4 répare les occurrences scolaires remplacées en conservant l’historique. Une ancienne annulation de source n’est plus confondue avec un choix explicite de l’utilisateur. Les occurrences archivées peuvent garder leurs séances mesurées ; ces séances restent éditables. La salle et le professeur ne définissent pas l’identité d’un cours.
 
-L’écriture est atomique. La génération précédente est conservée. Si le fichier ne peut pas être lu ou validé, il n’est pas écrasé silencieusement ; l’application bloque les modifications et permet une restauration explicite. Une réinstallation après suppression peut effacer toutes les données : le fichier local précédent n’est pas une sauvegarde externe.
+Les devoirs possèdent une identité locale stable et les identités distantes successives. Une transition Supabase → Pawnote ne doit pas effacer une réalisation locale, une matière corrigée ou les segments déjà travaillés. Les rapprochements ambigus restent séparés.
 
-## JSON
+L’affichage regroupe toutes les durées de cours dans Cours et garde Révisions séparément. La durée mesurée associée à un cours remplace son créneau compté automatiquement. Une annulation, absence ou exclusion ne crée pas de crédit automatique. Les cours futurs ne sont pas comptés.
 
-Depuis Réglages, exporter puis enregistrer le JSON dans Fichiers ou un emplacement choisi via la feuille système. Le document version 3 contient `schemaVersion`, `exportedAt`, `subjects`, `sessions`, `occurrences` `settings`, `homework`, `courseContents` et `schoolSync`. Les identifiants UUID restent stables ; les associations session/occurrence sont bidirectionnelles. Les dates représentent des instants UTC. La session active et ses pauses et ses segments par devoir font partie de la sauvegarde.
+Le cache de portail `pronote-portal.json` est séparé du suivi et peut être récupéré à nouveau depuis PRONOTE. Les rubriques déjà lues restent accessibles hors connexion. Les jetons de connexion ne font pas partie de ce cache ni des sauvegardes : ils restent dans le trousseau privé de l’app. Les documents scolaires peuvent contenir des liens d’accès temporaires et restent des données privées.
 
-L’import **remplace l’état courant après confirmation** ; ce n’est pas une fusion entre deux appareils. Avant remplacement, la génération locale antérieure est conservée. Le fichier est validé en entier : taille maximale 20 Mo, version connue, UUID uniques, références existantes, une seule session active, ordre temporel et associations cohérentes. En cas de refus, l’état courant reste intact. Les formats v1 et v2 sont migrés vers v3 ; aucune donnée fictive du kit n’est importée au lancement. La première lecture d’un ancien stockage conserve aussi une copie cadence-before-school-v3.json avant modification.
-
-Une sauvegarde contient le cache scolaire, des devoirs et des notes privées : ne la partager qu’avec les destinataires choisis. Les workflows de compilation ne doivent recevoir aucun export réel.
-
-## CSV
-
-Le CSV UTF-8 avec BOM comporte : identifiant, type, matière, début et fin UTC, secondes actives, origine, statut, chapitre, notes et cours associé. Les guillemets et retours à la ligne sont échappés. Un texte susceptible d’être interprété comme formule de tableur est neutralisé. Une occurrence liée à une séance n’est pas exportée une seconde fois avec son estimation. Les cours planifiés peuvent être présents avec zéro seconde et un statut explicite.
-
-Le CSV est destiné à la consultation et ne sert pas à restaurer la base. Le JSON est la sauvegarde complète.
-
-## Comptabilisation
-
-- Les cours scolaires terminés sont automatiquement estimés, sauf annulation, dispense, absence ou exclusion locale ; aucune confirmation systématique n’est demandée.
-- Un cours passé estimé est distinct d’un cours confirmé ou mesuré.
-- Une mesure associée remplace l’estimation, même si sa durée diffère.
-- Les révisions restent manuelles et comptent séparément.
-- Un événement source supprimé ne supprime jamais une séance ou ses notes.
-- La suppression explicite d’une séance liée ne fait pas réapparaître automatiquement un ancien crédit estimé.
-
-Conserver un export avant changement de variante, renouvellement de signature, restauration ou désinstallation. Le renouvellement à sept jours doit se faire par-dessus la même application avec la même identité ; sa conservation des données exige un essai réel.
+Exporter une sauvegarde JSON dans Fichiers avant toute désinstallation, restauration ou changement de variante. Mettre à jour par-dessus l’app avec le même compte Sideloadly ; ne pas désinstaller pour renouveler la signature. Les quatre schémas partagent le même identifiant et se remplacent.

@@ -1,21 +1,21 @@
 # Widgets de Cadenza
 
-La version 0.3 corrige la découverte des groupes après resignature et sépare le groupe privé des jetons du résumé partagé. Voir [le correctif et le contrôle sur appareil](RENOUVELLEMENT_ET_SESSION.md#widgets-après-resignature). Le test de lecture sur l’iPhone reste nécessaire ; une écriture réussie seule ne le remplace pas.
+La version 0.4 corrige la découverte des groupes après resignature et sépare le groupe privé des jetons du résumé partagé. Voir [l’installation et le contrôle sur appareil](#installation-windows-et-compte-gratuit). Le test de lecture sur l’iPhone reste nécessaire ; une écriture réussie seule ne le remplace pas.
 
 Cadenza pour iPhone propose quatre widgets utilisant uniquement vos données locales :
 
-- **Aujourd’hui** : cours mesurés ou confirmés, révisions et estimations séparées ; petit ou moyen format.
-- **Ma semaine** : sept barres quotidiennes, mêmes catégories et matière la plus travaillée ; petit ou moyen format.
+- **Aujourd’hui** : Cours et Révisions ; petit ou moyen format.
+- **Ma semaine** : sept barres quotidiennes, Cours et Révisions, avec la matière la plus travaillée ; petit ou moyen format.
 - **Prochain cours** : matière normalisée, date et horaire du prochain créneau synchronisé ; petit ou moyen format.
 - **Temps d’étude** : résumé du jour sur l’écran verrouillé, en ligne ou rectangle.
 
-Les valeurs sont un résumé daté publié par l’application. Les widgets se rafraîchissent selon le budget d’iOS ; leur compteur n’est pas un chronomètre continu. La Live Activity conserve le chronomètre de la séance. Ouvrir Cadenza actualise le résumé et demande le rechargement des widgets. Les cours futurs ne comptent pas dans les durées. Les estimations sont représentées séparément.
+Les valeurs sont un résumé daté publié par l’application. Les widgets se rafraîchissent selon le budget d’iOS ; leur compteur n’est pas un chronomètre continu. La Live Activity conserve le chronomètre de la séance. Ouvrir Cadenza actualise le résumé et demande le rechargement des widgets. Les cours futurs ne comptent pas dans les durées. Les anciennes provenances sont réunies dans Cours.
 
 ## Installation Windows et compte gratuit
 
-Utiliser **Cadenza-iPhone-0.3.0.ipa** (variante technique `CadenceExtensions`), conserver les extensions dans Sideloadly, le même compte Apple et l’identifiant utilisé pour l’installation existante. Ne pas désinstaller l’application pour la mettre à jour.
+Utiliser **Cadenza-iPhone-0.4.0.ipa** (variante technique `CadenceExtensions`), conserver les extensions dans Sideloadly, le même compte Apple et l’identifiant utilisé pour l’installation existante. Ne pas désinstaller l’application pour la mettre à jour.
 
-Cette variante demande **Keychain Sharing**, que le tableau Apple indique disponible pour un compte Apple Developer gratuit. L’application et son extension demandent le groupe commun `com.cadence.study.widget-summary`, préfixé par le véritable identifiant de signature. Elles recherchent aussi les noms exacts inscrits dans leur propre signature après resignature ; le système contrôle leurs droits effectifs. Le transport du résumé vers les widgets reste local et ne demande aucun serveur ni compte supplémentaire. La connexion Supabase de l’app sert séparément à récupérer les données scolaires. Seul un petit résumé de statistiques et de prochains cours est partagé ; la base d’étude complète reste dans l’application.
+Cette variante demande **Keychain Sharing**, que le tableau Apple indique disponible pour un compte Apple Developer gratuit. L’application et son extension demandent le groupe commun `com.cadence.study.widget-summary`, préfixé par le véritable identifiant de signature. Elles recherchent aussi les noms exacts inscrits dans leur propre signature après resignature ; le système contrôle leurs droits effectifs. Le transport du résumé vers les widgets reste local et ne demande aucun serveur ni compte supplémentaire. La connexion directe PRONOTE de l’app sert séparément à récupérer les données scolaires. Seul un petit résumé de statistiques et de prochains cours est partagé ; la base d’étude complète reste dans l’application.
 
 **La capacité Apple et sa conservation par Sideloadly sont deux vérifications distinctes.** La documentation publique de Sideloadly ne garantit pas le traitement de ce groupe personnalisé. Après installation :
 

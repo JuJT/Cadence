@@ -1,5 +1,13 @@
 # Historique
 
+## 0.4.0 — PRONOTE direct et fluidité — 18 novembre 2026
+
+- Connexion directe Pawnote, annuaire facultatif et portail scolaire avec cache.
+- Cours/Révisions réunissent toutes les durées, réparation des cours remplacés et conservation des choix locaux et du travail sur les devoirs.
+- Devoirs par dates limites exactes, navigation et calculs de graphiques optimisés, fond suspendu hors écran et en cas de chauffe.
+- Raccourci Concentration signé prêt à ajouter, volume et sortie audio système ; import MP3 et lien Deezer supprimés.
+- Sources de la bibliothèque et notices incluses. Résultats exacts et limites matérielles dans docs/VERIFICATION.md.
+
 ## 0.3.0 — Synchronisation scolaire et devoirs — 17 novembre 2026
 
 - Lecture Supabase sécurisée, cours et devoirs en cache hors connexion ; plus de dépendance au calendrier PRONOTE de l’iPhone.

@@ -1,4 +1,44 @@
-# Vérification de Cadenza 0.3.0 — 17 novembre 2026
+# Vérification de Cadenza 0.4.0 — 18 novembre 2026
+
+Compilation et contrôles finaux : [GitHub Actions](https://github.com/JuJT/Cadence/actions/runs/44347981845), commit `ffe0013fa0589791dae70e31bb7f38ca16969339`, version 0.4.0 build 5. Les quatre variantes ciblent uniquement l’iPhone et conservent l’identifiant `com.cadence.study`.
+
+| Contrôle | Résultat réel |
+|---|---|
+| Domaine Swift | 78 tests réussis, dont archives Religion, annulations/exclusions, migration des identités de devoirs, sessions et sauvegardes |
+| Scripts Python | 22 tests réussis |
+| Moteur Pawnote | 40 tests Node réussis ; dépendances épinglées, audit sans vulnérabilité |
+| Pont JavaScriptCore | Vrai bundle chargé ; CSPRNG, réseau privé, cookies, bornes, annulation, watchdog, 200 appels consécutifs et nettoyage vérifiés sur macOS |
+| Interface | 15 parcours réussis : 14 en clair, 1 en sombre ; connexion sans requête, portail, catégories, dates, séances, brouillon annulé, widgets et grandes polices |
+| Captures | 27 captures natives, sans retouche, empreintes conservées |
+| Raccourci préfait | Empreinte, chaîne Apple, audience publique, signature AEA et dix actions Focus vérifiées ; fichier signé inclus dans chaque app |
+| IPA | Quatre IPA arm64 iPhone, nom/version/bundle ID/CRC/SHA-256 conformes ; bundle Pawnote et raccourci comparés aux empreintes |
+| Stockage privé | Groupe de jetons distinct du résumé widgets dans les métadonnées de signature ; validation après Sideloadly reste matérielle |
+
+## Essais sur le service public de démonstration
+
+Le [rapport agrégé](../Verification/0.4.0/PRONOTE_DEMO.json) décrit quatre connexions autorisées à la démo officielle Index Éducation et 46 réponses HTTP 200. Aucun compte personnel, aucun jeton ni aucune ligne scolaire n’est publié. Les lectures ont validé le profil, les cours, les devoirs, les notes, les contenus et une leçon liée. Le créneau réel de 61 jours a donné 198 cours et 57 devoirs, avec identifiants uniques et durées positives.
+
+Les ressources ont été vérifiées sur des intervalles de 7, 14 et 61 jours. Une requête annuelle unique renvoyait zéro ; l’interface charge donc les contenus et les menus par semaine, à la demande, et permet de changer de date.
+
+La démo PRONOTE 2026 n’avait aucune information publiée. Son nouveau schéma de liste a été observé en lecture réelle. Les articles non vides, sondages et détails différés sont testés avec des données synthétiques correspondant au contrat du client officiel public ; ils restent à vérifier avec le compte réel. La liste ne déclenche aucun appel de détail et aucun article n’est marqué comme lu ou accusé automatiquement.
+
+La démo ne valide pas le renouvellement persistant des jetons : son serveur ne les conserve pas comme un établissement réel. La rotation, l’ordre de sauvegarde et l’interruption d’une requête consommante sont couverts séparément par les tests du moteur. Aucun message, accusé de réception ou changement de réalisation de devoir n’a été envoyé pendant les essais réels. Le test UI du compositeur a rempli puis annulé un brouillon sans action Envoyer.
+
+## Limites et essais sur appareil
+
+L’iPhone n’était pas disponible pour une validation matérielle. La première connexion avec les vrais identifiants, les vérifications de sécurité propres à l’établissement, l’import/autorisation du raccourci, le partage réel des widgets après Sideloadly, la Dynamic Island et la température restent à contrôler sur l’appareil. Une IPA compilée et ses signatures ad-hoc ne garantissent pas les droits conservés par le resigneur.
+
+Les optimisations réduisent les mises à jour du fond, les calculs de graphiques, les minuteurs hors écran et les rechargements d’extensions. Ce sont des contrôles structurels et fonctionnels, pas une mesure de chauffe ou de consommation sur iPhone. Le chronomètre reste fondé sur les dates persistées.
+
+Le lecteur universel des pistes et positions d’autres applications n’est pas fourni par les API publiques iOS. Le volume et le sélecteur de sortie audio intégrés sont des contrôles système réels ; Cadenza ne propose plus d’import MP3 ni de lien Deezer.
+
+Un premier contrôle a révélé une course entre la fin d’une commande JavaScript et l’admission de la suivante. Le gate est désormais libéré avant le retour au demandeur ; les 200 appels consécutifs et la passe finale vérifient cette correction. Les sources des tests et les rapports bruts sont livrés.
+
+Guides : [connexion PRONOTE](PRONOTE_DIRECT.md), [composants](FONCTIONNALITES_0.4.0.md), [son/Concentration et renouvellement](RENOUVELLEMENT_ET_SESSION.md), [galerie native](../Verification/0.4.0/APERCU.html).
+
+---
+
+## Historique — Vérification de Cadenza 0.3.0 — 17 novembre 2026
 
 Compilation finale : [GitHub Actions](https://github.com/JuJT/Cadence/actions/runs/43974418769), commit `5f3e66c9c178ca482674d16d4ca9dec388eb7767`, version 0.3.0 build 4. Les quatre IPA appareil portent le nom Cadenza et ciblent uniquement l’iPhone.
 

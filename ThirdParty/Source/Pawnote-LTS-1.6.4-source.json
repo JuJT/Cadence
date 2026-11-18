@@ -1,0 +1,8 @@
+{
+  "library": "@blockshub/pawnote-lts",
+  "version": "1.6.4",
+  "upstreamCommit": "0fa8665fe9618d93b47e9eafed1905f3ae571ae1",
+  "sourceArchiveSHA256": "436c1d0a27b22fff131e96cd20d60664661fc73e2269846862832d367d224802",
+  "sourceURL": "https://github.com/BlocksHub/Pawnote-LTS/tree/0fa8665fe9618d93b47e9eafed1905f3ae571ae1",
+  "modifications": "Runtime/patches, Runtime/news-compatibility.mjs and Runtime/src; locked reproducible build in Runtime/package-lock.json"
+}
