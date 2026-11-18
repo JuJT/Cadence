@@ -29,7 +29,9 @@ private final class Probe: @unchecked Sendable {
 private final class FixtureURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private static var count = 0
+    private static var safeDirectoryRequests = true
     static var requestCount: Int { lock.lock(); defer { lock.unlock() }; return count }
+    static var directoryRequestsAreSafe: Bool { lock.lock(); defer { lock.unlock() }; return safeDirectoryRequests }
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -38,6 +40,14 @@ private final class FixtureURLProtocol: URLProtocol, @unchecked Sendable {
         var headers = ["Content-Type": "text/plain; charset=utf-8", "X-Fixture": "ready"]
         let body: Data
         switch url.path {
+        case "/swie/geoloc.php":
+            let content = String(data: requestBody(), encoding: .utf8) ?? ""
+            let safe = url.host == "www.index-education.com" && request.httpMethod == "POST" &&
+                request.value(forHTTPHeaderField: "Cookie") == nil && request.value(forHTTPHeaderField: "Authorization") == nil &&
+                content.contains("geoLoc")
+            Self.lock.lock(); Self.safeDirectoryRequests = Self.safeDirectoryRequests && safe; Self.lock.unlock()
+            headers["Content-Type"] = "application/json"
+            body = Data(#"[{"nomEtab":"Fixture Far","url":"https://far.example.org/pronote/","lat":"2","long":"2","cp":"00000"},{"nomEtab":"Fixture Nearby","url":"https://near.example.org/pronote/","lat":"0.01","long":"0.01","cp":"00000"}]"#.utf8)
         case "/set-cookie":
             headers["Set-Cookie"] = "fixture_cookie=private; Path=/; Secure"
             body = Data("set".utf8)
@@ -59,6 +69,18 @@ private final class FixtureURLProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+    private func requestBody() -> Data {
+        if let data = request.httpBody { return data }
+        guard let stream = request.httpBodyStream else { return Data() }
+        stream.open(); defer { stream.close() }
+        var result = Data(), bytes = [UInt8](repeating: 0, count: 1024)
+        while result.count < 8192 {
+            let read = stream.read(&bytes, maxLength: min(bytes.count, 8192 - result.count))
+            if read <= 0 { break }
+            result.append(contentsOf: bytes.prefix(read))
+        }
+        return result
+    }
 }
 
 private let script = #"""
@@ -121,6 +143,12 @@ private struct PawnoteRuntimeChecks {
         try await networkAndCookies()
         try await coalescingAndCancellation()
         try await watchdog()
+        if let path = CommandLine.arguments.dropFirst().first {
+            try await actualBundleBoot(path)
+            print("Pawnote actual browser bundle checks passed: native crypto/URL primitives, Promise command envelope and mock directory ordering, no real network or credentials.")
+        } else {
+            print("Pawnote actual bundle boot skipped: no browser bundle was supplied to this standalone run.")
+        }
         print("Pawnote runtime checks passed: URL/redirect policy, opaque envelope, secure random, private cookies, HTTP caps, synchronous credentials, timers, bounded coalescing, cancellation and off-queue watchdog.")
     }
 
@@ -236,6 +264,37 @@ private struct PawnoteRuntimeChecks {
         try check(probe.count == 0, "late credential callback ignored after timeout")
         let value = try await runtime.call("opaque", payload: empty, schoolHost: schoolHost)
         try check(value == Data("opaque-envelope".utf8), "runtime recovers in a fresh context")
+        await runtime.invalidate()
+    }
+
+    private static func actualBundleBoot(_ path: String) async throws {
+        let data = try Data(contentsOf: URL(fileURLWithPath: path))
+        guard let source = String(data: data, encoding: .utf8) else { throw CheckError.failed("browser bundle UTF8") }
+        // Only adds a harness diagnostic command around the real module entry;
+        // Pawnote, Forge and platform.js themselves are not substituted.
+        let diagnostic = #"""
+        ;const realCommand = globalThis.__cadenzaCommand;
+        globalThis.__cadenzaCommand = (id,command,payload) => {
+          if(command !== '__harnessPlatform') return realCommand(id,command,payload);
+          const bytes = crypto.getRandomValues(new Uint8Array(32));
+          const url = new URL('https://fixture.index-education.net/pronote/mobile.eleve.html?existing=x');
+          url.searchParams.set('probe','un caractère');
+          __cadenzaNative.complete(id,JSON.stringify({count:bytes.length,bytes:[...bytes].every(x=>x>=0&&x<=255),
+            varied:new Set(bytes).size>1,host:url.hostname,path:url.pathname,value:url.searchParams.get('probe'),href:url.href}));
+        };
+        """#
+        let runtime = PawnoteRuntime(testScript: source + diagnostic, protocolClasses: [FixtureURLProtocol.self], commandTimeout: 10, onCredential: { _ in false })
+        let before = FixtureURLProtocol.requestCount
+        let envelope = try object(await runtime.call("logout", payload: empty, schoolHost: schoolHost))
+        try check(envelope["ok"] as? Bool == true && envelope["result"] as? [String: Any] != nil, "actual bundle command envelope")
+        try check(FixtureURLProtocol.requestCount == before, "actual bundle boot must not contact a school")
+        let primitives = try object(await runtime.call("__harnessPlatform", payload: empty, schoolHost: schoolHost))
+        try check(primitives["count"] as? Int == 32 && primitives["bytes"] as? Bool == true && primitives["varied"] as? Bool == true, "actual platform secureRandom")
+        try check(primitives["host"] as? String == schoolHost && primitives["path"] as? String == "/pronote/mobile.eleve.html" && primitives["value"] as? String == "un caractère", "actual platform URL and SearchParams")
+        let directory = try object(await runtime.call("discover", payload: encoded(["latitude": 0, "longitude": 0])))
+        let schools = (directory["result"] as? [[String: Any]]) ?? []
+        try check(directory["ok"] as? Bool == true && schools.count == 2 && schools.first?["name"] as? String == "Fixture Nearby", "real Pawnote directory mapping and distance order")
+        try check(FixtureURLProtocol.requestCount == before + 1 && FixtureURLProtocol.directoryRequestsAreSafe, "directory POST stays on allowed endpoint without cookies/auth")
         await runtime.invalidate()
     }
 }
