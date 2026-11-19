@@ -11,7 +11,7 @@ const period=(id,start,end)=>({id,name:id,kind:1,startDate:new Date(start),endDa
 test('school HTML becomes readable paragraphs without active markup, including escaped markup',()=>{
   assert.equal(plainSchoolText('<div style="font-family: Arial">QCM 10 à 22 page 293<br>Exercices 26, 27 et 30&nbsp;: &#233;tudier</div>'),'QCM 10 à 22 page 293\nExercices 26, 27 et 30 : étudier');
   assert.equal(plainSchoolText('&lt;div&gt;Revoir &amp; apprendre&lt;br&gt;Suite&lt;/div&gt;'),'Revoir & apprendre\nSuite');
-  assert.equal(plainSchoolText('<script>alert(1)</script><ul><li>Lire</li><li>Écrire</li></ul>'),'• Lire\n\n• Écrire');
+  assert.equal(plainSchoolText('<script>alert(1)</script><ul><li>Lire</li><li>Écrire</li></ul>'),'• Lire\n• Écrire');
   assert.equal(plainSchoolText('2 < 3 et 4 > 1'),'2 < 3 et 4 > 1');
 });
 

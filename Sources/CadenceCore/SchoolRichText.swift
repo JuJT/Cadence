@@ -18,6 +18,7 @@ public enum SchoolRichText {
         }
         return text.replacingOccurrences(of: "[ \\t\\u00a0]+", with: " ", options: .regularExpression)
             .replacingOccurrences(of: " *\n *", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "\n{2,}(?=• )", with: "\n", options: .regularExpression)
             .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }

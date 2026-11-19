@@ -89,6 +89,24 @@ test('published read-only text is readable without optional acknowledgment or re
   assert.equal(value.acknowledgementAvailable,false);assert.equal(value.needToAcknowledge,false);
   assert.equal(value.acknowledged,undefined);assert.equal(f.calls.length,2);
 });
+
+test('acknowledgment requires complete answer state and a usable original public reference',async()=>{
+  const valid=()=>({...complete(),public:{V:{N:'fictional-public',G:6}},listeQuestions:{V:[{...question(),reponse:{V:{N:'123',avecReponse:false,estReponseAttendue:true}}}]}});
+  const check=async item=>{
+    const f=setup(modern([metadata()]),{genreRequeteActualite:1,detailsActualite:item});await f.list();
+    const result=await f.details('fixture-news');assert.equal(result.content,'Contenu pédagogique fictif');return result;
+  };
+  const enabled=await check(valid());assert.equal(enabled.acknowledgementAvailable,true);assert.equal(enabled.needToAcknowledge,true);
+  for(const mutate of [
+    item=>{item.public={V:null};},item=>{item.public={V:'invalid-reference'};},item=>{item.public={V:{N:'missing-kind'}};},
+    item=>{delete item.listeQuestions.V[0].reponse.V.avecReponse;},item=>{delete item.listeQuestions.V[0].reponse.V.estReponseAttendue;},
+    item=>{item.listeQuestions.V[0].reponse.V.N='not-a-number';},item=>{item.listeQuestions.V[0].reponse.V.N='9007199254740993';},
+    item=>{item.listeQuestions.V[0].genreReponse=2;}
+  ]){
+    const item=valid();mutate(item);const result=await check(item);
+    assert.equal(result.acknowledgementAvailable,false);assert.equal(result.needToAcknowledge,false);
+  }
+});
 test('unknown or malformed news shapes are not silently accepted as empty',async()=>{
   for(const payload of [{listeModesAff:modes([])}, {listeNatures:{V:[]},listeModesAff:[{}]}, {listeNatures:{V:{}},listeModesAff:[]}]){
     await assert.rejects(setup(payload).list(),/UnsupportedNewsFormat/);

@@ -15,7 +15,7 @@ export function plainSchoolText(value) {
     .replace(/<!--[^]*?-->/g,'').replace(/<li\b[^>]*>/gi,'\n• ')
     .replace(/<br\b[^>]*>|<\/(?:p|div|li|h[1-6]|tr|ul|ol)\s*>/gi,'\n')
     .replace(/<\/?[a-z][^>]*>/gi,'').replace(/\r\n?/g,'\n')
-    .replace(/[\t ]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n');
+    .replace(/[\t ]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\n{2,}(?=• )/g,'\n');
   return text.trim();
 }
 

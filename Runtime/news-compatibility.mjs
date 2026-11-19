@@ -101,8 +101,12 @@ function __cadenzaDecodeModernNews(item,session,categories){
     const question=questions[0];result.question=question;result.content=question.content;result.attachments=question.attachments;
     if(typeof question.answered==="boolean")result.acknowledged=question.answered;
     if(question.answerDate!==undefined)result.acknowledgedDate=question.answerDate;
-    result.needToAcknowledge=question.shouldAnswer===true&&question.answerID!==undefined&&result.public!==undefined;
-    result.acknowledgementAvailable=typeof question.answered==="boolean"&&typeof question.shouldAnswer==="boolean"&&question.answerID!==undefined&&result.public!==undefined;
+    // Pawnote's write serializer needs a numeric answer ID and public.G. A
+    // readable article is not sufficient authorization metadata for that write.
+    const validAnswer=typeof question.answerID==="string"&&/^\d+$/.test(question.answerID)&&Number.isSafeInteger(Number(question.answerID));
+    result.acknowledgementAvailable=question.kind===0&&typeof question.answered==="boolean"&&typeof question.shouldAnswer==="boolean"&&validAnswer&&
+      __cadenzaNewsObject(result.public)&&Number.isInteger(result.public.G);
+    result.needToAcknowledge=result.acknowledgementAvailable&&question.shouldAnswer===true;
   }else{result.questions=questions;result.isAnonymous=item.reponseAnonyme;}
   return result;
 }

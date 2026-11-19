@@ -8,6 +8,10 @@ struct CoursesView: View {
     @State private var search = ""
     @State private var showNew = false
     private var calendar: Calendar { store.state.schoolSync == nil ? .current : SchoolDateCodec.parisCalendar }
+    private var hasCourseContents: Bool {
+        (store.pronoteProfile ?? store.pronotePortal.profile)?.capabilities.contains("contents") == true ||
+        store.pronotePortal.sections.keys.contains { $0 == "contents" || $0.hasPrefix("contents:") }
+    }
     private var schoolDataIsOld: Bool {
         guard let sync = store.state.schoolSync else { return false }
         if sync.hasError { return true }
@@ -24,7 +28,7 @@ struct CoursesView: View {
         let groups = dayGroups()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                PronoteShortcutRow(section: .contents)
+                if hasCourseContents { PronoteShortcutRow(section: .contents) }
                 Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }
                     .pickerStyle(.segmented).cadenceSegmentedStyle()
                 if mode != "Liste" {

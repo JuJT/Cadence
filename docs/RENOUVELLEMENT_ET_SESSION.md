@@ -22,7 +22,7 @@ Les options concrètes sont :
 | TestFlight | Téléchargement distant et mises à jour automatiques activables sur iPhone | Compte Apple Developer Program, signature de distribution et canal App Store Connect à mettre en place ; chaque build de test est utilisable jusqu’à 90 jours |
 | App Store | Distribution distante et mises à jour par le mécanisme système | Compte développeur, configuration de distribution et validation Apple |
 
-Cette livraison conserve le canal Sideloadly existant. Elle ne crée ni abonnement développeur, ni publication App Store, ni accès TestFlight. Les releases brouillon ne sont pas visibles par un vérificateur de versions anonyme ; ajouter un bouton annonçant une mise à jour introuvable ne rendrait pas la distribution fonctionnelle.
+Cette livraison conserve le canal Sideloadly existant. Elle ne crée ni abonnement développeur, ni publication App Store, ni accès TestFlight. Réglages → Mises à jour recherche les versions publiques. Les releases brouillon CI ne sont pas visibles par ce vérificateur anonyme ; dans ce cas, il indique explicitement qu’aucune mise à jour publique n’est proposée. La recherche ne remplace pas l’installation et la resignature de la nouvelle IPA.
 
 Sources : [TestFlight Apple — mises à jour automatiques et durée des builds](https://testflight.apple.com/), [TestFlight pour développeurs](https://developer.apple.com/testflight/), [compte développeur Apple](https://developer.apple.com/help/account/basics/about-your-developer-account/), [mises à jour automatiques App Store](https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases/).
 
