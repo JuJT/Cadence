@@ -16,6 +16,7 @@ function setup(payload,detailReply){
       return {data:{data:payload}};
     }},
     le:value=>new Date(value),
+    De:value=>({id:value.N,name:value.L,url:value.url}),
     ft:value=>({id:value.N,name:value.L,default:value.estDefaut??false}),
     ht:(value,_session,categories)=>({id:value.N,is:'information',title:value.L,
       category:categories.find(c=>c.id===value.categorie.V.N),content:value.listeQuestions.V[0].texte.V,
@@ -70,6 +71,23 @@ test('modern survey detail keeps all published questions without sending an answ
 test('already complete modern information needs no redundant details request',async()=>{
   const f=setup(modern([complete()]));await f.list();const item=await f.details('fixture-news');
   assert.equal(item.content,'Contenu pédagogique fictif');assert.equal(f.calls.length,1);
+});
+
+test('modern categories and personal labels coexist without falling into the legacy decoder',async()=>{
+  const payload={...modern([metadata()]),listeCategories:{V:[{N:'personal-label',L:'Étiquette personnelle'}]}};
+  const f=setup(payload,{genreRequeteActualite:1,detailsActualite:complete()});
+  const list=await f.list();assert.equal(list.items[0].detailsRequired,true);
+  const detail=await f.details('fixture-news');assert.equal(detail.content,'Contenu pédagogique fictif');
+  assert.equal(detail.category.id,category.N);
+});
+
+test('published read-only text is readable without optional acknowledgment or recipient metadata',async()=>{
+  const detail={...complete()};delete detail.public;delete detail.nature;
+  const q={...question()};delete q.reponse;delete q.listeChoix;delete q.listePiecesJointes;detail.listeQuestions={V:[q]};
+  const f=setup(modern([metadata()]),{genreRequeteActualite:1,detailsActualite:detail});await f.list();
+  const value=await f.details('fixture-news');assert.equal(value.content,'Contenu pédagogique fictif');
+  assert.equal(value.acknowledgementAvailable,false);assert.equal(value.needToAcknowledge,false);
+  assert.equal(value.acknowledged,undefined);assert.equal(f.calls.length,2);
 });
 test('unknown or malformed news shapes are not silently accepted as empty',async()=>{
   for(const payload of [{listeModesAff:modes([])}, {listeNatures:{V:[]},listeModesAff:[{}]}, {listeNatures:{V:{}},listeModesAff:[]}]){

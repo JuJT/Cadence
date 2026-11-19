@@ -1,3 +1,4 @@
+import {plainSchoolText} from './school-data.js';
 const formatter = new Intl.DateTimeFormat('fr-CA', {timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 const pad = n => String(n).padStart(2,'0');
 export function wallText(value) {
@@ -32,12 +33,12 @@ export function mapLesson(c) {
 export function mapAssignment(a) {
   const day=wallText(a.deadline).slice(0,10);
   return {uid:`${a.id}|${day}`,pronote_id:String(a.id),subject:a.subject?.name??'Devoir',deadline:day,
-    description:a.description??'',raw_description:a.description??'',done:!!a.done,difficulty:a.difficulty??null,
+    description:plainSchoolText(a.description),raw_description:a.description??'',done:!!a.done,difficulty:a.difficulty??null,
     length_minutes:a.length??null,attachment_names:a.attachments??[],external_links:a.attachments??[]};
 }
 export function mapResource(r) {
   return (r.contents??[]).map(c=>({resource_id:String(r.id),content_id:String(c.id),title:c.title??r.subject?.name??'Contenu de cours',
-    description:c.description??'',category:String(c.category??''),category_text:c.categoryText??null,
+    description:plainSchoolText(c.description),category:String(c.category??''),category_text:c.categoryText??null,
     files:c.files??[],themes:c.themes??[],educative_value:c.educativeValue??null,external_links:c.files??[]}));
 }
 export function safeJSON(value) {
@@ -74,5 +75,7 @@ export function profileFor(session) {
   return {displayName:resource?.name??session.user?.name??'',establishment:resource?.establishmentName??'',className:resource?.className??null,
     resourceID:String(resource?.id??''),resources:(session.user?.resources??[]).map(r=>({id:String(r.id),name:r.name,className:r.className??null})),
     capabilities,
+    defaultPeriodIDs:Object.fromEntries(Array.from(resource?.tabs?.entries?.()??[]).filter(([id,tab])=>tabNames[id]&&tab.defaultPeriod).map(([id,tab])=>[tabNames[id],String(tab.defaultPeriod.id)])),
+    sectionPeriodIDs:Object.fromEntries(Array.from(resource?.tabs?.entries?.()??[]).filter(([id,tab])=>tabNames[id]&&tab.periods?.length).map(([id,tab])=>[tabNames[id],tab.periods.map(p=>String(p.id))])),
     periods:(session.instance?.periods??[]).map(p=>({...p,startDate:schoolISO(p.startDate),endDate:schoolISO(p.endDate)}))};
 }

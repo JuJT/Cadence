@@ -24,6 +24,7 @@ struct CoursesView: View {
         let groups = dayGroups()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
+                PronoteShortcutRow(section: .contents)
                 Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }
                     .pickerStyle(.segmented).cadenceSegmentedStyle()
                 if mode != "Liste" {
@@ -175,7 +176,7 @@ private struct CourseContentsSections: View {
     var body: some View {
         ForEach(contents) { content in
             Section(content.title.isEmpty ? "Contenu du cours" : content.title) {
-                if !content.description.isEmpty { Text(content.description).textSelection(.enabled) }
+                if !SchoolRichText.plain(content.description).isEmpty { Text(SchoolRichText.plain(content.description)).textSelection(.enabled) }
                 if let category = content.categoryText, !category.isEmpty { Text(category).font(.caption).foregroundStyle(.secondary) }
                 ForEach(content.resourceLinks) { resource in
                     Link(destination: resource.url) { Label(resource.title, systemImage: "arrow.up.right.square") }

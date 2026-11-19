@@ -22,9 +22,17 @@ struct HomeView: View {
                         NavigationLink("Restaurer une sauvegarde") { SettingsView() }
                     }
                 }
-                Text("Prêt pour une nouvelle séance ?")
-                    .font(.title3).foregroundStyle(.secondary)
-                    .padding(.bottom, 4)
+                if store.pronoteProfile != nil || store.pronotePortal.profile != nil {
+                    schoolOverview
+                } else {
+                    NavigationLink { SchoolConnectionView() } label: {
+                        AtelierCard {
+                            Label("Votre journée commence ici", systemImage: "graduationcap.fill").font(.headline)
+                            Text("Connectez PRONOTE pour réunir vos cours, devoirs, notes et informations.")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }.buttonStyle(.plain)
+                }
                 todayCard(totals)
                 if let active = store.state.activeSession {
                     ActiveSessionCard(session: active) { store.route = "revision" }
@@ -55,18 +63,6 @@ struct HomeView: View {
                         }
                     }.buttonStyle(.plain)
                 }
-                NavigationLink { PronotePortalView() } label: {
-                    AtelierCard {
-                        HStack {
-                            Label("Mon espace PRONOTE", systemImage: "graduationcap")
-                                .font(.headline)
-                            Spacer(minLength: 8)
-                            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.secondary)
-                        }
-                        Text(store.pronoteProfile?.establishment ?? "Notes, contenus de cours et vie scolaire")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                    }
-                }.buttonStyle(.plain).accessibilityIdentifier("pronote.portal")
                 ProminentAction(title: "Nouvelle séance", symbol: "play.fill") { showNewSession = true }
                     .accessibilityIdentifier("session.new")
                 if store.state.schoolSync != nil || !store.state.homework.isEmpty {
@@ -118,6 +114,24 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showNewSession) { NewSessionSheet() }
         .refreshable { await store.refreshSchool(force: true) }
+    }
+
+    private var schoolOverview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Ma scolarité").font(.title3.bold())
+                    if let profile = store.pronoteProfile ?? store.pronotePortal.profile {
+                        Text([profile.className, profile.establishment].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 4)
+                NavigationLink { PronotePortalView() } label: { Text("Tout voir").font(.subheadline.weight(.medium)) }
+                    .accessibilityIdentifier("pronote.portal")
+            }
+            PronoteQuickLinksView(sections: [.grades, .news, .attendance])
+        }
     }
 
     private var syncDescription: String {

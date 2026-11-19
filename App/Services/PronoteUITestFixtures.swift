@@ -20,10 +20,14 @@ enum PronoteUITestFixtures {
         let capabilities = ["grades", "evaluations", "attendance", "news", "discussions", "menus", "contents", "account", "gradebook", "homepage", "compose"]
         let period = PronotePeriod(id: "fixture-period", name: "Période fictive", kind: 0,
                                    startDate: date(-30), endDate: date(60))
+        let annual = PronotePeriod(id: "fixture-annual", name: "Année fictive", kind: 0,
+                                   startDate: date(-180), endDate: date(180))
         let profile = PronoteProfile(displayName: "Alex Exemple", establishment: "Établissement fictif",
                                      className: "Classe exemple", resourceID: "fixture-student",
                                      resources: [PronoteStudentResource(id: "fixture-student", name: "Alex Exemple", className: "Classe exemple")],
-                                     capabilities: capabilities, periods: [period])
+                                     capabilities: capabilities, periods: [annual, period],
+                                     defaultPeriodIDs: ["grades": period.id, "attendance": period.id],
+                                     sectionPeriodIDs: ["grades": [period.id, annual.id], "attendance": [period.id]])
         var sections: [String: SchoolJSON] = [
             "grades": .object([
                 "overallAverage": grade(16.5), "classAverage": grade(14),
@@ -44,13 +48,19 @@ enum PronoteUITestFixtures {
                 "skills": .array([.object(["itemName": .string("Comprendre un texte fictif"), "level": .number(1)])])
             ])])]),
             "attendance": .object([
-                "absences": .array([]), "delays": .array([]), "observations": .array([]),
+                "absences": .array([.object([
+                    "id": .string("fixture-absence"), "startDate": timestamp(date(-3, hour: 8)),
+                    "endDate": timestamp(date(-3, hour: 12)), "hoursMissed": .number(4),
+                    "minutesMissed": .number(0), "daysMissed": .number(1),
+                    "reason": .string("Motif fictif : maladie"), "justified": .bool(true),
+                    "administrativelyFixed": .bool(true)
+                ])]), "delays": .array([]), "observations": .array([]),
                 "punishments": .array([]), "precautionaryMeasures": .array([])
             ]),
             "news": .object(["items": .array([.object([
                 "id": .string("fixture-news"), "title": .string("Information fictive de test"),
                 "author": .string("Équipe fictive"), "creationDate": timestamp(date(-1, hour: 12)),
-                "content": .string("Cette information est entièrement fictive et ne concerne aucun établissement réel."),
+                "content": .string("<div>Cette information est entièrement fictive et ne concerne aucun établissement réel.</div>"),
                 "read": .bool(true), "needToAcknowledge": .bool(false), "attachments": .array([])
             ])])]),
             "discussions": .object(["items": .array([.object([
@@ -91,7 +101,7 @@ enum PronoteUITestFixtures {
                 "startDate": timestamp(date(0, hour: 10)), "teachers": .array([.string("Professeur fictif")]),
                 "contents": .array([.object([
                     "title": .string("Leçon fictive : les équations"), "categoryText": .string("Cours fictif"),
-                    "description": .string("Contenu entièrement fictif : isoler une inconnue puis vérifier la solution."),
+                    "description": .string("&lt;div style=&quot;font-family: Arial&quot;&gt;Contenu entièrement fictif : isoler une inconnue puis vérifier la solution.&lt;/div&gt;"),
                     "themes": .array([.string("Algèbre")]), "files": .array([])
                 ])])
             ]),

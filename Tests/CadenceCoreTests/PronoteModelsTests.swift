@@ -27,6 +27,24 @@ final class PronoteModelsTests: XCTestCase {
         XCTAssertEqual(profile.periods.first?.startDate, SchoolDateCodec.date(from: "2026-08-31T22:00:00Z"))
         XCTAssertEqual(profile.periods.first?.endDate, SchoolDateCodec.date(from: "2026-11-30T23:59:59.123456Z"))
         XCTAssertEqual(profile.capabilities, ["grades", "contents"])
+        XCTAssertNil(profile.defaultPeriodIDs)
+        XCTAssertNil(profile.sectionPeriodIDs)
+    }
+
+    func testCurrentPeriodUsesTheScreenDefaultAndAvoidsOverlappingAnnualPeriod() {
+        let annual = PronotePeriod(id: "year", name: "Année", kind: 0,
+            startDate: SchoolDateCodec.date(from: "2026-09-01T00:00:00Z")!, endDate: SchoolDateCodec.date(from: "2027-08-31T23:59:59Z")!)
+        let term = PronotePeriod(id: "term1", name: "Trimestre 1", kind: 1,
+            startDate: annual.startDate, endDate: SchoolDateCodec.date(from: "2026-12-15T23:59:59Z")!)
+        let date = SchoolDateCodec.date(from: "2026-11-19T12:00:00Z")!
+        var profile = PronoteProfile(displayName: "Élève", establishment: "Lycée", resourceID: "student",
+            periods: [annual, term], defaultPeriodIDs: ["grades": term.id], sectionPeriodIDs: ["grades": [term.id]])
+        XCTAssertEqual(profile.currentPeriodID(for: "grades", at: date), term.id)
+        XCTAssertEqual(profile.periods(for: "grades").map(\.id), [term.id])
+        profile.defaultPeriodIDs = nil; profile.sectionPeriodIDs = nil
+        XCTAssertEqual(profile.currentPeriodID(for: "grades", at: date), term.id)
+        profile.defaultPeriodIDs = ["grades": annual.id]
+        XCTAssertEqual(profile.currentPeriodID(for: "grades", at: date), annual.id)
     }
 
     func testPortalCacheRoundTripPreservesOfflineSectionsAndAvailabilityDates() throws {
