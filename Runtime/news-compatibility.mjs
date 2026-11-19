@@ -12,7 +12,7 @@ export const newsProtocolProvenance=Object.freeze({
   inspectedAtUTC:'2026-11-19',providerVersion:'2026.2.8'
 });
 const before='const t=e.listeCategories.V.map(ft);return{categories:t,items:e.listeModesAff[0].listeActualites.V.map';
-const after='const __cadenzaCategories=e.listeNatures??e.listeCategories,__cadenzaModes=e.listeModesAff;'+
+const after='const __cadenzaCategories=e.listeNatures?.V===null?{V:[]}:(e.listeNatures??e.listeCategories??(e.listeNatures===null?{V:[]}:undefined)),__cadenzaModes=e.listeModesAff;'+
   'if(!__cadenzaCategories||!Array.isArray(__cadenzaCategories.V)||!Array.isArray(__cadenzaModes)||'+
   '!__cadenzaModes.every(v=>v&&v.listeActualites&&Array.isArray(v.listeActualites.V)))throw Error("UnsupportedNewsFormat");'+
   'if(e.listeNatures!==undefined)return __cadenzaModernNewsList(e,s);'+
@@ -35,7 +35,7 @@ function __cadenzaNewsList(v){if(!__cadenzaNewsObject(v)||!Array.isArray(v.V))re
 function __cadenzaNewsID(v){if(typeof v!=="string"&&!(typeof v==="number"&&Number.isFinite(v)))return __cadenzaNewsFailure();const s=String(v);if(!s.length)return __cadenzaNewsFailure();return s;}
 function __cadenzaNewsDate(v){if(!__cadenzaNewsObject(v)||typeof v.V!=="string")return __cadenzaNewsFailure();const date=le(v.V);if(!(date instanceof Date)||!Number.isFinite(date.getTime()))return __cadenzaNewsFailure();return date;}
 function __cadenzaModernNewsList(raw,session){
-  const categories=__cadenzaNewsList(raw.listeNatures).map(value=>{
+  const categories=(raw.listeNatures==null||raw.listeNatures.V===null?[]:__cadenzaNewsList(raw.listeNatures)).filter(value=>value!=null).map(value=>{
     if(!__cadenzaNewsObject(value)||typeof value.N!=="string"||typeof value.L!=="string")return __cadenzaNewsFailure();return ft(value);
   });
   const refs=new Map(),items=[];
@@ -50,10 +50,10 @@ function __cadenzaModernNewsList(raw,session){
       if(typeof item.auteur==="string")result.author=item.auteur;
       if(typeof item.lue==="boolean")result.read=item.lue;
       for(const [source,target]of [["dateCreation","creationDate"],["dateDebut","startDate"],["dateFin","endDate"]]){
-        if(item[source]!==undefined)result[target]=__cadenzaNewsDate(item[source]);
+        if(item[source]?.V!=null)result[target]=__cadenzaNewsDate(item[source]);
       }
       const nature=item.nature;
-      if(nature!==undefined){
+      if(nature!=null&&nature.V!=null&&nature.V.N!=null){
         if(!__cadenzaNewsObject(nature)||!__cadenzaNewsObject(nature.V)||typeof nature.V.N!=="string")return __cadenzaNewsFailure();
         const category=categories.find(c=>c.id===nature.V.N);if(category)result.category=category;
       }
@@ -69,9 +69,9 @@ function __cadenzaDecodeNewsQuestions(item,session){
     if(!__cadenzaNewsObject(question)||!Number.isInteger(question.genreReponse))return __cadenzaNewsFailure();
     const id=__cadenzaNewsID(question.N),kind=question.genreReponse;
     if(!__cadenzaNewsObject(question.texte)||typeof question.texte.V!=="string")return __cadenzaNewsFailure();
-    const files=question.listePiecesJointes===undefined?[]:__cadenzaNewsList(question.listePiecesJointes);
-    const rawChoices=question.listeChoix===undefined?[]:__cadenzaNewsList(question.listeChoix);
-    if(!item.estInformation&&kind>1&&question.listeChoix===undefined)return __cadenzaNewsFailure();
+    const files=question.listePiecesJointes?.V==null?[]:__cadenzaNewsList(question.listePiecesJointes).filter(value=>value!=null);
+    const rawChoices=question.listeChoix?.V==null?[]:__cadenzaNewsList(question.listeChoix).filter(value=>value!=null);
+    if(!item.estInformation&&kind>1&&question.listeChoix?.V==null)return __cadenzaNewsFailure();
     const reply=__cadenzaNewsObject(question.reponse?.V)?question.reponse.V:null;
     const result={id,kind,content:question.texte.V,fullTitle:question.L,title:question.titre,position:question.rang,
       attachments:files.map(file=>De(file,session)),choices:rawChoices.map(choice=>({value:choice.L,position:choice.rang,isTextInput:!!choice.estReponseLibre}))};
@@ -80,8 +80,8 @@ function __cadenzaDecodeNewsQuestions(item,session){
     if(reply){
       if(typeof reply.avecReponse==="boolean")result.answered=reply.avecReponse;
       if(typeof reply.estReponseAttendue==="boolean")result.shouldAnswer=reply.estReponseAttendue;
-      if(reply.N!==undefined)result.answerID=__cadenzaNewsID(reply.N);
-      if(reply.reponduLe!==undefined)result.answerDate=__cadenzaNewsDate(reply.reponduLe);
+      if(reply.N!=null)result.answerID=__cadenzaNewsID(reply.N);
+      if(reply.reponduLe?.V!=null)result.answerDate=__cadenzaNewsDate(reply.reponduLe);
       if(typeof reply.valeurReponse==="string")result.textInputAnswer=reply.valeurReponse;
     }
     return result;
@@ -94,7 +94,7 @@ function __cadenzaDecodeModernNews(item,session,categories){
   const categoryID=item.nature?.V?.N??item.categorie?.V?.N;
   if(categoryID!==undefined)result.category=categories.find(c=>String(c.id)===String(categoryID));
   for(const [source,target]of [["dateCreation","creationDate"],["dateDebut","startDate"],["dateFin","endDate"]]){
-    if(item[source]!==undefined)result[target]=__cadenzaNewsDate(item[source]);
+    if(item[source]?.V!=null)result[target]=__cadenzaNewsDate(item[source]);
   }
   if(__cadenzaNewsObject(item.public)&&"V"in item.public)result.public=item.public.V;
   if(item.estInformation){

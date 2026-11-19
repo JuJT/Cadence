@@ -344,7 +344,7 @@ private struct PronoteGradesPanel: View {
         } else if !grades.isEmpty {
             AtelierCard {
                 Label("Moyennes non communiquées", systemImage: "info.circle").font(.subheadline.weight(.semibold))
-                Text("Votre établissement n’a pas publié de moyenne pour cette période. Vos notes restent consultables ci-dessous.")
+                Text("Aucune moyenne n’est disponible pour cette période dans les données reçues. Vos notes restent consultables ci-dessous.")
                     .font(.subheadline).foregroundStyle(CadenceColors.secondary)
             }
         }
