@@ -428,8 +428,8 @@ final class CadenceUITests: XCTestCase {
         let mathID = "fixture-homework-math-today"
         let row = app.buttons["homework.row." + mathID]
         XCTAssertTrue(reveal(row, in: app))
-        XCTAssertTrue(app.staticTexts["Exemple fictif : résoudre deux équations et vérifier les résultats."].exists)
-        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "<div")).firstMatch.exists)
+        XCTAssertTrue(row.label.contains("Exemple fictif : résoudre deux équations et vérifier les résultats."))
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "<div")).firstMatch.exists)
         tap(app.buttons["homework.quick.complete." + mathID], in: app)
         XCTAssertTrue(app.navigationBars["Devoirs"].exists)
         XCTAssertFalse(row.exists)
@@ -438,6 +438,9 @@ final class CadenceUITests: XCTestCase {
         tap(app.segmentedControls.buttons["À faire"], in: app)
         tap(app.buttons["homework.quick.start." + mathID], in: app)
         XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        let instructions = app.staticTexts["session.homework.description"]
+        XCTAssertTrue(reveal(instructions, in: app))
+        XCTAssertEqual(instructions.label, "Exemple fictif : résoudre deux équations et vérifier les résultats.")
         tabs.buttons["Devoirs"].tap()
         XCTAssertTrue(app.navigationBars["Devoirs"].exists)
         XCTAssertTrue(reveal(app.buttons["homework.quick.start." + mathID], in: app))
