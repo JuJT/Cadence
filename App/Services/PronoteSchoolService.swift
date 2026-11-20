@@ -13,6 +13,8 @@ enum PronoteServiceError: Error, LocalizedError {
             case "AccountDisabledError": return "Ce compte est désactivé par l’établissement."
             case "AccessDeniedError", "UnsupportedSection": return "Cette rubrique n’est pas accessible avec ce compte PRONOTE."
             case "UnsupportedNewsFormat": return "Ces informations utilisent un format PRONOTE encore non pris en charge. Les données déjà enregistrées sont conservées."
+            case "MissingResource": return "Cet élément ne figure plus parmi ceux partagés par votre établissement. Actualisez la liste."
+            case "PageUnavailableError", "BusyPageError": return "L’établissement ne peut pas ouvrir cette rubrique pour le moment. Réessayez dans quelques instants."
             case "SuspendedIPError", "RateLimitedError": return "PRONOTE limite temporairement les connexions. Patientez avant de réessayer."
             case "NotConnected", "InvalidCredential", "SessionExpiredError": return "Reconnectez votre compte PRONOTE. Les données enregistrées restent disponibles."
             case "SecureStorageUnavailable": return "Le trousseau privé n’est pas disponible. Déverrouillez l’iPhone et réessayez."

@@ -6,7 +6,10 @@ struct CadenceApp: App {
     @StateObject private var store = AppStore.shared
     @Environment(\.scenePhase) private var scenePhase
 
-    init() { CadenceShortcuts.updateAppShortcutParameters() }
+    init() {
+        CadenceShortcuts.updateAppShortcutParameters()
+        TimetableNotificationService.shared.configure()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -17,6 +20,9 @@ struct CadenceApp: App {
             #else
             mainContent
             #endif
+        }
+        .backgroundTask(.appRefresh(TimetableNotificationService.taskID)) {
+            await AppStore.shared.refreshScheduleInBackground()
         }
     }
 
@@ -37,9 +43,9 @@ struct CadenceApp: App {
                 .tint(Color(red: 39 / 255, green: 118 / 255, blue: 248 / 255))
                 .onOpenURL { url in
                     guard url.scheme == "cadence" else { return }
-                    if SessionCompanionService.shared.handleCallback(url) { return }
                     switch url.host {
                     case "cours": store.route = "cours"
+                    case "notes": store.route = "notes"
                     case "revision": store.route = "revision"
                     case "statistiques": store.route = "statistiques"
                     case "devoirs": store.route = "devoirs"
@@ -47,8 +53,16 @@ struct CadenceApp: App {
                     }
                 }
                 .task { await store.foreground() }
+                .task(id: scenePhase) {
+                    guard scenePhase == .active else { return }
+                    while !Task.isCancelled {
+                        do { try await Task.sleep(for: .seconds(300)) } catch { return }
+                        if TimetableNotificationService.shared.enabled { await store.refreshSchool(force: false) }
+                    }
+                }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { Task { await store.foreground() } }
+                    if phase == .background { TimetableNotificationService.shared.scheduleNextRefresh() }
                 }
             #endif
     }

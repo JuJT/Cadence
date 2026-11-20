@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import {transform} from 'esbuild';
 import * as api from '@blockshub/pawnote-lts';
 import {applyNewsCompatibility,transformNewsFunction,newsCompatibilityHelpers} from '../news-compatibility.mjs';
 
 function setup(payload,detailReply){
-  const calls=[],session={};
+  const calls=[],session={user:{id:'demo-student',kind:4}};
   const scope={Date,
     ne:()=>({signature:'signature',data:'data'}),Q:{News:8},at:()=> '[0]',
     ae:class{constructor(_s,name,body){this.body=body;calls.push({name,body});}async send(){
@@ -58,8 +61,24 @@ test('modern information details use the official read-only request and are cach
   assert.equal(result.detailsRequired,false);assert.equal(result.content,'Contenu pédagogique fictif');assert.equal(result.category.name,category.L);
   assert.equal(f.calls.length,2);const request=f.calls[1];assert.equal(request.name,'PageActualites');
   assert.equal(request.body.data.genreRequeteActualite,1);assert.equal(request.body.data.modeAffActu,0);
-  assert.equal(request.body.data.actualite.N,'fixture-news');assert.equal('marqueLueSeulement'in request.body.data,false);
+  assert.deepEqual(plain(request.body.data.actualite),{N:'fixture-news',genrePublic:4,public:{N:'demo-student',G:4}});
+  assert.equal('marqueLueSeulement'in request.body.data,false);
   assert.equal(await f.details('fixture-news'),result);assert.equal(f.calls.length,2);
+});
+test('a recipient supplied by the list is unwrapped for the detail request',async()=>{
+  const row={...metadata(),public:{_T:24,V:{N:'specific-recipient',G:2,L:'display name'}},genrePublic:9,listeQuestions:{V:[]}};
+  const f=setup(modern([row]),{detailsActualite:{listeQuestions:{V:[{texte:{V:'Texte seul'}}]}}});
+  await f.list();const value=await f.details(row.N);
+  assert.deepEqual(plain(f.calls[1].body.data.actualite),{N:row.N,genrePublic:9,public:{N:'specific-recipient',G:2}});
+  assert.equal(value.content,'Texte seul');assert.equal(value.needToAcknowledge,false);
+});
+test('multipart information retains ordered text and attachment-only components',async()=>{
+  const f=setup(modern([metadata()]),{genreRequeteActualite:1,detailsActualite:{listeQuestions:{V:[
+    {texte:{V:'Premier bloc'}},{texte:'Second bloc'},{listePiecesJointes:{V:[{N:'file',L:'Document',url:'https://example.com/document'}]}}
+  ]}}});
+  await f.list();const value=await f.details('fixture-news');
+  assert.equal(value.content,'Premier bloc\n\nSecond bloc');
+  assert.equal(value.attachments.length,1);assert.equal(value.needToAcknowledge,false);
 });
 test('modern survey detail keeps all published questions without sending an answer',async()=>{
   const item={...metadata(),estInformation:false,estSondage:true};
@@ -160,4 +179,34 @@ test('legacy nonempty news still reaches unchanged information and survey decode
 test('compatibility transform refuses an unexpected or duplicate SDK implementation',()=>{
   assert.throws(()=>applyNewsCompatibility('unknown implementation'),/Pinned Pawnote/);
   assert.throws(()=>applyNewsCompatibility(api.news.toString()+api.news.toString()),/Pinned Pawnote/);
+});
+
+test('the patched SDK sends a scoped PageActualites detail over its real request queue',async()=>{
+  const sourceURL=new URL(import.meta.resolve('@blockshub/pawnote-lts'));
+  const source=applyNewsCompatibility(await readFile(sourceURL,'utf8'));
+  const {code}=await transform(source,{format:'cjs',platform:'node'}),module={exports:{}};
+  vm.compileFunction(code,['module','exports','require'])(module,module.exports,createRequire(sourceURL));
+  const sdk=module.exports,requests=[];
+  const row={N:'wire-article',L:'Procédure fictive',estInformation:true,dateCreation:{V:'27/08/2026'}};
+  const session=sdk.createSessionHandle(async options=>{
+    const wire=JSON.parse(options.content);
+    assert.equal(wire.id,'PageActualites');assert.equal(wire.dataSec.Signature.onglet,8);
+    const request=wire.dataSec.data;requests.push(request);
+    if(request.genreRequeteActualite===1){
+      assert.deepEqual(request.actualite,{N:'wire-article',genrePublic:4,public:{N:'wire-student',G:4}});
+      assert.equal(request.modeAffActu,0);
+      return {content:JSON.stringify({dataSec:{data:{genreRequeteActualite:1,detailsActualite:{
+        listeQuestions:{_T:24,V:[{texte:{_T:21,V:'Consigne publiée'},listePiecesJointes:{_T:24,V:[]}}]}
+      }}}})};
+    }
+    return {content:JSON.stringify({dataSec:{data:modern([row])}})};
+  });
+  session.instance={version:[2026,2,8]};session.user={id:'wire-student',kind:4};
+  session.information={url:'https://school.example/pronote',id:7,accountKind:6,order:2,
+    aesKey:'fictitious-key16',aesIV:'fictitious-iv-16',skipEncryption:true,skipCompression:true};
+  const list=await sdk.news(session);
+  assert.equal(list.items[0].creationDate.getFullYear(),2026);
+  const detail=await sdk.cadenzaNewsDetail(session,list.items[0].id);
+  assert.equal(detail.content,'Consigne publiée');assert.equal(detail.needToAcknowledge,false);
+  assert.equal(requests.length,2);
 });

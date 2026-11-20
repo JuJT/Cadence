@@ -53,7 +53,7 @@ if [[ "${ONLY_SESSION_PRESENTATION:-false}" == "true" ]]; then
 fi
 if [[ "${ONLY_SCHOOL_INTERFACE:-false}" == "true" ]]; then
   run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
-    -only-testing:CadenceUITests/CadenceUITests/testMusicAndFocusSheetHasNavigationAndClosesToSession \
+    -only-testing:CadenceUITests/CadenceUITests/testMusicProvidersAndReturnToSession \
     -only-testing:CadenceUITests/CadenceUITests/testPronotePortalReadsSyntheticGradesLessonAndMessages
 else
   run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \

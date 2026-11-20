@@ -6,15 +6,42 @@ import Foundation
 /// Formats: Apple cctools loader.h and xnu osfmk/kern/cs_blobs.h.
 enum SignedKeychainGroups {
     static let maximumFileBytes = 32 * 1024 * 1024
-    static let current: [String] = {
-        guard let url = Bundle.main.executableURL,
+    static let current = values(in: Bundle.main, key: "keychain-access-groups")
+    private static let app: Bundle? = {
+        if Bundle.main.bundleURL.pathExtension == "appex" {
+            return Bundle(url: Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent())
+        }
+        return Bundle.main
+    }()
+    private static let widget: Bundle? = {
+        if Bundle.main.bundleURL.pathExtension == "appex" { return Bundle.main }
+        guard let directory = Bundle.main.builtInPlugInsURL,
+              let urls = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return nil }
+        return urls.compactMap { Bundle(url: $0) }.first { bundle in
+            let attributes = bundle.object(forInfoDictionaryKey: "NSExtension") as? [String: Any]
+            return attributes?["NSExtensionPointIdentifier"] as? String == "com.apple.widgetkit-extension"
+        }
+    }()
+    static let commonKeychain: [String] = {
+        let widgetGroups = Set(values(in: widget, key: "keychain-access-groups"))
+        return values(in: app, key: "keychain-access-groups").filter { group in
+            widgetGroups.contains(group) && ![app?.bundleIdentifier, widget?.bundleIdentifier].compactMap { $0 }.contains { group.hasSuffix("." + $0) }
+        }
+    }()
+    static let commonContainers: [String] = {
+        let key = "com.apple.security.application-groups"
+        let widgetGroups = Set(values(in: widget, key: key))
+        return values(in: app, key: key).filter { widgetGroups.contains($0) }
+    }()
+    private static func values(in bundle: Bundle?, key: String) -> [String] {
+        guard let url = bundle?.executableURL,
               let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
               size > 0, size <= maximumFileBytes,
               let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return [] }
-        return groups(in: data)
-    }()
+        return groups(in: data, key: key)
+    }
 
-    static func groups(in data: Data) -> [String] {
+    static func groups(in data: Data, key: String = "keychain-access-groups") -> [String] {
         guard data.count >= 28, data.count <= maximumFileBytes else { return [] }
         let reader = Reader(data: data)
         guard let magic = reader.word(0, little: false) else { return [] }
@@ -36,15 +63,15 @@ enum SignedKeychainGroups {
                 }
                 guard let offset, let size, offset >= 8 + Int(count) * stride,
                       size >= 28, offset <= data.count, size <= data.count - offset else { continue }
-                let groups = thin(reader, base: offset, size: size)
+                let groups = thin(reader, base: offset, size: size, key: key)
                 if !groups.isEmpty { return groups }
             }
             return []
         }
-        return thin(reader, base: 0, size: data.count)
+        return thin(reader, base: 0, size: data.count, key: key)
     }
 
-    private static func thin(_ r: Reader, base: Int, size: Int) -> [String] {
+    private static func thin(_ r: Reader, base: Int, size: Int, key: String) -> [String] {
         guard let magic = r.word(base, little: true), magic == 0xfeedfacf || magic == 0xfeedface,
               let count = r.word(base + 16, little: true), count <= 4096,
               let commandBytes = r.word(base + 20, little: true) else { return [] }
@@ -63,14 +90,14 @@ enum SignedKeychainGroups {
                       let bytes = r.word(position + 12, little: true),
                       Int(offset) >= header + Int(commandBytes), Int(offset) <= size,
                       Int(bytes) <= size - Int(offset) else { return [] }
-                return signature(r, start: base + Int(offset), size: Int(bytes))
+                return signature(r, start: base + Int(offset), size: Int(bytes), key: key)
             }
             position += Int(length)
         }
         return []
     }
 
-    private static func signature(_ r: Reader, start: Int, size: Int) -> [String] {
+    private static func signature(_ r: Reader, start: Int, size: Int, key: String) -> [String] {
         guard size >= 12, r.word(start, little: false) == 0xfade0cc0,
               let length = r.word(start + 4, little: false), Int(length) <= size, length >= 12,
               let count = r.word(start + 8, little: false), count <= 128,
@@ -87,7 +114,7 @@ enum SignedKeychainGroups {
                   let payload = r.bytes(blob + 8, count: Int(blobLength) - 8),
                   let plist = try? PropertyListSerialization.propertyList(from: payload, options: [], format: nil),
                   let dictionary = plist as? [String: Any],
-                  let groups = dictionary["keychain-access-groups"] as? [String], groups.count <= 64 else { continue }
+                  let groups = dictionary[key] as? [String], groups.count <= 64 else { continue }
             var seen = Set<String>()
             return groups.filter { value in
                 !value.isEmpty && value.utf8.count <= 512 && !value.contains("*") &&

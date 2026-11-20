@@ -92,9 +92,13 @@ enum PronoteUITestFixtures {
                     "dessert": .array([.object(["name": .string("Fruit exemple"), "allergens": .array([]), "labels": .array([])])])
                 ])
             ])])]),
-            "contents": .object(["resources": .array([.object([
+            "contents": .object(["yearStart": timestamp(date(-72)), "resources": .array([.object([
                 "id": .string("fixture-resource"), "subject": subject("Mathématiques"),
                 "startDate": timestamp(date(0, hour: 10)), "teachers": .array([.string("Professeur fictif")])
+            ]), .object([
+                "id": .string("fixture-resource-ancien"), "subject": subject("Mathématiques"),
+                "startDate": timestamp(date(-62, hour: 9)), "teachers": .array([.string("Professeur fictif")]),
+                "contents": .array([.object(["title": .string("Première leçon fictive")])])
             ])])]),
             "resource:fixture-resource": .object([
                 "id": .string("fixture-resource"), "subject": subject("Mathématiques"),

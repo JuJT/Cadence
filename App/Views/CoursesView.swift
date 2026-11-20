@@ -3,11 +3,16 @@ import CadenceCore
 
 struct CoursesView: View {
     @EnvironmentObject private var store: AppStore
-    @State private var mode = "Semaine"
+    @State private var mode = "Jour"
     @State private var date = Date()
     @State private var search = ""
     @State private var showNew = false
-    private var calendar: Calendar { store.state.schoolSync == nil ? .current : SchoolDateCodec.parisCalendar }
+    private var calendar: Calendar {
+        var value = store.state.schoolSync == nil ? Calendar.current : SchoolDateCodec.parisCalendar
+        value.locale = Locale(identifier: "fr_FR")
+        value.firstWeekday = 2
+        return value
+    }
     private var hasCourseContents: Bool {
         (store.pronoteProfile ?? store.pronotePortal.profile)?.capabilities.contains("contents") == true ||
         store.pronotePortal.sections.keys.contains { $0 == "contents" || $0.hasPrefix("contents:") }
@@ -27,53 +32,52 @@ struct CoursesView: View {
     var body: some View {
         let groups = dayGroups()
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
-                if hasCourseContents { PronoteShortcutRow(section: .contents) }
-                Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }
-                    .pickerStyle(.segmented).cadenceSegmentedStyle()
+            LazyVStack(alignment: .leading, spacing: 14) {
+                Picker("Affichage", selection: $mode) {
+                    ForEach(["Jour", "Semaine", "Liste"], id: \.self) { Text($0).tag($0) }
+                }.pickerStyle(.segmented).cadenceSegmentedStyle()
                 if mode != "Liste" {
-                    HStack {
-                        Button { shift(-1) } label: {
-                            Image(systemName: "chevron.left").frame(width: 44, height: 44).contentShape(Rectangle())
+                    VStack(spacing: 1) {
+                        HStack {
+                            Button { shift(-1) } label: {
+                                Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                            }.accessibilityLabel(mode == "Semaine" ? "Semaine précédente" : "Jour précédent")
+                                .accessibilityIdentifier("courses.previous")
+                            Spacer()
+                            DatePicker("Date", selection: $date, displayedComponents: .date).labelsHidden()
+                                .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone)
+                                .accessibilityIdentifier("courses.date")
+                            Spacer()
+                            Button { shift(1) } label: {
+                                Image(systemName: "chevron.right").frame(width: 44, height: 44)
+                            }.accessibilityLabel(mode == "Semaine" ? "Semaine suivante" : "Jour suivant")
+                                .accessibilityIdentifier("courses.next")
                         }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel(mode == "Semaine" ? "Semaine précédente" : "Jour précédent")
-                        .accessibilityIdentifier("courses.previous")
-                        Spacer()
-                        DatePicker("Date", selection: $date, displayedComponents: .date).labelsHidden()
-                            .environment(\.calendar, calendar).environment(\.timeZone, calendar.timeZone)
-                            .accessibilityIdentifier("courses.date")
-                        Spacer()
-                        Button { shift(1) } label: {
-                            Image(systemName: "chevron.right").frame(width: 44, height: 44).contentShape(Rectangle())
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel(mode == "Semaine" ? "Semaine suivante" : "Jour suivant")
-                        .accessibilityIdentifier("courses.next")
-                    }.padding(6).cadenceSurface(radius: 28)
+                        if mode == "Jour" { dayStrip }
+                    }.padding(4).cadenceSurface(radius: 22)
                 }
-            if groups.isEmpty {
-                EmptyCard(title: "Votre semaine se dessine ici", symbol: "calendar", description: "Connectez votre emploi du temps PRONOTE ou ajoutez un cours manuel.")
-            }
-            ForEach(groups) { group in
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(CourseDisplay.dayTitle(group.date, calendar: calendar))
-                        .font(.headline).foregroundStyle(CadenceColors.ink)
-                    ForEach(group.occurrences) { occurrence in
-                        HStack(alignment: .top, spacing: 10) {
-                            Text(CourseDisplay.time(occurrence.start, course: occurrence))
-                                .font(.caption.monospacedDigit()).foregroundStyle(CadenceColors.secondary)
-                                .frame(width: 43, alignment: .leading).padding(.top, 16)
-                            NavigationLink { CourseDetailView(occurrenceID: occurrence.id) } label: { CourseRow(occurrence: occurrence) }
-                                .buttonStyle(.plain)
+                if groups.isEmpty {
+                    EmptyCard(title: search.isEmpty ? "Aucun cours prévu" : "Aucun cours trouvé", symbol: "calendar",
+                              description: search.isEmpty ? "Consultez une autre date ou ajoutez un cours." : "Essayez une autre matière.")
+                }
+                ForEach(groups) { group in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(CourseDisplay.dayTitle(group.date, calendar: calendar).capitalized)
+                            .font(.headline).foregroundStyle(CadenceColors.ink).padding(.leading, 3)
+                        ForEach(group.entries) { entry in
+                            switch entry {
+                            case .scheduled(let course):
+                                NavigationLink { CourseDetailView(occurrenceID: course.id) } label: { CourseRow(occurrence: course) }
+                                    .buttonStyle(.plain)
+                            case .manual(let session):
+                                NavigationLink { SessionEditorView(session: session) } label: {
+                                    SessionRow(session: session).padding(9).cadenceSurface(radius: 12)
+                                }.buttonStyle(.plain)
+                            }
                         }
                     }
-                    ForEach(group.manualSessions) { session in
-                        NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session).padding(12).cadenceSurface(radius: 18) }
-                            .buttonStyle(.plain)
-                    }
-                }.padding(16).cadenceSurface()
-            }
+                }
+                if hasCourseContents { PronoteShortcutRow(section: .contents) }
                 NavigationLink { SchoolConnectionView() } label: {
                     HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "calendar.badge.clock").font(.title2).foregroundStyle(Atelier.blue)
@@ -107,6 +111,28 @@ struct CoursesView: View {
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Ajouter un cours", systemImage: "plus") { showNew = true } } }
         .sheet(isPresented: $showNew) { NavigationStack { NewSessionView(kind: .course) } }
     }
+    private var dayStrip: some View {
+        let start = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
+        let days = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        return HStack(spacing: 1) {
+            ForEach(days, id: \.self) { day in
+                let selected = calendar.isDate(day, inSameDayAs: date)
+                Button { date = day } label: {
+                    VStack(spacing: 3) {
+                        Text(calendar.veryShortStandaloneWeekdaySymbols[calendar.component(.weekday, from: day) - 1].uppercased())
+                            .font(.caption2.weight(.medium))
+                        Text(String(calendar.component(.day, from: day))).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .foregroundStyle(selected ? Color.white : CadenceColors.ink)
+                    .background(selected ? Atelier.blue : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                }.buttonStyle(.plain)
+                    .accessibilityLabel(CourseDisplay.dayTitle(day, calendar: calendar))
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+    }
+
     private func dayGroups() -> [CourseDayGroup] {
         let window = interval
         let subjects = store.state.subjects
@@ -132,6 +158,26 @@ private struct CourseDayGroup: Identifiable {
     let occurrences: [CourseOccurrence]
     let manualSessions: [StudySession]
     var id: Date { date }
+    var entries: [CourseDayEntry] {
+        (occurrences.map(CourseDayEntry.scheduled) + manualSessions.map(CourseDayEntry.manual))
+            .sorted { $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start }
+    }
+}
+
+private enum CourseDayEntry: Identifiable {
+    case scheduled(CourseOccurrence), manual(StudySession)
+    var id: String {
+        switch self {
+        case .scheduled(let course): return "course-" + course.id.uuidString
+        case .manual(let session): return "session-" + session.id.uuidString
+        }
+    }
+    var start: Date {
+        switch self {
+        case .scheduled(let course): return course.start
+        case .manual(let session): return session.startedAt
+        }
+    }
 }
 
 /// School times use Europe/Paris; personal sessions keep the device's normal display zone.
@@ -199,30 +245,40 @@ struct CourseRow: View {
     @EnvironmentObject private var store: AppStore
     let occurrence: CourseOccurrence
     var body: some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 3).fill(Color(cadenceHex: Atelier.subject(occurrence.subjectID, in: store.state)?.colorHex ?? "#2776F8")).frame(width: 4)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline).foregroundStyle(CadenceColors.ink)
-                Text(CourseDisplay.timeRange(occurrence))
-                    .font(.subheadline).foregroundStyle(.secondary)
-                if let school = occurrence.school, !school.classrooms.isEmpty {
-                    Label(school.classrooms.joined(separator: ", "), systemImage: "door.left.hand.open")
-                        .font(.caption2).foregroundStyle(CadenceColors.secondary).lineLimit(1)
+        let tint = Color(cadenceHex: Atelier.subject(occurrence.subjectID, in: store.state)?.colorHex ?? "#2776F8")
+        let cancelled = occurrence.school?.canceled == true || occurrence.status == .cancelled
+        let room = occurrence.school?.classrooms.joined(separator: ", ") ?? ""
+        let teacher = occurrence.school?.teacherNames.joined(separator: ", ") ?? ""
+        let detail = [room, teacher].filter { !$0.isEmpty }.joined(separator: " · ")
+        HStack(spacing: 9) {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(CourseDisplay.time(occurrence.start, course: occurrence)).font(.subheadline.weight(.semibold))
+                Text(CourseDisplay.time(occurrence.end, course: occurrence)).font(.caption).foregroundStyle(.secondary)
+            }.monospacedDigit().fixedSize(horizontal: true, vertical: false)
+            RoundedRectangle(cornerRadius: 2).fill(cancelled ? Color.secondary : tint).frame(width: 4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline).strikethrough(cancelled)
+                if !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                if let status = sourceStatus {
+                    Text(status).font(.caption.weight(.semibold)).foregroundStyle(cancelled ? Color.secondary : Color.orange)
                 }
-                HStack(spacing: 8) {
-                    Label(occurrence.school == nil ? occurrence.calendarName : "PRONOTE", systemImage: occurrence.school == nil ? "calendar" : "graduationcap")
-                    if occurrence.school?.isTest == true { Text("Évaluation").foregroundStyle(.orange) }
-                }.font(.caption2).foregroundStyle(CadenceColors.secondary).lineLimit(1)
-                if occurrence.sourceMissing {
-                    Text(occurrence.school == nil ? "Ancienne source · suivi conservé" : "Absent du dernier relevé PRONOTE")
-                        .font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-            StatusBadge(title: CourseDisplay.status(occurrence, autoCredit: store.state.settings.autoCreditCourses), color: occurrence.status == .needsReview ? .orange : Atelier.blue)
-        }.padding(12).fixedSize(horizontal: false, vertical: true)
-            .background(LinearGradient(colors: [Atelier.blue.opacity(0.10), Atelier.ice.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 17).strokeBorder(Atelier.ice.opacity(0.35), lineWidth: 0.75) }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+        }
+        .foregroundStyle(CadenceColors.ink)
+        .padding(.horizontal, 11).padding(.vertical, 6).frame(minHeight: 48)
+        .cadenceSurface(radius: 13)
+    }
+
+    private var sourceStatus: String? {
+        if let label = occurrence.school?.statusLabel, !label.isEmpty { return label }
+        if occurrence.sourceMissing { return "Absent du dernier relevé" }
+        if occurrence.school?.isTest == true { return "Évaluation" }
+        if occurrence.school?.canceled == true || occurrence.school?.exempted == true ||
+            [.cancelled, .absent, .needsReview].contains(occurrence.status) {
+            return CourseDisplay.status(occurrence, autoCredit: store.state.settings.autoCreditCourses)
+        }
+        return nil
     }
 }
 

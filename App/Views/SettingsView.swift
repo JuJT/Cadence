@@ -24,6 +24,7 @@ struct SettingsView: View {
             }
             Section("Votre organisation") {
                 NavigationLink { SchoolConnectionView() } label: { Label("Connexion PRONOTE", systemImage: "calendar.badge.clock") }
+                NavigationLink { TimetableNotificationSettings() } label: { Label("Notifications de cours", systemImage: "bell.badge") }
                 NavigationLink { SubjectsView() } label: { Label("Matières et mots-clés", systemImage: "books.vertical") }
                 Picker("Matière par défaut", selection: Binding(get: { store.state.settings.defaultSubjectID }, set: { id in var settings = store.state.settings; settings.defaultSubjectID = id; store.updateSettings(settings) })) {
                     Text("Première matière disponible").tag(nil as UUID?)
@@ -37,8 +38,8 @@ struct SettingsView: View {
             } header: { Text("Vos données") } footer: {
                 Text("Sauvegardez avant un renouvellement de signature. Une restauration remplace les données actuelles après confirmation. Aucun fichier n’est envoyé à un serveur.")
             }
-            Section("Intégrations Apple") {
-                NavigationLink { SessionCompanionView() } label: { Label("Son et concentration", systemImage: "headphones") }
+            Section("Intégrations") {
+                NavigationLink { MusicView() } label: { Label("Musique", systemImage: "headphones") }
                 Toggle("Live Activities", isOn: Binding(get: { store.state.settings.liveActivityEnabled }, set: { enabled in var settings = store.state.settings; settings.liveActivityEnabled = enabled; store.updateSettings(settings) }))
                 NavigationLink { IntegrationsHelpView() } label: { Label("Widgets, Raccourcis et Apple Watch", systemImage: "square.stack.3d.up") }
             }
@@ -272,7 +273,8 @@ private struct IntegrationsHelpView: View {
                 Text("L’affichage système peut expirer sans interrompre votre séance. Sa durée est retrouvée à la réouverture.").font(.footnote).foregroundStyle(.secondary)
             }
             Section("Widgets") {
-                Text("Ajoutez Cadenza depuis la galerie de widgets. Aujourd’hui, Ma semaine et Prochain cours utilisent votre résumé local. La signature doit autoriser le partage entre l’app et ses widgets. Le diagnostic indique leur dernière lecture réelle.")
+                Text("Dans la galerie de widgets de l’iPhone, cherchez Cadenza puis choisissez Moyenne générale, Devoirs à venir, Prochain cours, Aujourd’hui ou Ma semaine. Touchez le widget pour ouvrir la rubrique correspondante.")
+                Text("Le diagnostic confirme la dernière lecture des données par un widget. Si iOS indique −34018, l’app et son extension doivent être réinstallées avec un groupe de trousseau partagé ou un groupe d’apps commun autorisé par leurs deux profils.")
             }
             Section("Raccourcis Apple") {
                 Text("Les actions Cadenza permettent de démarrer une révision, ajouter un cours, mettre en pause, reprendre, terminer, consulter les durées du jour et ouvrir l’emploi du temps.")

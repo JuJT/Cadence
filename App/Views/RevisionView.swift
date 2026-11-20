@@ -9,7 +9,7 @@ struct RevisionView: View {
     @State private var showFinish = false
     @State private var showManual = false
     @State private var showHomework = false
-    @State private var showCompanion = false
+    @State private var showMusic = false
     var body: some View {
         ScrollViewReader { scrollProxy in
             AtelierPage {
@@ -60,7 +60,7 @@ struct RevisionView: View {
         }
         .sheet(isPresented: $showManual) { NavigationStack { NewSessionView(kind: .revision, startAsTimer: false) } }
         .sheet(isPresented: $showHomework) { HomeworkPickerSheet() }
-        .sheet(isPresented: $showCompanion) { NavigationStack { SessionCompanionView() } }
+        .sheet(isPresented: $showMusic) { NavigationStack { MusicView() } }
     }
 
     private func timer(_ active: StudySession) -> some View {
@@ -91,8 +91,8 @@ struct RevisionView: View {
                 }
                 Button(active.activeHomeworkID == nil ? "Associer un devoir" : "Changer de devoir", systemImage: "list.bullet.clipboard") { showHomework = true }
                     .accessibilityIdentifier("session.homework.choose")
-                Button("Son et concentration", systemImage: "headphones") { showCompanion = true }
-                    .accessibilityIdentifier("session.companion")
+                Button("Musique", systemImage: "headphones") { showMusic = true }
+                    .accessibilityIdentifier("session.music")
             }
             NavigationLink { SessionEditorView(session: active) } label: {
                 HStack(spacing: 10) {

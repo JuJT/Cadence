@@ -10,6 +10,7 @@ let legacy = Data("""
 """.utf8)
 let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: legacy)
 expect(decoded.weekDays == nil && decoded.upcomingCourses == nil, "Legacy snapshots must remain readable")
+expect(decoded.grade == nil && decoded.homework == nil, "Old snapshots must not invent educational data")
 expect(decoded.courseMeasured == 3600 && decoded.revisions == 1800, "Legacy real durations must be preserved")
 
 let now = Date(timeIntervalSinceReferenceDate: 800000000)
@@ -23,10 +24,14 @@ let courses = (0..<12).map { offset in
 let snapshot = WidgetSnapshot(updatedAt: now, courseMeasured: 3600, courseEstimated: 900, revisions: 1800,
     activeSubject: "Français", activeKind: "Révision", isPaused: true,
     nextCourseTitle: "Anglais", nextCourseStart: now.addingTimeInterval(3600),
-    weekDays: days, topSubjectName: "Français", upcomingCourses: courses)
+    weekDays: days, topSubjectName: "Français", upcomingCourses: courses,
+    grade: WidgetGradeSummary(points: 14.5, estimated: true, period: "Trimestre 1", updatedAt: now),
+    homework: WidgetHomeworkSummary(upcomingCount: 2, overdueCount: 1, nextSubject: "Maths", nextDeadline: now, updatedAt: now))
 let data = try JSONEncoder().encode(snapshot)
 expect(data.count < 16_384, "The bounded widget aggregate must fit its transport limit")
 let roundTrip = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+expect(roundTrip.grade?.estimated == true && roundTrip.grade?.points == 14.5, "Estimated and official grades must remain distinguishable")
+expect(roundTrip.homework?.upcomingCount == 2 && roundTrip.homework?.overdueCount == 1, "Upcoming and overdue work must stay separate")
 expect(roundTrip.weekDays?.count == 7 && roundTrip.upcomingCourses?.count == 12, "Full summaries must survive serialization")
 expect(roundTrip.weekDays?.reduce(0, { $0 + $1.measured }) == 33_600, "Measured totals exclude estimated time")
 expect(CompactDuration.text(.infinity) == "0 min" && CompactDuration.clock(.nan) == "00:00:00", "Invalid duration input must never crash a widget")

@@ -122,7 +122,6 @@ jobs:
           swift test 2>&1 | tee dist/reports/core-tests.log
           bash Scripts/test_widget_snapshot.sh 2>&1 | tee dist/reports/widget-snapshot-check-run.log
           bash Scripts/test_pawnote_runtime.sh 2>&1 | tee dist/reports/pawnote-native-runtime.log
-          python3 Scripts/verify_prebuilt_focus_shortcut.py 2>&1 | tee dist/reports/focus-shortcut-verification.log
       - name: Compiler les IPA pour appareil physique
         shell: bash
         run: bash Scripts/build_unsigned.sh

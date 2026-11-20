@@ -122,6 +122,7 @@ public struct SchoolTimetableEvent: Codable, Equatable, Sendable, Identifiable {
     public var teacherNames: [String]
     public var classrooms: [String]
     public var groupNames: [String]
+    public var statusLabel: String?
     public var canceled: Bool
     public var exempted: Bool
     public var isTest: Bool
@@ -130,16 +131,17 @@ public struct SchoolTimetableEvent: Codable, Equatable, Sendable, Identifiable {
     public init(eventID: String, startAt: Date, endAt: Date, subjectName: String, startLocal: String? = nil,
                 endLocal: String? = nil, subjectID: String? = nil, teacherNames: [String] = [],
                 classrooms: [String] = [], groupNames: [String] = [], canceled: Bool = false,
-                exempted: Bool = false, isTest: Bool = false, lessonResourceID: String? = nil) {
+                exempted: Bool = false, isTest: Bool = false, lessonResourceID: String? = nil, statusLabel: String? = nil) {
         self.eventID = eventID; self.startAt = startAt; self.endAt = endAt; self.subjectName = subjectName
         self.startLocal = startLocal; self.endLocal = endLocal; self.subjectID = subjectID
         self.teacherNames = teacherNames; self.classrooms = classrooms; self.groupNames = groupNames
+        self.statusLabel = statusLabel
         self.canceled = canceled; self.exempted = exempted; self.isTest = isTest; self.lessonResourceID = lessonResourceID
     }
     enum CodingKeys: String, CodingKey {
         case eventID = "event_id", startLocal = "start_local", endLocal = "end_local", startAt = "start_at", endAt = "end_at"
         case subjectID = "subject_id", subjectName = "subject_name", teacherNames = "teacher_names", classrooms
-        case groupNames = "group_names", canceled, exempted, isTest = "is_test", lessonResourceID = "lesson_resource_id"
+        case groupNames = "group_names", canceled, exempted, isTest = "is_test", lessonResourceID = "lesson_resource_id", statusLabel = "status_label"
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -157,6 +159,7 @@ public struct SchoolTimetableEvent: Codable, Equatable, Sendable, Identifiable {
         teacherNames = try c.decodeIfPresent([String].self, forKey: .teacherNames) ?? []
         classrooms = try c.decodeIfPresent([String].self, forKey: .classrooms) ?? []
         groupNames = try c.decodeIfPresent([String].self, forKey: .groupNames) ?? []
+        statusLabel = try c.decodeIfPresent(String.self, forKey: .statusLabel)
         canceled = try c.decodeIfPresent(Bool.self, forKey: .canceled) ?? false
         exempted = try c.decodeIfPresent(Bool.self, forKey: .exempted) ?? false
         isTest = try c.decodeIfPresent(Bool.self, forKey: .isTest) ?? false

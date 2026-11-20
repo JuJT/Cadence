@@ -8,6 +8,4 @@ Les sources amont complètes de Pawnote LTS 1.6.4 sont incluses dans [ThirdParty
 
 Sources : https://github.com/BlocksHub/Pawnote-LTS et https://github.com/PapillonApp/Papillon/tree/93792b1fde14ad61a931ee4aab08321a0f42be2e/patches. Le design, les images et l’icône propres à Cadenza ne sont pas repris de Papillon.
 
-Le raccourci HongMix Focus est réutilisé sous licence MIT, avec son nom et sa licence d’origine dans Resources/Shortcuts. Son fichier signé, son générateur source et son audience publique sont vérifiés par Scripts/verify_prebuilt_focus_shortcut.py ; les détails sont dans docs/CAPACITES_NATIVES.md.
-
 Les licences des dépendances transitives du moteur sont incluses dans ThirdParty/Runtime-Licenses.txt. Les illustrations et références originales conservent leurs propres conditions lorsqu’elles en possèdent.

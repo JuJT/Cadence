@@ -26,6 +26,6 @@ Cette livraison conserve le canal Sideloadly existant. Elle ne crée ni abonneme
 
 Sources : [TestFlight Apple — mises à jour automatiques et durée des builds](https://testflight.apple.com/), [TestFlight pour développeurs](https://developer.apple.com/testflight/), [compte développeur Apple](https://developer.apple.com/help/account/basics/about-your-developer-account/), [mises à jour automatiques App Store](https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases/).
 
-## Son et concentration
+## Musique
 
-La version 0.5.0 retire les appels à Raccourcis : aucune ouverture de Raccourcis n’a lieu au début ou à la fin des séances. Une programmation native du mode Concentration par app peut être choisie dans les réglages iOS. Le lecteur universel reste celui du Centre de contrôle ; Cadenza présente les contrôles publics de volume et d’AirPlay. Voir [les possibilités et limites vérifiées](CAPACITES_NATIVES.md).
+Les commandes Apple Music, le lecteur de liens Spotify et la configuration de Spotify Connect sont décrits dans le [guide Musique](CAPACITES_NATIVES.md).

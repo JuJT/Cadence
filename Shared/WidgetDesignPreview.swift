@@ -16,6 +16,14 @@ struct WidgetDesignPreviewScreen: View {
                     Text("Petit format").font(.headline)
                     HStack(spacing: 12) {
                         WidgetPreviewFrame(width: 164, height: 164) {
+                            GradeWidgetView(entry: entry)
+                        }.accessibilityIdentifier("widget.preview.grade.small")
+                        WidgetPreviewFrame(width: 164, height: 164) {
+                            HomeworkWidgetView(entry: entry)
+                        }.accessibilityIdentifier("widget.preview.homework.small")
+                    }
+                    HStack(spacing: 12) {
+                        WidgetPreviewFrame(width: 164, height: 164) {
                             TodayWidgetView(entry: entry, previewFamily: .systemSmall)
                         }.accessibilityIdentifier("widget.preview.today.small")
                         WidgetPreviewFrame(width: 164, height: 164) {
@@ -95,7 +103,9 @@ private enum WidgetDesignFixtures {
         return TodayEntry(date: now, snapshot: WidgetSnapshot(updatedAt: now, courseMeasured: 9000,
             courseEstimated: 1800, revisions: 2700, activeSubject: "Physique-Chimie",
             activeKind: "Révision", isPaused: false, nextCourseTitle: course.title, nextCourseStart: course.start,
-            weekDays: days, topSubjectName: "Mathématiques", upcomingCourses: [course]))
+            weekDays: days, topSubjectName: "Mathématiques", upcomingCourses: [course],
+            grade: WidgetGradeSummary(points: 15.75, estimated: false, period: "Trimestre 1", updatedAt: now),
+            homework: WidgetHomeworkSummary(upcomingCount: 3, overdueCount: 0, nextSubject: "Français", nextDeadline: now, updatedAt: now)))
     }()
 
     static var longCourseEntry: TodayEntry {

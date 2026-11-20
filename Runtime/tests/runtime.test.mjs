@@ -11,7 +11,7 @@ function fixture(tabs=[16,88,131,89,8,198,10]) {
   const trace=[],writes=[];
   const resource={id:'student-fixture',name:'Élève fictif',establishmentName:'Établissement fictif',className:'Classe test',tabs:new Map(tabs.map(x=>[x,{}]))};
   const session={userResource:resource,user:{name:'Élève fictif',resources:[resource],authorizations:{tabs,canReadDiscussions:true,canDiscuss:true}},
-    instance:{periods:[{id:'p1',name:'Période fictive',kind:1,startDate:new Date(2026,8,1),endDate:new Date(2027,0,1)}]}};
+    instance:{firstDate:new Date(2026,8,1),lastDate:new Date(2027,6,4),periods:[{id:'p1',name:'Période fictive',kind:1,startDate:new Date(2026,8,1),endDate:new Date(2027,0,1)}]}};
   class SecurityError extends Error {constructor(handle){super('private diagnostic never exposed');this.handle=handle;}}
   class BadCredentialsError extends Error {}
   const api={SecurityError,BadCredentialsError,createSessionHandle:()=>session,
@@ -74,30 +74,31 @@ test('unsupported homework and section capabilities make no request',async()=>{
   await assert.rejects(f.runtime.command('section',{section:'grades'}),/UnsupportedSection/);
   await assert.rejects(f.runtime.command('resource',{id:'forbidden'}),/UnsupportedSection/);
 });
-test('resource interval and menu days use Paris-day arguments',async()=>{
+test('the notebook reads contiguous bounded intervals from the provider school year to the chosen civil day',async()=>{
   const f=fixture();await login(f);
-  await f.runtime.command('section',{...windowArgs,section:'contents',dateDay:'2026-11-18'});
-  await f.runtime.command('section',{section:'menus',date:'2026-11-16T23:00:00Z',dateDay:'2026-11-17'});
-  assert.equal(f.trace.find(x=>Array.isArray(x)&&x[0]==='contents')[1].getDate(),16);
-  assert.equal(f.trace.find(x=>Array.isArray(x)&&x[0]==='menus')[1].getDate(),16);
+  const value=await f.runtime.command('section',{...windowArgs,section:'contents',dateDay:'2026-11-18',periodID:'week:2026-10-26'});
+  const calls=f.trace.filter(x=>Array.isArray(x)&&x[0]==='contents');
+  assert.equal(calls.length,3);assert.equal(calls[0][1].getTime(),new Date(2026,8,1).getTime());
+  for(let i=1;i<calls.length;i++)assert.equal(calls[i][1].getTime(),calls[i-1][2].getTime()+1);
+  assert.equal(calls.at(-1)[2].getTime(),new Date(2026,10,18,23,59,59,999).getTime());
+  assert.ok(value.yearStart);assert.deepEqual(value.resources,[]);
 });
-test('contents defaults to the current school week instead of a broad or annual range',async()=>{
+test('annual course index deduplicates lessons, retains titles and stops on the last school day',async()=>{
   const f=fixture();await login(f);
-  await f.runtime.command('section',{section:'contents',dateDay:'2026-11-18',startDay:'2026-09-01',endDay:'2027-08-31'});
-  const call=f.trace.find(x=>Array.isArray(x)&&x[0]==='contents');
-  assert.equal(call[1].getFullYear(),2026);assert.equal(call[1].getMonth(),10);assert.equal(call[1].getDate(),16);
-  assert.equal(call[2].getDate(),23);assert.equal(call[1].getDay(),1);
+  f.session.instance.firstDate=new Date(2025,8,8);f.session.instance.lastDate=new Date(2026,5,10);
+  let end=null;
+  f.api.resourcesFromIntervals=async(_s,_from,until)=>{end=until;return [{id:'r1',startDate:new Date(2026,4,11,12),subject:{name:'Mathématiques'},
+    teachers:['Professeur fictif'],contents:[{title:'Géométrie',description:'Texte intégral réservé au détail'}]}];};
+  const value=await f.runtime.command('section',{section:'contents',dateDay:'2026-07-25'});
+  assert.equal(end.getTime(),new Date(2026,5,10,23,59,59,999).getTime());
+  assert.equal(value.resources.length,1);assert.deepEqual(value.resources[0].contents,[{title:'Géométrie'}]);
 });
-test('explicit content and menu weeks override today and cross the school-year boundary',async()=>{
+test('menus still support the Paris school week and explicit week navigation',async()=>{
   const f=fixture();await login(f);
-  const args={periodID:'week:2026-12-28',dateDay:'2026-11-18'};
-  await f.runtime.command('section',{...args,section:'contents'});
-  await f.runtime.command('section',{...args,section:'menus'});
-  const content=f.trace.find(x=>Array.isArray(x)&&x[0]==='contents');
-  const menu=f.trace.find(x=>Array.isArray(x)&&x[0]==='menus');
-  assert.equal(content[1].getMonth(),11);assert.equal(content[1].getDate(),28);
-  assert.equal(content[2].getFullYear(),2027);assert.equal(content[2].getMonth(),0);assert.equal(content[2].getDate(),4);
-  assert.equal(menu[1].getTime(),content[1].getTime());
+  await f.runtime.command('section',{section:'menus',dateDay:'2026-11-18'});
+  await f.runtime.command('section',{section:'menus',periodID:'week:2026-12-28',dateDay:'2026-11-18'});
+  const menus=f.trace.filter(x=>Array.isArray(x)&&x[0]==='menus');
+  assert.equal(menus[0][1].getTime(),new Date(2026,10,16).getTime());assert.equal(menus[1][1].getTime(),new Date(2026,11,28).getTime());
 });
 test('consuming credential is durable before authentication and replacement before parameters',async()=>{
   const f=fixture();await f.runtime.command('resume',credential);

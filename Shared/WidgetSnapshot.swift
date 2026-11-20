@@ -16,6 +16,21 @@ struct WidgetCourseSummary: Codable {
     let end: Date
 }
 
+struct WidgetGradeSummary: Codable, Equatable {
+    let points: Double
+    let estimated: Bool
+    let period: String?
+    let updatedAt: Date
+}
+
+struct WidgetHomeworkSummary: Codable {
+    let upcomingCount: Int
+    let overdueCount: Int
+    let nextSubject: String?
+    let nextDeadline: Date?
+    let updatedAt: Date
+}
+
 struct WidgetSnapshot: Codable {
     let updatedAt: Date
     let courseMeasured: Double
@@ -30,30 +45,33 @@ struct WidgetSnapshot: Codable {
     let weekDays: [WidgetDaySummary]?
     let topSubjectName: String?
     let upcomingCourses: [WidgetCourseSummary]?
+    let grade: WidgetGradeSummary?
+    let homework: WidgetHomeworkSummary?
 
     init(updatedAt: Date, courseMeasured: Double, courseEstimated: Double, revisions: Double,
          activeSubject: String?, activeKind: String?, isPaused: Bool,
          nextCourseTitle: String?, nextCourseStart: Date?, weekDays: [WidgetDaySummary]? = nil,
-         topSubjectName: String? = nil, upcomingCourses: [WidgetCourseSummary]? = nil) {
+         topSubjectName: String? = nil, upcomingCourses: [WidgetCourseSummary]? = nil,
+         grade: WidgetGradeSummary? = nil, homework: WidgetHomeworkSummary? = nil) {
         self.updatedAt = updatedAt; self.courseMeasured = courseMeasured
         self.courseEstimated = courseEstimated; self.revisions = revisions
         self.activeSubject = activeSubject; self.activeKind = activeKind; self.isPaused = isPaused
         self.nextCourseTitle = nextCourseTitle; self.nextCourseStart = nextCourseStart
         self.weekDays = weekDays; self.topSubjectName = topSubjectName; self.upcomingCourses = upcomingCourses
+        self.grade = grade; self.homework = homework
     }
 }
 
 enum SharedSnapshotStore {
     static var transportDiagnostic: String { KeychainSnapshotStore.diagnostic }
-    static var container: URL? {
+    static let container: URL? = {
+        var groups = SignedKeychainGroups.commonContainers
         #if CADENCE_SHARED_GROUP
-        guard let identifier = Bundle.main.object(forInfoDictionaryKey: "CadenceAppGroupIdentifier") as? String,
-              !identifier.isEmpty else { return nil }
-        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)
-        #else
-        return nil
+        if let configured = Bundle.main.object(forInfoDictionaryKey: "CadenceAppGroupIdentifier") as? String,
+           !configured.isEmpty, !groups.contains(configured) { groups.append(configured) }
         #endif
-    }
+        return groups.compactMap { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) }.first
+    }()
 
     static func read() -> WidgetSnapshot? {
         if let url = container?.appendingPathComponent("widget-snapshot-v1.json"),
@@ -134,11 +152,11 @@ private enum KeychainSnapshotStore {
     }
 
     private static func candidateGroups() -> [String] {
-        // A re-signer may rewrite an entire group. Inspect our own signed
-        // metadata for exact names instead of trying to reconstruct them.
-        var groups = SignedKeychainGroups.current
+        // Prefer groups named by BOTH signed binaries. A successful write to
+        // the application's private default group cannot populate a widget.
+        if !SignedKeychainGroups.commonKeychain.isEmpty { return SignedKeychainGroups.commonKeychain }
+        var groups = SignedKeychainGroups.current.filter { $0.hasSuffix(".com.cadence.study.widget-summary") }
         if let group = defaultAccessGroup() {
-            groups.append(group)
             // Compatibility with snapshots published by 0.2.0. This is only an
             // attempted destination: Security still checks the actual entitlement.
             if let prefix = group.split(separator: ".").first {
@@ -154,7 +172,7 @@ private enum KeychainSnapshotStore {
            let profile = try? PropertyListSerialization.propertyList(from: data[start.lowerBound..<end.upperBound], options: [], format: nil) as? [String: Any],
            let entitlements = profile["Entitlements"] as? [String: Any],
            let values = entitlements["keychain-access-groups"] as? [String] {
-            groups.append(contentsOf: values.filter { $0.localizedCaseInsensitiveContains("cadence") })
+            groups.append(contentsOf: values.filter { $0.hasSuffix(".com.cadence.study.widget-summary") })
         }
         var unique = Set<String>()
         return groups.filter {
@@ -195,12 +213,11 @@ private enum KeychainSnapshotStore {
         // A small local aggregate, never credentials or the complete study database.
         guard data.count <= 16_384 else { return false }
         let groups = candidateGroups()
-        let candidates: [String?] = groups.isEmpty ? [nil] : groups.map { Optional($0) }
         var successes = 0
-        var lastStatus: OSStatus = errSecItemNotFound
-        for group in candidates {
+        var lastStatus: OSStatus = errSecMissingEntitlement
+        for group in groups {
             var attributesQuery = query(account: account)
-            if let group { attributesQuery[kSecAttrAccessGroup as String] = group }
+            attributesQuery[kSecAttrAccessGroup as String] = group
             let status = write(data, query: attributesQuery)
             if status == errSecSuccess { successes += 1 }
             else { lastStatus = status }
@@ -249,7 +266,10 @@ private final class KeychainDiagnostics: @unchecked Sendable {
         if destinationCount > 0 {
             return "Résumé écrit dans \(destinationCount) destination(s) autorisée(s) par iOS. Cela ne prouve pas encore l’accès de l’extension."
         }
-        return "Écriture du résumé refusée par iOS (OSStatus \(failureStatus ?? errSecNotAvailable)). Les groupes privés ne sont jamais contournés."
+        if failureStatus == errSecMissingEntitlement {
+            return "Droit de partage manquant (−34018). Conservez l’extension Widgets lors de l’installation et signez l’app et son extension avec le même groupe de partage de Cadenza."
+        }
+        return "Échec de publication du résumé (OSStatus \(failureStatus ?? errSecNotAvailable))."
     }
 }
 

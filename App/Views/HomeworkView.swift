@@ -88,12 +88,8 @@ struct HomeworkView: View {
         Section {
             ForEach(group.items) { item in
                 VStack(alignment: .leading, spacing: 0) {
-                    NavigationLink { HomeworkDetailView(homeworkID: item.id) } label: {
-                        HomeworkRow(item: item, subject: Atelier.subject(item.subjectID, in: store.state),
-                                    workedSeconds: worked[item.id, default: 0], now: now)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("homework.row." + item.id)
+                    HomeworkRow(item: item, subject: Atelier.subject(item.subjectID, in: store.state),
+                                workedSeconds: worked[item.id, default: 0], now: now)
                     Divider().padding(.horizontal, 16)
                     HomeworkQuickActions(item: item).padding(.horizontal, 12).padding(.vertical, 6)
                 }
@@ -126,170 +122,6 @@ struct HomeworkView: View {
             if lhs.source.deadline != rhs.source.deadline { return lhs.source.deadline < rhs.source.deadline }
             if lhs.source.subject != rhs.source.subject { return lhs.source.subject.localizedStandardCompare(rhs.source.subject) == .orderedAscending }
             return lhs.id < rhs.id
-        }
-    }
-}
-
-struct HomeworkDetailView: View {
-    let homeworkID: String
-    @EnvironmentObject private var store: AppStore
-    @State private var subjectSelection: UUID?
-    private var item: HomeworkItem? { store.state.homework.first { $0.id == homeworkID } }
-
-    var body: some View {
-        CadenceTimelineView(interval: 60) { now in
-            if let item {
-                details(item, now: now)
-            } else {
-                AtelierPage { EmptyCard(title: "Devoir indisponible", symbol: "checklist", description: "Ce devoir n’est pas disponible dans le cache local.") }
-            }
-        }
-        .navigationTitle("Devoir")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { subjectSelection = item?.subjectID }
-        .onChange(of: item?.subjectID) { _, subjectID in subjectSelection = subjectID }
-        .onChange(of: subjectSelection) { _, subjectID in
-            guard let subjectID, subjectID != item?.subjectID else { return }
-            store.setHomeworkSubject(homeworkID, subjectID: subjectID)
-        }
-        .accessibilityIdentifier("homework.detail")
-    }
-
-    private func details(_ item: HomeworkItem, now: Date) -> some View {
-        let subject = Atelier.subject(item.subjectID, in: store.state)
-        return AtelierPage {
-            AtelierCard {
-                HStack(alignment: .top, spacing: 12) {
-                    SubjectMark(subject: subject)
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(subject?.name ?? item.source.subject).font(.title3.weight(.bold)).foregroundStyle(CadenceColors.ink)
-                        Text("Pour le " + HomeworkPresentation.deadline(item.source.deadline))
-                            .font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                HStack(spacing: 8) {
-                    HomeworkStateBadge(item: item, now: now)
-                    if item.subjectID == nil { StatusBadge(title: "Matière à classer", color: .orange) }
-                }
-                if SchoolRichText.plain(item.source.description).isEmpty {
-                    Text("Aucune consigne supplémentaire dans le flux PRONOTE.").foregroundStyle(.secondary)
-                } else {
-                    Text(SchoolRichText.plain(item.source.description)).font(.body).foregroundStyle(CadenceColors.ink)
-                        .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-                        .accessibilityIdentifier("homework.description")
-                }
-                if let difficulty = HomeworkPresentation.difficulty(item.source.difficulty) {
-                    Label("Difficulté : " + difficulty, systemImage: "slider.horizontal.3")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }
-                if let minutes = item.source.lengthMinutes, minutes.isFinite, minutes > 0 {
-                    Label("Durée estimée : " + Atelier.duration(minutes * 60), systemImage: "clock")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }
-            }
-            workActions(item)
-            AtelierCard {
-                Label("Temps consacré à ce devoir", systemImage: "timer")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                HomeworkWorkedClock(homeworkID: item.id)
-                if store.state.activeSession?.activeHomeworkID == item.id {
-                    Label(store.state.activeSession?.isPaused == true ? "Séance en pause" : "Devoir en cours", systemImage: "timer")
-                        .font(.subheadline).foregroundStyle(Atelier.blue)
-                }
-            }
-            completionCard(item)
-            AtelierCard {
-                Text("Matière dans Cadenza").font(.headline)
-                SubjectPicker(selection: $subjectSelection).pickerStyle(.menu)
-                    .accessibilityIdentifier("homework.subject.assign")
-                if subject?.isArchived == true {
-                    Text("Choisissez une matière active pour démarrer une nouvelle séance.").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            resources(item)
-            if item.sourceMissing {
-                Label("Ce devoir est conservé sur l’iPhone. Il ne figure plus dans le dernier flux, mais votre suivi reste disponible.", systemImage: "tray.full")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    @ViewBuilder private func workActions(_ item: HomeworkItem) -> some View {
-        if let active = store.state.activeSession {
-            if active.activeHomeworkID == item.id {
-                ProminentAction(title: "Ouvrir la séance", symbol: "timer") { store.route = "revision" }
-                    .accessibilityIdentifier("homework.open.session")
-                SecondaryAction(title: "Ne plus travailler ce devoir", symbol: "minus.circle") {
-                    store.assignHomeworkToActiveSession(nil)
-                }.accessibilityIdentifier("homework.detach")
-            } else {
-                if active.subjectID != item.subjectID {
-                    Text("Votre séance reste classée en \(Atelier.subject(active.subjectID, in: store.state)?.name ?? "sa matière actuelle"). Le temps consacré à ce devoir sera suivi séparément.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                ProminentAction(title: "Faire ce devoir dans la séance", symbol: "link") {
-                    store.assignHomeworkToActiveSession(item.id)
-                    if store.state.activeSession?.activeHomeworkID == item.id { store.route = "revision" }
-                }.accessibilityIdentifier("homework.attach")
-                Text("Le chronomètre en cours est conservé.").font(.caption).foregroundStyle(.secondary)
-            }
-        } else {
-            ProminentAction(title: "Lancer ce devoir", symbol: "play.fill") {
-                store.startHomework(item.id)
-                if store.state.activeSession?.activeHomeworkID == item.id { store.route = "revision" }
-            }
-            .disabled(!store.state.subjects.contains { $0.id == item.subjectID && !$0.isArchived })
-            .accessibilityIdentifier("homework.start")
-            if item.subjectID == nil {
-                Text("Choisissez d’abord la matière de ce devoir.").font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func completionCard(_ item: HomeworkItem) -> some View {
-        AtelierCard {
-            HStack {
-                Text("Réalisation").font(.headline)
-                Spacer()
-                StatusBadge(title: item.isDone ? "Terminé" : "À faire", color: item.isDone ? CadenceColors.positive : Atelier.blue)
-            }
-            Button {
-                store.setHomeworkCompletion(item.id, isDone: !item.isDone)
-            } label: {
-                Label(item.isDone ? "Remettre à faire" : "Marquer comme terminé", systemImage: item.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle")
-                    .frame(minHeight: 44)
-            }.accessibilityIdentifier("homework.complete")
-            LabeledContent("Dans PRONOTE", value: item.sourceDone ? "Terminé" : "À faire")
-                .font(.caption).foregroundStyle(.secondary)
-            Text(item.localCompletionOverride == nil
-                 ? "Vous pouvez valider ce devoir ici. PRONOTE ne sera pas modifié."
-                 : "Votre choix dans Cadenza est conservé lors des synchronisations. PRONOTE n’a pas été modifié.")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-    }
-
-    @ViewBuilder private func resources(_ item: HomeworkItem) -> some View {
-        let links = HomeworkPresentation.links(item.source.resourceLinks)
-        let linkedLabels = Set(links.flatMap { [$0.title, $0.url.absoluteString] })
-        let labels = Array(Set(item.source.attachmentLabels)).filter { !linkedLabels.contains($0) }.sorted()
-        if !labels.isEmpty || !links.isEmpty {
-            AtelierCard {
-                Text("Documents et liens").font(.headline)
-                ForEach(links) { resource in
-                    Link(destination: resource.url) {
-                        Label(resource.title, systemImage: "arrow.up.right.square")
-                            .frame(minHeight: 44, alignment: .leading)
-                    }
-                }
-                ForEach(labels, id: \.self) { label in
-                    Label(label, systemImage: "doc").font(.subheadline).foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
-                if links.isEmpty {
-                    Text("Le flux indique le nom du document, sans lien de téléchargement.").font(.caption).foregroundStyle(.secondary)
-                }
-            }
         }
     }
 }
@@ -366,29 +198,68 @@ private struct HomeworkRow: View {
     let subject: Subject?
     let workedSeconds: TimeInterval
     let now: Date
+    @EnvironmentObject private var store: AppStore
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            SubjectMark(subject: subject)
-            VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                SubjectMark(subject: subject)
                 Text(subject?.name ?? item.source.subject).font(.headline).foregroundStyle(CadenceColors.ink)
-                Text(SchoolRichText.plain(item.source.description).isEmpty ? "Consigne non renseignée" : SchoolRichText.plain(item.source.description))
-                    .font(.subheadline).foregroundStyle(CadenceColors.secondary).lineLimit(3)
-                Text("Pour le " + HomeworkPresentation.deadline(item.source.deadline)).font(.caption).foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    HomeworkStateBadge(item: item, now: now)
-                    if workedSeconds > 0 {
-                        Label(Atelier.duration(workedSeconds), systemImage: "timer").font(.caption).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Menu {
+                    Section("Matière dans Cadenza") {
+                        ForEach(store.state.subjects.filter { !$0.isArchived }.sorted { $0.position < $1.position }) { choice in
+                            Button {
+                                store.setHomeworkSubject(item.id, subjectID: choice.id)
+                            } label: {
+                                if choice.id == item.subjectID { Label(choice.name, systemImage: "checkmark") }
+                                else { Text(choice.name) }
+                            }
+                        }
                     }
-                }
+                } label: {
+                    Image(systemName: "ellipsis.circle").frame(minWidth: 44, minHeight: 44)
+                }.accessibilityLabel("Changer la matière de ce devoir")
             }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).padding(.top, 13)
-        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            let instructions = SchoolRichText.plain(item.source.description)
+            Text(instructions.isEmpty ? "Aucune consigne supplémentaire" : instructions)
+                .font(.body).foregroundStyle(CadenceColors.ink).fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled).accessibilityIdentifier("homework.instructions." + item.id)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { metadata.font(.caption).foregroundStyle(.secondary) }
+                VStack(alignment: .leading, spacing: 5) { metadata.font(.caption).foregroundStyle(.secondary) }
+            }
+            let links = HomeworkPresentation.links(item.source.resourceLinks)
+            let linked = Set(links.flatMap { [$0.title, $0.url.absoluteString] })
+            ForEach(links) { resource in
+                Link(destination: resource.url) { Label(resource.title, systemImage: "paperclip").frame(minHeight: 44) }
+            }
+            ForEach(Array(Set(item.source.attachmentLabels)).filter { !linked.contains($0) }.sorted(), id: \.self) { name in
+                Label(name, systemImage: "doc").font(.caption).foregroundStyle(.secondary)
+            }
+            if item.sourceMissing { Text("Conservé sur cet iPhone").font(.caption).foregroundStyle(.secondary) }
+            if subject == nil || subject?.isArchived == true {
+                Text("Choisissez une matière dans le menu du devoir pour démarrer une séance.").font(.caption).foregroundStyle(.secondary)
+            }
+        }.padding(.horizontal, 16).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var metadata: some View {
+        HomeworkStateBadge(item: item, now: now)
+        if let minutes = item.source.lengthMinutes, minutes.isFinite, minutes > 0 {
+            Label(Atelier.duration(minutes * 60), systemImage: "clock")
+                .accessibilityLabel("Durée estimée " + Atelier.duration(minutes * 60))
+        }
+        if workedSeconds > 0 {
+            Label(Atelier.duration(workedSeconds), systemImage: "timer")
+                .accessibilityLabel("Temps consacré " + Atelier.duration(workedSeconds))
+        }
+        if let difficulty = HomeworkPresentation.difficulty(item.source.difficulty), difficulty != "0" {
+            Label(difficulty, systemImage: "slider.horizontal.3").accessibilityLabel("Difficulté " + difficulty)
+        }
     }
 }
 
-/// Independent controls below the detail link: completing or starting a task
-/// never requires opening its detail screen or nesting buttons in a link.
 private struct HomeworkQuickActions: View {
     let item: HomeworkItem
     @EnvironmentObject private var store: AppStore
@@ -430,7 +301,7 @@ private struct HomeworkQuickActions: View {
                 .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
         }
         .buttonStyle(.borderless).disabled(!canStart)
-        .accessibilityHint(canStart ? "Ouvre le chronomètre associé à ce devoir." : "Ouvrez le devoir pour choisir une matière.")
+        .accessibilityHint(canStart ? "Ouvre le chronomètre associé à ce devoir." : "Choisissez une matière dans le menu du devoir.")
         .accessibilityIdentifier("homework.quick.start." + item.id)
     }
 }
@@ -499,31 +370,5 @@ private enum HomeworkPresentation {
                   resource.url.host != nil else { return false }
             return seen.insert(resource.url.absoluteString).inserted
         }
-    }
-}
-
-/// Only this number ticks once a second, not the description, documents or form.
-private struct HomeworkWorkedClock: View {
-    let homeworkID: String
-    @EnvironmentObject private var store: AppStore
-
-    var body: some View {
-        let reference = Date()
-        let baseline = HomeworkPresentation.workedSeconds(state: store.state, now: reference)[homeworkID, default: 0]
-        let session = store.state.activeSession
-        let segment = session?.homeworkWorkSegments?.last
-        let running = session?.isPaused == false && segment?.homeworkID == homeworkID && segment?.end == nil
-        Group {
-            if running {
-                CadenceTimelineView(interval: 1) { now in
-                    value(baseline + max(0, now.timeIntervalSince(reference)))
-                }
-            } else { value(baseline) }
-        }
-    }
-
-    private func value(_ seconds: TimeInterval) -> some View {
-        Text(Atelier.clock(seconds)).font(.title2.monospacedDigit().weight(.semibold))
-            .foregroundStyle(CadenceColors.ink).accessibilityIdentifier("homework.worked.time")
     }
 }

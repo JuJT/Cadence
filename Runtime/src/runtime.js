@@ -3,7 +3,7 @@ import {resolvePeriod,projectGrades} from './school-data.js';
 
 export function createRuntime(api,native) {
   let session=null,credential=null,challenge=null,authenticated=false,discussionsCache=null;
-  const threads=new Map(),newsItems=new Map(),resources=new Map();
+  const threads=new Map(),newsItems=new Map();
   const fetches=new Map();let fetchCounter=0;
   const fetcher=options=>new Promise((resolve,reject)=>{const id=String(++fetchCounter);fetches.set(id,{resolve,reject});native.fetch(id,JSON.stringify(options));});
   const replyFetch=(id,json)=>{const pending=fetches.get(String(id));if(!pending)return;fetches.delete(String(id));
@@ -31,7 +31,7 @@ export function createRuntime(api,native) {
     const recognized=['SecureStorageUnavailable','InvalidCredential','NotConnected','UnsupportedSection','InvalidPeriod','NetworkUnavailable','MissingDiscussion','MissingResource','ResponseTooLarge','UnsupportedNewsFormat'];
     return {name:recognized.includes(e?.message)?e.message:'PronoteError',message:'La requête PRONOTE n’a pas abouti.'};
   }
-  function clearData(){threads.clear();newsItems.clear();resources.clear();discussionsCache=null;}
+  function clearData(){threads.clear();newsItems.clear();discussionsCache=null;}
   function requireSession(){if(!authenticated||!session?.userResource)throw Error('NotConnected');}
   function requireCapability(name){if(!profileFor(session).capabilities.includes(name))throw Error('UnsupportedSection');}
   function requireCompose(kind){requireCapability('discussions');requireCapability('compose');if(kind!==3)throw Error('UnsupportedSection');}
@@ -43,6 +43,30 @@ export function createRuntime(api,native) {
     start.setDate(start.getDate()-((start.getDay()+6)%7));
     const end=new Date(start);end.setDate(end.getDate()+7);
     return {start,end};
+  }
+  // Pawnote accepts a bounded PRONOTE week domain per request. Splitting the
+  // year keeps rich text and attachment metadata below the native response cap.
+  async function contentsForSchoolYear(args){
+    const today=localDayArgument(args.dateDay??args.date??new Date().toISOString());
+    const first=session.instance.firstDate??session.instance.firstMonday;
+    if(!(first instanceof Date)||!Number.isFinite(first.getTime()))throw Error('InvalidPeriod');
+    const start=new Date(first);start.setHours(0,0,0,0);
+    const last=session.instance.lastDate;
+    const through=new Date(last instanceof Date&&last<today?last:today);through.setHours(23,59,59,999);
+    const lessons=new Map();
+    let from=new Date(start);
+    while(from<=through){
+      const next=new Date(from);next.setDate(next.getDate()+28);
+      const end=new Date(Math.min(next.getTime()-1,through.getTime()));
+      for(const item of await api.resourcesFromIntervals(session,from,end)){
+        if(item.id==null)continue;
+        const title=item.contents?.find(content=>content.title)?.title;
+        lessons.set(String(item.id),{id:String(item.id),subject:item.subject,teachers:item.teachers,startDate:item.startDate,
+          haveAssignment:item.haveAssignment,contents:title?[{title}]:[]});
+      }
+      from=next;
+    }
+    return safeJSON({yearStart:start,through,resources:[...lessons.values()]});
   }
   function discussionID(item){const id=item.participantsMessageID??item.id;return id==null?null:String(id);}
   async function fetchDiscussions(){
@@ -132,12 +156,11 @@ export function createRuntime(api,native) {
       if(section==='homepage')return safeJSON(await api.homepage(session));
       if(section==='news') {const value=await api.news(session);for(const item of value.items??[])newsItems.set(String(item.id),item);return safeJSON(value);}
       if(section==='discussions') return fetchDiscussions();
-      if(section==='contents') {const range=weekRange(args);const value=await api.resourcesFromIntervals(session,range.start,range.end);
-        for(const item of value)resources.set(item.id,item);return safeJSON(value);}
+      if(section==='contents')return contentsForSchoolYear(args);
       throw Error('UnsupportedSection');
     }
-    if(name==='resource') {requireCapability('contents');const r=await api.resource(session,args.id);resources.set(r.id,r);return {resource:safeJSON(r),course_content:mapResource(r)};}
-    if(name==='newsDetail')return safeJSON(await findNews(args.id));
+    if(name==='resource') {requireCapability('contents');const r=await api.resource(session,args.id);return {resource:safeJSON(r),course_content:mapResource(r)};}
+    if(name==='newsDetail')return safeJSON({...await findNews(args.id),detailsRequired:false});
     if(name==='discussion') {
       const item=await findDiscussion(args.id);
       return safeJSON(await api.discussionMessages(session,item,false));

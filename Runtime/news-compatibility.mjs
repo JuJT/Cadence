@@ -3,13 +3,14 @@
 // Its public eleve_defer.js documents request kinds 0 (list) and 1 (detail),
 // merging detailsActualite into the selected raw item, and nature as category.
 // Details stay lazy. Unknown shapes fail instead of fabricating empty content.
-export const newsCompatibilityID='cadenza-pronote2026-lazy-news-v3';
+export const newsCompatibilityID='cadenza-pronote2026-recipient-news-v4';
 // Public publisher asset, inspected without authentication. No school rows are
 // copied into this adapter or its entirely synthetic test fixtures.
 export const newsProtocolProvenance=Object.freeze({
   sourceURL:'https://demo.index-education.net/pronote/E_3_C_26A61756062CEBB94B47B3C6829978280DB11D70F4823EE0434C06DDCB7796AA_L_1036/eleve_defer.js',
   sourceSHA256:'ebcc104485a3f99a30600e67c871a235d24ad06c4450c75e6948f127f3c4fa42',
-  inspectedAtUTC:'2026-11-19',providerVersion:'2026.2.8'
+  inspectedAtUTC:'2026-11-19',providerVersion:'2026.2.8',
+  readRecipientReference:'https://github.com/bain3/pronotepy/blob/0a71edade4b1795b7a429e50177656c23d3d1f36/pronotepy/dataClasses.py'
 });
 const before='const t=e.listeCategories.V.map(ft);return{categories:t,items:e.listeModesAff[0].listeActualites.V.map';
 const after='const __cadenzaCategories=e.listeNatures?.V===null?{V:[]}:(e.listeNatures??e.listeCategories??(e.listeNatures===null?{V:[]}:undefined)),__cadenzaModes=e.listeModesAff;'+
@@ -34,6 +35,16 @@ function __cadenzaNewsObject(v){return v!==null&&typeof v==="object"&&!Array.isA
 function __cadenzaNewsList(v){if(!__cadenzaNewsObject(v)||!Array.isArray(v.V))return __cadenzaNewsFailure();return v.V;}
 function __cadenzaNewsID(v){if(typeof v!=="string"&&!(typeof v==="number"&&Number.isFinite(v)))return __cadenzaNewsFailure();const s=String(v);if(!s.length)return __cadenzaNewsFailure();return s;}
 function __cadenzaNewsDate(v){if(!__cadenzaNewsObject(v)||typeof v.V!=="string")return __cadenzaNewsFailure();const date=le(v.V);if(!(date instanceof Date)||!Number.isFinite(date.getTime()))return __cadenzaNewsFailure();return date;}
+// The read endpoint expects an unwrapped recipient identity. A list row's
+// display metadata (or its typed public.V wrapper) is not a request payload.
+function __cadenzaNewsReference(row,session){
+  const target=row.public?.V??row.public;
+  const account=session.user;
+  const recipient=target?.N!=null&&Number.isInteger(target.G)?{N:target.N,G:target.G}:
+    account?.id!=null&&Number.isInteger(account.kind)?{N:account.id,G:account.kind}:null;
+  if(!recipient)return __cadenzaNewsFailure();
+  return {N:row.N,genrePublic:Number.isInteger(row.genrePublic)?row.genrePublic:recipient.G,public:recipient};
+}
 function __cadenzaModernNewsList(raw,session){
   const categories=(raw.listeNatures==null||raw.listeNatures.V===null?[]:__cadenzaNewsList(raw.listeNatures)).filter(value=>value!=null).map(value=>{
     if(!__cadenzaNewsObject(value)||typeof value.N!=="string"||typeof value.L!=="string")return __cadenzaNewsFailure();return ft(value);
@@ -64,17 +75,17 @@ function __cadenzaModernNewsList(raw,session){
 }
 function __cadenzaDecodeNewsQuestions(item,session){
   const questions=__cadenzaNewsList(item.listeQuestions);
-  if(item.estInformation&&questions.length!==1)return __cadenzaNewsFailure();
+  if(item.estInformation&&!questions.length)return __cadenzaNewsFailure();
   return questions.map(question=>{
-    if(!__cadenzaNewsObject(question)||!Number.isInteger(question.genreReponse))return __cadenzaNewsFailure();
-    const id=__cadenzaNewsID(question.N),kind=question.genreReponse;
-    if(!__cadenzaNewsObject(question.texte)||typeof question.texte.V!=="string")return __cadenzaNewsFailure();
+    if(!__cadenzaNewsObject(question))return __cadenzaNewsFailure();
+    const kind=question.genreReponse,content=question.texte?.V??question.texte;
     const files=question.listePiecesJointes?.V==null?[]:__cadenzaNewsList(question.listePiecesJointes).filter(value=>value!=null);
+    if(typeof content!=="string"&&!files.length&&typeof question.titre!=="string")return __cadenzaNewsFailure();
     const rawChoices=question.listeChoix?.V==null?[]:__cadenzaNewsList(question.listeChoix).filter(value=>value!=null);
-    if(!item.estInformation&&kind>1&&question.listeChoix?.V==null)return __cadenzaNewsFailure();
     const reply=__cadenzaNewsObject(question.reponse?.V)?question.reponse.V:null;
-    const result={id,kind,content:question.texte.V,fullTitle:question.L,title:question.titre,position:question.rang,
+    const result={kind,content:typeof content==="string"?content:"",fullTitle:question.L,title:question.titre,position:question.rang,
       attachments:files.map(file=>De(file,session)),choices:rawChoices.map(choice=>({value:choice.L,position:choice.rang,isTextInput:!!choice.estReponseLibre}))};
+    if(question.N!=null)result.id=__cadenzaNewsID(question.N);
     // Read-only articles do not require recipient/answer metadata. Do not
     // manufacture an acknowledgment when the server has not supplied it.
     if(reply){
@@ -98,13 +109,15 @@ function __cadenzaDecodeModernNews(item,session,categories){
   }
   if(__cadenzaNewsObject(item.public)&&"V"in item.public)result.public=item.public.V;
   if(item.estInformation){
-    const question=questions[0];result.question=question;result.content=question.content;result.attachments=question.attachments;
+    const question=questions[0];result.question=question;
+    result.content=questions.map(part=>part.content||part.title).filter(Boolean).join("\n\n");
+    result.attachments=questions.flatMap(part=>part.attachments);
     if(typeof question.answered==="boolean")result.acknowledged=question.answered;
     if(question.answerDate!==undefined)result.acknowledgedDate=question.answerDate;
     // Pawnote's write serializer needs a numeric answer ID and public.G. A
     // readable article is not sufficient authorization metadata for that write.
     const validAnswer=typeof question.answerID==="string"&&/^\d+$/.test(question.answerID)&&Number.isSafeInteger(Number(question.answerID));
-    result.acknowledgementAvailable=question.kind===0&&typeof question.answered==="boolean"&&typeof question.shouldAnswer==="boolean"&&validAnswer&&
+    result.acknowledgementAvailable=questions.length===1&&question.id!=null&&question.kind===0&&typeof question.answered==="boolean"&&typeof question.shouldAnswer==="boolean"&&validAnswer&&
       __cadenzaNewsObject(result.public)&&Number.isInteger(result.public.G);
     result.needToAcknowledge=result.acknowledgementAvailable&&question.shouldAnswer===true;
   }else{result.questions=questions;result.isAnonymous=item.reponseAnonyme;}
@@ -115,13 +128,13 @@ async function __cadenzaNewsDetail(session,id){
   if(!record)throw Error("MissingResource");
   if(record.decoded)return record.decoded;
   let item={...record.raw};
-  if(!__cadenzaNewsObject(item.listeQuestions)||!Array.isArray(item.listeQuestions.V)){
+  if(!Array.isArray(item.listeQuestions?.V)||!item.listeQuestions.V.length){
     const properties=ne(session),request=new ae(session,"PageActualites",{
       [properties.signature]:{onglet:Q.News},
-      [properties.data]:{genreRequeteActualite:1,modeAffActu:record.mode,actualite:record.raw}
+      [properties.data]:{genreRequeteActualite:1,modeAffActu:record.mode,actualite:__cadenzaNewsReference(item,session)}
     });
     const response=(await request.send()).data[properties.data];
-    if(!__cadenzaNewsObject(response)||response.genreRequeteActualite!==1||!__cadenzaNewsObject(response.detailsActualite))return __cadenzaNewsFailure();
+    if(!__cadenzaNewsObject(response)||(response.genreRequeteActualite!=null&&response.genreRequeteActualite!==1)||!__cadenzaNewsObject(response.detailsActualite))return __cadenzaNewsFailure();
     item={...item,...response.detailsActualite};
   }
   if(__cadenzaNewsID(item.N)!==String(id))return __cadenzaNewsFailure();

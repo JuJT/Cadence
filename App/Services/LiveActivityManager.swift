@@ -18,6 +18,7 @@ final class SystemIntegrationService {
     private var lastSnapshotState: CadenceState?
     private var lastSnapshotMinute: Int?
     private var lastSnapshotPayload: Data?
+    private var gradeSummary: WidgetGradeSummary?
     private var lifecycleObservers: [NSObjectProtocol] = []
     private(set) var lastActivityError: String?
     private(set) var lastSnapshotPublished = false
@@ -56,12 +57,12 @@ final class SystemIntegrationService {
         #if CADENCE_EXTENSIONS
         let group: String
         if SharedSnapshotStore.container != nil {
-            group = "Widgets : résumé publié dans le conteneur partagé; lecture à vérifier sur l’appareil."
+            group = lastSnapshotPublished ? "Widgets · résumé publié dans le groupe d’apps." : "Widgets · en attente de publication dans le groupe d’apps."
         } else {
             #if CADENCE_KEYCHAIN_SHARED
             group = lastSnapshotPublished
-                ? "Widgets : résumé écrit dans le trousseau autorisé de l’app ; la lecture par l’extension reste distincte."
-                : "Widgets : écriture du résumé indisponible. La signature de l’app et de l’extension doit autoriser un groupe commun."
+                ? "Widgets · résumé publié dans le trousseau."
+                : "Widgets · résumé indisponible."
             #else
             group = "Widgets : ouverture de l’app, sans données partagées dans cette variante."
             #endif
@@ -72,7 +73,8 @@ final class SystemIntegrationService {
         let receipt = SharedSnapshotStore.lastWidgetReadAt.map {
             "Dernière lecture réelle par un widget : " + $0.formatted(date: .abbreviated, time: .shortened)
         } ?? "Aucune lecture du résumé par un widget confirmée pour cette installation."
-        return [group, SharedSnapshotStore.transportDiagnostic, receipt, activity, lastActivityError].compactMap { $0 }.joined(separator: "\n")
+        let transport = SharedSnapshotStore.container == nil ? SharedSnapshotStore.transportDiagnostic : nil
+        return [group, transport, receipt, activity, lastActivityError].compactMap { $0 }.joined(separator: "\n")
         #else
         return "Version autonome : aucune extension intégrée. Raccourcis ouvre l’app."
         #endif
@@ -96,6 +98,51 @@ final class SystemIntegrationService {
             }
             self.activityWorker = nil
         }
+    }
+
+    func updateGrade(from cache: PronotePortalCache) {
+        let periodID = cache.profile?.currentPeriodID(for: "grades")
+        let key = periodID.map { "grades:" + $0 } ?? "grades"
+        var summary: WidgetGradeSummary?
+        if let value = cache.sections[key], let stamp = cache.updatedAt[key] {
+            func points(_ value: SchoolJSON?) -> Double? {
+                if let n = value?.numberValue, n.isFinite { return n }
+                guard value?["kind"]?.integerValue == 0, let n = value?["points"]?.numberValue, n.isFinite else { return nil }
+                return n
+            }
+            let official = points(value["overallAverage"])
+            if let average = official ?? points(value["calculatedOverallAverage"]) {
+                summary = WidgetGradeSummary(points: average, estimated: official == nil,
+                    period: cache.profile?.periods.first { $0.id == periodID }?.name, updatedAt: stamp)
+            }
+        }
+        guard summary != gradeSummary else { return }
+        gradeSummary = summary
+        lastSnapshotState = nil
+        scheduleSnapshot()
+    }
+
+    func hasGradeWidget() async -> Bool {
+        #if CADENCE_EXTENSIONS
+        return await withCheckedContinuation { continuation in
+            WidgetCenter.shared.getCurrentConfigurations { result in
+                let present = (try? result.get())?.contains { $0.kind == "CadenzaMoyenne" } ?? false
+                continuation.resume(returning: present)
+            }
+        }
+        #else
+        return false
+        #endif
+    }
+
+    private func homeworkSummary(state: CadenceState, now: Date) -> WidgetHomeworkSummary? {
+        guard let stamp = state.schoolSync?.lastSuccessfulFetch else { return nil }
+        let today = SchoolDateCodec.parisCalendar.startOfDay(for: now)
+        let pending = state.homework.filter { !$0.sourceMissing && !$0.isDone }
+        let upcoming = pending.filter { $0.source.deadline >= today }
+        let next = upcoming.min { ($0.source.deadline, $0.id) < ($1.source.deadline, $1.id) }
+        return WidgetHomeworkSummary(upcomingCount: upcoming.count, overdueCount: pending.count - upcoming.count,
+            nextSubject: next.map { String($0.source.subject.prefix(100)) }, nextDeadline: next?.source.deadline, updatedAt: stamp)
     }
 
     private func activityNeedsRecovery(_ key: ActivityKey) -> Bool {
@@ -177,7 +224,7 @@ final class SystemIntegrationService {
                 weekDays: weekDays, topSubjectName: topSubject,
                 upcomingCourses: upcoming.prefix(12).map {
                     WidgetCourseSummary(title: String($0.displayTitle(in: state.subjects).prefix(120)), start: $0.start, end: $0.end)
-                })
+                }, grade: gradeSummary, homework: homeworkSummary(state: state, now: now))
             // Ignore only the publication timestamp for deduplication. Session
             // state, upcoming course, day boundaries and all durations still count.
             let payload = snapshotPayload(snapshot)

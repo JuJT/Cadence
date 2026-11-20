@@ -2,25 +2,30 @@ import SwiftUI
 import CadenceCore
 
 private enum CadenceSection: String, CaseIterable, Identifiable {
-    case accueil, cours, devoirs, revision, statistiques
+    case accueil, cours, devoirs, notes, revision
     var id: String { rawValue }
     var title: String {
-        switch self { case .accueil: return "Accueil"; case .cours: return "Cours"; case .devoirs: return "Devoirs"; case .revision: return "Révision"; case .statistiques: return "Statistiques" }
+        switch self { case .accueil: return "Accueil"; case .cours: return "Cours"; case .devoirs: return "Devoirs"; case .revision: return "Révision"; case .notes: return "Notes" }
     }
     var symbol: String {
-        switch self { case .accueil: return "house"; case .cours: return "calendar"; case .devoirs: return "checklist"; case .revision: return "timer"; case .statistiques: return "chart.bar" }
+        switch self { case .accueil: return "house"; case .cours: return "calendar"; case .devoirs: return "checklist"; case .revision: return "timer"; case .notes: return "chart.bar" }
     }
 }
 
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selected: CadenceSection = .accueil
+    @State private var showStatistics = false
     @State private var showSettings = false
     @State private var introductionCompletedThisLaunch = false
     @AppStorage("cadence.appearance") private var appearance = "system"
     @AppStorage("cadence.introduction.lastSeenRelease") private var lastSeenRelease = ""
     var body: some View {
-        TabView(selection: $selected) {
+        TabView(selection: Binding(get: { selected }, set: { section in
+            selected = section
+            if section == .revision { showStatistics = false }
+            store.route = section.rawValue
+        })) {
             ForEach(CadenceSection.allCases) { section in
                 navigation(section).tabItem { Label(section.title, systemImage: section.symbol) }.tag(section)
             }
@@ -46,11 +51,18 @@ struct RootView: View {
         .alert("Cadenza", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("Compris", role: .cancel) { store.errorMessage = nil }
         } message: { Text(store.errorMessage ?? "Une erreur est survenue.") }
-        .onChange(of: store.route) { _, route in
-            if let section = CadenceSection(rawValue: route) { selected = section }
+        .onChange(of: store.route, initial: true) { _, route in
+            if route == "statistiques" {
+                selected = .revision
+                showStatistics = true
+            } else if let section = CadenceSection(rawValue: route) {
+                selected = section
+                if section == .revision { showStatistics = false }
+            }
         }
-        .onChange(of: selected) { _, section in store.route = section.rawValue }
-        .onAppear { if let section = CadenceSection(rawValue: store.route) { selected = section } }
+        .onChange(of: showStatistics) { _, presented in
+            if !presented && store.route == "statistiques" { store.route = "revision" }
+        }
         .sensoryFeedback(.selection, trigger: store.state.activeSession?.id)
         .sensoryFeedback(.selection, trigger: store.state.activeSession?.isPaused)
     }
@@ -72,8 +84,22 @@ struct RootView: View {
                 case .accueil: HomeView()
                 case .cours: CoursesView()
                 case .devoirs: HomeworkView()
-                case .revision: RevisionView()
-                case .statistiques: StatisticsView()
+                case .revision:
+                    RevisionView()
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button("Statistiques", systemImage: "chart.bar") { store.route = "statistiques" }
+                                    .accessibilityIdentifier("revision.statistics")
+                            }
+                        }
+                        .navigationDestination(isPresented: $showStatistics) { StatisticsView() }
+                case .notes:
+                    if store.pronoteProfile == nil && store.pronotePortal.profile == nil && !store.pronotePortal.sections.keys.contains(where: { $0.hasPrefix("grades") }) {
+                        AtelierPage {
+                            EmptyCard(title: "Vos résultats scolaires", symbol: "chart.bar", description: "Connectez PRONOTE pour retrouver vos notes et vos moyennes par période.")
+                            NavigationLink("Connecter PRONOTE") { SchoolConnectionView() }.buttonStyle(.borderedProminent)
+                        }.navigationTitle("Notes")
+                    } else { PronoteSectionView(section: .grades) }
                 }
             }
             .environment(\.cadenceTabIsActive, selected == section && !showSettings && introductionMode == nil)

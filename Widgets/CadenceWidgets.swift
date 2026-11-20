@@ -8,7 +8,7 @@ struct CadenceWidgetBundle: WidgetBundle {
         TodayWidget()
         WeekWidget()
         NextCourseWidget()
-        AccessoryStudyWidget()
+        SchoolWidgetBundle().body
         SessionLiveActivity()
     }
 }

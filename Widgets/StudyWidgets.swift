@@ -1,6 +1,36 @@
 import SwiftUI
 import WidgetKit
 
+struct SchoolWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        GradeWidget()
+        HomeworkWidget()
+        AccessoryStudyWidget()
+    }
+}
+
+struct GradeWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CadenzaMoyenne", provider: TodayProvider()) { entry in
+            GradeWidgetView(entry: entry).containerBackground(for: .widget) { WidgetCanvas() }
+        }
+        .configurationDisplayName("Moyenne générale")
+        .description("Votre moyenne pour la période actuelle de PRONOTE.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+struct HomeworkWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CadenzaDevoirs", provider: TodayProvider()) { entry in
+            HomeworkWidgetView(entry: entry).containerBackground(for: .widget) { WidgetCanvas() }
+        }
+        .configurationDisplayName("Devoirs à venir")
+        .description("Les devoirs à faire et votre prochaine échéance.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
 struct WeekWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "CadenceSemaine", provider: TodayProvider()) { entry in

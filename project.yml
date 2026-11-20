@@ -10,8 +10,8 @@ settings:
     SWIFT_VERSION: '5.0'
     IPHONEOS_DEPLOYMENT_TARGET: '17.0'
     TARGETED_DEVICE_FAMILY: '1'
-    MARKETING_VERSION: '0.5.0'
-    CURRENT_PROJECT_VERSION: '6'
+    MARKETING_VERSION: '0.6.0'
+    CURRENT_PROJECT_VERSION: '7'
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: minimal
     CODE_SIGN_STYLE: Automatic
@@ -53,6 +53,9 @@ targets:
         CFBundleDevelopmentRegion: fr
         LSRequiresIPhoneOS: true
         NSSupportsLiveActivities: true
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.cadence.study.schedule-refresh]
+        NSAppleMusicUsageDescription: 'Choisissez les morceaux de votre bibliothèque et contrôlez la lecture d’Apple Music depuis Cadenza.'
         NSLocationWhenInUseUsageDescription: 'Votre position approximative sert uniquement à rechercher les établissements proches dans l’annuaire PRONOTE lorsque vous choisissez Autour de moi.'
         NSCalendarsFullAccessUsageDescription: 'Cadenza lit vos créneaux de cours pour les intégrer à votre suivi ; aucune donnée n’est envoyée et vos calendriers ne sont jamais modifiés.'
         UIApplicationSupportsIndirectInputEvents: true
@@ -95,6 +98,9 @@ targets:
         CFBundleDevelopmentRegion: fr
         LSRequiresIPhoneOS: true
         NSSupportsLiveActivities: false
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.cadence.study.schedule-refresh]
+        NSAppleMusicUsageDescription: 'Choisissez les morceaux de votre bibliothèque et contrôlez la lecture d’Apple Music depuis Cadenza.'
         NSLocationWhenInUseUsageDescription: 'Votre position approximative sert uniquement à rechercher les établissements proches dans l’annuaire PRONOTE lorsque vous choisissez Autour de moi.'
         NSCalendarsFullAccessUsageDescription: 'Cadenza lit vos créneaux de cours pour les intégrer à votre suivi ; aucune donnée n’est envoyée et vos calendriers ne sont jamais modifiés.'
         UIApplicationSupportsIndirectInputEvents: true

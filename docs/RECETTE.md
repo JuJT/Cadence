@@ -20,8 +20,8 @@ Le programme d’essai initial a été validé par l’utilisateur sur son iPhon
 | iPhone | Connexion PRONOTE : annuaire par ville, position facultative ou URL | Authentification élève, cours/devoirs/portail et cache disponibles | Démo publique + essais avec le compte réel à faire |
 | iPhone | Synchroniser après avoir travaillé un devoir ou chronométré un cours | Travail local conservé, aucun doublon ni double crédit | Noyau et moteur testés ; contrôle du compte réel à faire |
 | iPhone | Comparer Religion après actualisation | Une occurrence valide par séance, exclusions locales conservées | Noyau testé ; contrôle du relevé réel à faire |
-| iPhone | Importer HongMix Focus puis tester | Mode existant conservé, début/fin automatiques après autorisation | Signature et graphe vérifiés ; exécution matérielle à faire |
-| iPhone | Musique déjà lancée depuis une autre app | Volume et sortie audio système ; pistes dans le Centre de contrôle | Contrôles compilés ; essai matériel à faire |
+| iPhone | Autoriser Apple Music, choisir deux morceaux, passer au suivant | Morceau et état de Musique mis à jour | À essayer sur iPhone |
+| iPhone | Ouvrir un lien Spotify puis connecter un compte Premium | Lecteur intégré, titre et commandes sur l’appareil Spotify Connect actif | À essayer avec un compte autorisé |
 | iPhone | Changer plusieurs fois d’onglet et prolonger une séance | Navigation stable, enregistrement continu, chauffe à observer | Parcours simulateur réussis ; mesure sur appareil à faire |
 | iPhone | App fermée pendant session / pause | Restauration correcte | À faire |
 | iPhone | Widget et Live Activity / Island | Présence après resignature et durée correcte | À faire |

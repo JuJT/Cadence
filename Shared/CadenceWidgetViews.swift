@@ -122,6 +122,67 @@ struct SnapshotStamp: View {
     }
 }
 
+struct GradeWidgetView: View {
+    let entry: TodayEntry
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            WidgetHeading(title: "Ma moyenne", symbol: "chart.bar.fill")
+            Spacer(minLength: 2)
+            if let grade = entry.snapshot?.grade {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(grade.points.formatted(.number.locale(Locale(identifier: "fr_FR")).precision(.fractionLength(0...2))))
+                        .font(.system(size: 34, weight: .semibold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.75)
+                    Text("/20").font(.subheadline).foregroundStyle(.secondary)
+                }
+                if grade.estimated { Text("Indicative").font(.caption.weight(.semibold)).foregroundStyle(WidgetPalette.blue) }
+                if let period = grade.period { Text(period).font(.caption).lineLimit(1) }
+                Spacer(minLength: 0)
+                SnapshotStamp(date: grade.updatedAt)
+            } else {
+                Text(entry.snapshot == nil ? "Relier mes données" : "Moyenne indisponible").font(.headline)
+                Text("Ouvrir mes notes").font(.caption).foregroundStyle(WidgetPalette.blue)
+                Spacer(minLength: 0)
+            }
+        }
+        .privacySensitive()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(URL(string: "cadence://notes"))
+    }
+}
+
+struct HomeworkWidgetView: View {
+    let entry: TodayEntry
+    private static let deadlineFormat: Date.FormatStyle = .init(locale: Locale(identifier: "fr_FR"),
+        timeZone: TimeZone(identifier: "Europe/Paris") ?? .current)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            WidgetHeading(title: "Mes devoirs", symbol: "checklist")
+            Spacer(minLength: 2)
+            if let value = entry.snapshot?.homework, let snapshotDate = entry.snapshot?.updatedAt,
+               Calendar.current.isDate(snapshotDate, inSameDayAs: entry.date) {
+                Text(value.upcomingCount == 0 && value.overdueCount == 0 ? "À jour" : "\(value.upcomingCount) à venir")
+                    .font(.title2.bold()).lineLimit(1).minimumScaleFactor(0.78)
+                    .accessibilityLabel(value.upcomingCount == 0 ? "Aucun devoir à venir" : "\(value.upcomingCount) devoirs à venir")
+                if let subject = value.nextSubject, let due = value.nextDeadline {
+                    Text(subject).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Text(due.formatted(Self.deadlineFormat.weekday(.abbreviated).day().month(.abbreviated)))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if value.overdueCount > 0 { Text("\(value.overdueCount) en retard").font(.caption).foregroundStyle(.orange) }
+                Spacer(minLength: 0)
+                SnapshotStamp(date: value.updatedAt)
+            } else {
+                Text("Actualiser mes devoirs").font(.headline)
+                Text("Ouvrir Cadenza").font(.caption).foregroundStyle(WidgetPalette.blue)
+                Spacer(minLength: 0)
+            }
+        }
+        .privacySensitive()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(URL(string: "cadence://devoirs"))
+    }
+}
+
 struct WidgetMetric: View {
     let title: String
     let value: Double

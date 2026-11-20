@@ -47,7 +47,7 @@ enum PronotePortalSection: String, CaseIterable, Identifiable {
         }
     }
     var usesPeriod: Bool { [.grades, .evaluations, .attendance, .gradebook].contains(self) }
-    var usesWeek: Bool { self == .contents || self == .menus }
+    var usesWeek: Bool { self == .menus }
 }
 
 struct PronotePortalView: View {
@@ -116,15 +116,19 @@ struct PronoteQuickLinksView: View {
     }
     var body: some View {
         if !available.isEmpty {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 12)], spacing: 12) {
-                    ForEach(available) { section in
-                        NavigationLink { PronoteSectionView(section: section) } label: {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Image(systemName: section.symbol).font(.title2).foregroundStyle(Atelier.blue).accessibilityHidden(true)
-                                Text(section.title).font(.headline).foregroundStyle(CadenceColors.ink)
-                            }.frame(maxWidth: .infinity, minHeight: 76, alignment: .leading).padding(16).cadenceSurface(radius: 22)
-                        }.buttonStyle(.plain).accessibilityIdentifier("pronote.quick." + section.rawValue)
-                    }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 147), spacing: 10)], spacing: 10) {
+                ForEach(available) { section in
+                    NavigationLink { PronoteSectionView(section: section) } label: {
+                        HStack(spacing: 9) {
+                            Image(systemName: section.symbol).foregroundStyle(Atelier.blue)
+                                .frame(width: 24).accessibilityHidden(true)
+                            Text(section.title).font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.ink)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .padding(.horizontal, 12).padding(.vertical, 4).cadenceSurface(radius: 17)
+                    }.buttonStyle(.plain).accessibilityIdentifier("pronote.quick." + section.rawValue)
+                }
             }
         }
     }
@@ -618,7 +622,7 @@ private struct PronoteNewsDetail: View {
                         .accessibilityIdentifier("pronote.news.content")
                 }
                 if needsDetails {
-                    Label(loading ? "Chargement de l’information…" : "Le chargement n’a pas abouti. Votre information reste disponible dans PRONOTE ; vous pouvez réessayer ici.", systemImage: "doc.text.magnifyingglass")
+                    Label(loading ? "Chargement de l’information…" : "Le texte de cette information n’a pas encore été téléchargé.", systemImage: "doc.text.magnifyingglass")
                         .font(.subheadline).foregroundStyle(CadenceColors.secondary)
                 } else {
                     PronoteAttachments(value: current["attachments"] ?? .array([]))
@@ -659,7 +663,8 @@ private struct PronoteNewsDetail: View {
     }
     private func requiresDetails(_ value: SchoolJSON) -> Bool {
         if let required = value["detailsRequired"]?.boolValue { return required }
-        return value["detailRequired"]?.boolValue == true
+        if let required = value["detailRequired"]?.boolValue { return required }
+        return value["content"] == nil && value["question"] == nil && value["questions"] == nil && value["attachments"] == nil
     }
     private func acknowledge() async {
         guard let id, !sending, !needsDetails, !loading else { return }
@@ -905,14 +910,14 @@ private struct PronoteMenusPanel: View {
 
 private struct PronoteResourcesPanel: View {
     let value: SchoolJSON
-    private var items: [SchoolJSON] { PronoteText.items(value, keys: ["resources", "items", "contents"]) }
-    private var subjects: [String] { Array(Set(items.map { PronoteText.subject($0) })).sorted { $0.localizedStandardCompare($1) == .orderedAscending } }
     var body: some View {
-        if !items.isEmpty {
-            CadenceSectionHeader(title: "Vos matières", subtitle: "Les cours de la semaine, rangés par matière.")
+        let groups = Dictionary(grouping: PronoteText.items(value, keys: ["resources", "items", "contents"]), by: PronoteText.subject)
+        let subjects = groups.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        if !subjects.isEmpty {
+            CadenceSectionHeader(title: "Vos matières", subtitle: value["yearStart"].map { "Depuis le " + PronoteText.date($0) } ?? "Cours disponibles sur cet iPhone")
         }
         ForEach(subjects, id: \.self) { subject in
-            let lessons = items.filter { PronoteText.subject($0) == subject }
+            let lessons = groups[subject] ?? []
             NavigationLink { PronoteSubjectContentsView(subject: subject, lessons: lessons) } label: {
                 AtelierCard {
                     HStack(spacing: 14) {
@@ -920,7 +925,7 @@ private struct PronoteResourcesPanel: View {
                             .frame(width: 44, height: 44).background(Atelier.blue.opacity(0.09), in: RoundedRectangle(cornerRadius: 14))
                         VStack(alignment: .leading, spacing: 6) {
                             Text(subject).font(.headline).foregroundStyle(CadenceColors.ink)
-                            Text("\(lessons.count) cours cette semaine")
+                            Text("\(lessons.count) cours")
                                 .font(.subheadline).foregroundStyle(CadenceColors.secondary)
                             if let names = PronoteText.teacherNames(lessons), !names.isEmpty {
                                 Text(names).font(.caption).foregroundStyle(CadenceColors.secondary)
@@ -932,7 +937,7 @@ private struct PronoteResourcesPanel: View {
                 }
             }.buttonStyle(.plain).accessibilityIdentifier("pronote.contents.subject." + subject)
         }
-        if items.isEmpty { EmptyCard(title: "Aucun contenu publié", symbol: "books.vertical", description: "Les leçons et ressources partagées par vos professeurs apparaîtront ici. Choisissez une autre semaine pour consulter les cours précédents.") }
+        if subjects.isEmpty { EmptyCard(title: "Aucun contenu publié", symbol: "books.vertical", description: "Les leçons et les documents partagés par vos professeurs cette année apparaîtront ici.") }
     }
 }
 
@@ -940,11 +945,15 @@ private struct PronoteSubjectContentsView: View {
     let subject: String
     let lessons: [SchoolJSON]
     private var items: [SchoolJSON] {
-        lessons.sorted { PronoteText.dateValue($0["startDate"]) > PronoteText.dateValue($1["startDate"]) }
+        lessons.sorted {
+            let left = $0["startDate"]?.stringValue ?? "", right = $1["startDate"]?.stringValue ?? ""
+            if left == right { return ($0["id"]?.stringValue ?? "") < ($1["id"]?.stringValue ?? "") }
+            return left < right
+        }
     }
     var body: some View {
         AtelierPage(lazy: true) {
-            CadenceSectionHeader(title: "Cahier de textes", subtitle: "Les cours les plus récents apparaissent en premier.")
+            CadenceSectionHeader(title: "Cahier de textes", subtitle: "Du premier cours au plus récent.")
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in lesson(item) }
         }
         .navigationTitle(subject).navigationBarTitleDisplayMode(.large)

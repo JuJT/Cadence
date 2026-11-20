@@ -1,19 +1,11 @@
 import SwiftUI
-import Charts
 import CadenceCore
 
 struct HomeView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showNewSession = false
-    @ScaledMetric(relativeTo: .largeTitle) private var totalFontSize = 42.0
-
     var body: some View {
-        CadenceTimelineView(interval: 30) { now in
-            let week = Calendar.current.dateInterval(of: .weekOfYear, for: now) ?? Atelier.day(now)
-            let days = weekDays(in: week, now: now)
-            let weekTotals = days.reduce(StudyTotals()) { $0 + $1.totals }
-            let totals = days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: now) })?.totals ?? StudyTotals()
-            let recent = Array(store.state.sessions.sorted { $0.startedAt > $1.startedAt }.prefix(5))
+        CadenceTimelineView(interval: 60) { now in
             AtelierPage {
                 if store.needsRecovery {
                     AtelierCard {
@@ -21,21 +13,6 @@ struct HomeView: View {
                         Text("Le fichier local existant est conservé. Restaurez une sauvegarde pour reprendre votre suivi.").foregroundStyle(.secondary)
                         NavigationLink("Restaurer une sauvegarde") { SettingsView() }
                     }
-                }
-                if store.pronoteProfile != nil || store.pronotePortal.profile != nil {
-                    schoolOverview
-                } else {
-                    NavigationLink { SchoolConnectionView() } label: {
-                        AtelierCard {
-                            Label("Votre journée commence ici", systemImage: "graduationcap.fill").font(.headline)
-                            Text("Connectez PRONOTE pour réunir vos cours, devoirs, notes et informations.")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                        }
-                    }.buttonStyle(.plain)
-                }
-                todayCard(totals)
-                if let active = store.state.activeSession {
-                    ActiveSessionCard(session: active) { store.route = "revision" }
                 }
                 if let next = store.state.visibleOccurrences.filter({
                     $0.start > now && !$0.sourceMissing && $0.school?.canceled != true && $0.school?.exempted != true
@@ -53,8 +30,8 @@ struct HomeView: View {
                                 RoundedRectangle(cornerRadius: 3)
                                     .fill(Atelier.blue.opacity(0.35)).frame(width: 4, height: 40)
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text("Votre planning vous attend").font(.headline).foregroundStyle(CadenceColors.ink)
-                                    Text("Connectez PRONOTE ou ajoutez un cours manuel.")
+                                    Text("Aucun cours à venir").font(.headline).foregroundStyle(CadenceColors.ink)
+                                    Text("Consulter l’emploi du temps")
                                         .font(.subheadline).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 4)
@@ -63,41 +40,25 @@ struct HomeView: View {
                         }
                     }.buttonStyle(.plain)
                 }
-                ProminentAction(title: "Nouvelle séance", symbol: "play.fill") { showNewSession = true }
-                    .accessibilityIdentifier("session.new")
                 if store.state.schoolSync != nil || !store.state.homework.isEmpty {
-                    NavigationLink { HomeworkView() } label: { homeworkCard(now: now) }
+                    Button { store.route = "devoirs" } label: { homeworkCard(now: now) }
                         .buttonStyle(.plain).accessibilityIdentifier("home.homework")
                 }
-                Button { store.route = "statistiques" } label: {
-                    weekCard(days: days, totals: weekTotals)
-                }.buttonStyle(.plain)
-                HStack {
-                    Text("Historique récent").font(.headline)
-                    Spacer()
-                    NavigationLink("Tout voir") { HistoryView() }
-                        .font(.subheadline.weight(.medium))
-                }.padding(.top, 8)
-                if store.state.sessions.isEmpty {
-                    AtelierCard {
-                        HStack(alignment: .top, spacing: 14) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.title2).foregroundStyle(Atelier.blue.opacity(0.75))
-                                .frame(width: 34, height: 40).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Une première séance ?").font(.headline)
-                                Text("Vos cours et vos révisions se retrouveront ici.")
-                                    .font(.subheadline).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+                if let profile = store.pronoteProfile ?? store.pronotePortal.profile {
+                    CadenceSectionHeader(title: "Établissement",
+                        subtitle: [profile.className, profile.establishment].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                    PronoteQuickLinksView(sections: [.news, .attendance, .discussions, .contents, .evaluations, .gradebook, .menus, .account, .homepage])
                 } else {
-                    AtelierCard {
-                        ForEach(recent) { session in
-                            NavigationLink { SessionEditorView(session: session) } label: { SessionRow(session: session) }.buttonStyle(.plain)
-                            if session.id != recent.last?.id { Divider() }
-                        }
-                    }
+                    NavigationLink { SchoolConnectionView() } label: {
+                        Label("Connecter mon établissement", systemImage: "graduationcap")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }.buttonStyle(.bordered)
+                }
+                if let active = store.state.activeSession {
+                    ActiveSessionCard(session: active) { store.route = "revision" }
+                } else {
+                    SecondaryAction(title: "Nouvelle séance", symbol: "plus") { showNewSession = true }
+                        .accessibilityIdentifier("session.new")
                 }
                 NavigationLink { SchoolConnectionView() } label: {
                     HStack(spacing: 8) {
@@ -110,80 +71,16 @@ struct HomeView: View {
                 }.buttonStyle(.plain)
             }
         }
-        .navigationTitle("Bonjour,")
+        .navigationTitle("Aujourd’hui")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showNewSession) { NewSessionSheet() }
         .refreshable { await store.refreshSchool(force: true) }
-    }
-
-    private var schoolOverview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Ma scolarité").font(.title3.bold())
-                    if let profile = store.pronoteProfile ?? store.pronotePortal.profile {
-                        Text([profile.className, profile.establishment].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 4)
-                NavigationLink { PronotePortalView() } label: { Text("Tout voir").font(.subheadline.weight(.medium)) }
-                    .accessibilityIdentifier("pronote.portal")
-            }
-            PronoteQuickLinksView(sections: [.grades, .news, .attendance])
-        }
     }
 
     private var syncDescription: String {
         if store.schoolSyncing { return "Actualisation des cours et devoirs…" }
         guard let date = store.state.schoolSync?.lastSuccessfulFetch else { return store.schoolStatus }
         return "PRONOTE · actualisé " + date.cadenceFormatted(date: .abbreviated, time: .shortened)
-    }
-
-    private func todayCard(_ totals: StudyTotals) -> some View {
-        AtelierCard {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 24) {
-                    totalLabel(totals.total)
-                    Spacer(minLength: 8)
-                    dailyRing(totals).frame(width: 112, height: 112)
-                }
-                VStack(alignment: .leading, spacing: 18) {
-                    totalLabel(totals.total)
-                    dailyRing(totals).frame(width: 112, height: 112)
-                }
-            }
-            VStack(spacing: 12) {
-                summaryRow("Cours", detail: nil, seconds: totals.courses, color: Atelier.blue)
-                Divider().overlay(Color.white.opacity(0.25))
-                summaryRow("Révisions", detail: nil, seconds: totals.revisions, color: Atelier.revision)
-            }
-        }
-    }
-
-    private func totalLabel(_ seconds: Double) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-                Text("Aujourd’hui").font(.headline).foregroundStyle(CadenceColors.ink)
-            Text(Atelier.duration(seconds))
-                .font(.system(size: totalFontSize, weight: .bold, design: .rounded))
-                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
-                .tracking(-1.5).foregroundStyle(CadenceColors.ink)
-            Text("de temps suivi").font(.subheadline).foregroundStyle(.secondary)
-        }
-    }
-
-    private func summaryRow(_ title: String, detail: String?, seconds: Double, color: Color) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(LinearGradient(colors: [color.opacity(0.55), color], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 10, height: 10).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.subheadline.weight(.medium))
-                if let detail { Text(detail).font(.caption2).foregroundStyle(.secondary) }
-            }
-            Spacer(minLength: 8)
-            Text(Atelier.duration(seconds)).font(.subheadline.weight(.semibold)).monospacedDigit()
-        }
     }
 
     private func nextCourseCard(_ next: CourseOccurrence) -> some View {
@@ -228,95 +125,6 @@ struct HomeView: View {
         }.foregroundStyle(CadenceColors.ink)
     }
 
-    private func weekCard(days: [HomeDayTotal], totals: StudyTotals) -> some View {
-        return AtelierCard {
-            HStack {
-                Label("Cette semaine", systemImage: "chart.bar.xaxis")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-            }
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .bottom, spacing: 20) {
-                    weekTotal(totals)
-                    Spacer(minLength: 0)
-                    miniHistogram(days, total: totals.total).frame(width: 142, height: 66)
-                }
-                VStack(alignment: .leading, spacing: 16) {
-                    weekTotal(totals)
-                    miniHistogram(days, total: totals.total).frame(height: 66)
-                }
-            }
-        }.foregroundStyle(CadenceColors.ink)
-    }
-
-    private func weekTotal(_ totals: StudyTotals) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(Atelier.duration(totals.total))
-                .font(.system(.title2, design: .rounded, weight: .bold)).monospacedDigit()
-            Text("Cours et révisions").font(.caption).foregroundStyle(.secondary)
-        }
-    }
-
-    private func weekDays(in interval: DateInterval, now: Date) -> [HomeDayTotal] {
-        var days: [HomeDayTotal] = []
-        var date = interval.start
-        while date < interval.end {
-            let day = Atelier.day(date)
-            days.append(HomeDayTotal(date: date, totals: Statistics.totals(state: store.state, in: day, now: now)))
-            date = day.end
-        }
-        return days
-    }
-
-    private func miniHistogram(_ days: [HomeDayTotal], total: Double) -> some View {
-        Group {
-            if total > 0 {
-                Chart(days) { day in
-                    BarMark(x: .value("Jour", day.date, unit: .day), y: .value("Cours", day.totals.courses / 3600))
-                        .foregroundStyle(LinearGradient(colors: [Atelier.blue.opacity(0.55), Atelier.blue], startPoint: .top, endPoint: .bottom))
-                        .cornerRadius(3)
-                    BarMark(x: .value("Jour", day.date, unit: .day), y: .value("Révisions", day.totals.revisions / 3600))
-                        .foregroundStyle(Atelier.revision.opacity(0.6)).cornerRadius(3)
-                }
-                .chartXAxis(.hidden).chartYAxis(.hidden)
-            } else {
-                HStack(alignment: .bottom, spacing: 9) {
-                    ForEach(days) { _ in
-                        Capsule().fill(Atelier.blue.opacity(0.12)).frame(maxWidth: .infinity).frame(height: 4)
-                    }
-                }.frame(maxHeight: .infinity, alignment: .bottom)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Répartition des cours et révisions sur la semaine")
-        .accessibilityValue(total > 0 ? Atelier.duration(total) : "Aucune séance cette semaine")
-    }
-
-    private func dailyRing(_ totals: StudyTotals) -> some View {
-        Chart {
-            if totals.total > 0 {
-                SectorMark(angle: .value("Cours", totals.courses), innerRadius: .ratio(0.75), angularInset: 2)
-                    .foregroundStyle(LinearGradient(colors: [.cyan.opacity(0.55), Atelier.blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .cornerRadius(7)
-                SectorMark(angle: .value("Révisions", totals.revisions), innerRadius: .ratio(0.75), angularInset: 2)
-                    .foregroundStyle(LinearGradient(colors: [Atelier.revision.opacity(0.55), Atelier.revision], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .cornerRadius(7)
-            } else {
-                SectorMark(angle: .value("Aucune séance", 1), innerRadius: .ratio(0.75))
-                    .foregroundStyle(Atelier.blue.opacity(0.12))
-            }
-        }
-        .shadow(color: Atelier.blue.opacity(totals.total > 0 ? 0.17 : 0), radius: 8, x: 0, y: 4)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Répartition du jour : cours \(Atelier.duration(totals.courses)), révisions \(Atelier.duration(totals.revisions))")
-    }
-}
-
-private struct HomeDayTotal: Identifiable {
-    let date: Date
-    let totals: StudyTotals
-    var id: Date { date }
 }
 
 private struct NewSessionSheet: View {

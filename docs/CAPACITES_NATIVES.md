@@ -1,36 +1,24 @@
-# Son et Concentration : possibilités publiques iOS
+# Musique dans Cadenza
 
-Vérification documentaire du 19 novembre 2026. L’interface **Son et concentration** utilise les contrôles Apple de volume et de sortie audio. Elle ne démarre aucune session audio et ne publie aucune métadonnée Now Playing.
+Depuis Réglages → Musique ou pendant une séance, choisissez Apple Music ou Spotify. Le dernier service sélectionné est mémorisé sur l’iPhone.
 
-## Le lecteur média d’iOS
+## Apple Music
 
-Le besoin est bien le lecteur universel du Centre de contrôle, quelle que soit l’origine du média. Ce lecteur est une interface privilégiée du système ; il n’existe pas de composant public permettant de l’intégrer dans une app iOS ordinaire ni d’en récupérer universellement le titre, la progression et les commandes.
+Autorisez l’accès à la bibliothèque lors du premier appui sur **Autoriser Apple Music**. Cadenza affiche le morceau communiqué par Musique et pilote sa file de lecture. Vous pouvez passer à la piste suivante ou précédente, mettre en pause, reprendre et sélectionner des morceaux dans le sélecteur de bibliothèque d’iOS. Ils continuent à jouer dans l’app Musique quand Cadenza passe en arrière-plan.
 
-Les API Apple consultées distinguent ces usages :
+Cette intégration utilise le lecteur système de l’app Musique et l’autorisation de bibliothèque iOS. Les éléments disponibles et les métadonnées dépendent de la bibliothèque et de l’abonnement de l’utilisateur. [Lecteur de Musique](https://developer.apple.com/documentation/mediaplayer/mpmusicplayercontroller/systemmusicplayer) · [Sélecteur de bibliothèque](https://developer.apple.com/documentation/mediaplayer/mpmediapickercontroller)
 
-- `MPMusicPlayerController.systemMusicPlayer` pilote l’app Music et partage son état. Son nom ne désigne pas le lecteur universel du Centre de contrôle.
-- `MPNowPlayingInfoCenter` permet de publier les métadonnées de la lecture de **notre** app.
-- `MPRemoteCommandCenter` permet à **notre** lecteur de recevoir les commandes envoyées par le système et les accessoires. Il ne relaie pas ces commandes vers tous les lecteurs des autres apps.
-- `MPVolumeView` fournit le véritable contrôle du volume système ; `AVRoutePickerView` fournit le choix de sortie audio, notamment AirPlay.
+## Spotify
 
-Cadenza présente donc le volume et la sortie, puis une courte aide pour accéder au vrai lecteur dans le Centre de contrôle. Aucune intégration Deezer n’est nécessaire. Les boutons lecture/pause, les pistes et la progression universels restent dans le lecteur iOS ; aucun bouton inopérant ni contenu fictif n’est affiché. La validation du volume et du routage réels demande un iPhone ; le simulateur ne suffit pas.
+**Avec un lien partagé**, collez un lien open.spotify.com vers un morceau, une playlist, un album ou un épisode dans « Lire un lien Spotify ». Le lecteur officiel s’affiche dans Cadenza. Le dernier lien est mémorisé. Spotify détermine si le lecteur propose le titre complet ou un extrait. [Lecteur intégré Spotify](https://developer.spotify.com/documentation/embeds/tutorials/creating-an-embed) · [Disponibilité des extraits](https://developer.spotify.com/documentation/embeds/tutorials/troubleshooting)
 
-Sources Apple : [systemMusicPlayer](https://developer.apple.com/documentation/mediaplayer/mpmusicplayercontroller/systemmusicplayer), [MPNowPlayingInfoCenter](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter), [événements des lecteurs](https://developer.apple.com/documentation/mediaplayer/handling-external-player-events-notifications), [MPVolumeView](https://developer.apple.com/documentation/mediaplayer/mpvolumeview), [AVRoutePickerView](https://developer.apple.com/documentation/avkit/avroutepickerview).
+**Avec Spotify Connect**, le lecteur contrôle la lecture du compte Spotify Premium, y compris sur un autre appareil Connect actif. Cette distribution personnelle demande d’enregistrer une application dans le tableau de bord développeur Spotify.
 
-## Concentration sans quitter Cadenza
+1. Créez l’application avec le produit **Web API**. Dans la liste des URI de redirection, ajoutez exactement `http://127.0.0.1/spotify/callback`. Spotify autorise un port dynamique pour une adresse de bouclage enregistrée sans port.
+2. En mode développement, utilisez un compte autorisé dans les réglages de cette application. Le propriétaire de l’application doit remplir les conditions du mode développement Spotify.
+3. Ouvrez **Musique → Spotify → Configurer Spotify Connect**. Collez le **Client ID** public, puis touchez **Connecter mon compte**. L’autorisation se déroule dans le navigateur système. Le secret client n’est demandé à aucun moment.
+4. Lancez la lecture sur un appareil Spotify Connect. Cadenza affiche le titre et la destination et permet la pause, la reprise et le changement de piste. Le bouton **Actualiser le lecteur** relit l’état. **Déconnecter Spotify** supprime la connexion locale.
 
-La version 0.5.0 **retire l’intégration Raccourcis**. Le début, la pause, la reprise et la fin d’une séance ne lancent plus d’URL `shortcuts://`. Les anciens réglages automatiques sont retirés au lancement ; un éventuel mode déjà actif reste intact. Les anciens callbacks sont absorbés sans effet. L’app ne tente pas de désactiver un mode lors de la migration, car cela recréerait précisément l’aller-retour refusé par l’utilisateur.
+L’autorisation utilise PKCE avec un état aléatoire et l’écoute temporaire de la seule adresse de bouclage. Le jeton de renouvellement est conservé dans le groupe privé du trousseau de l’app sur cet iPhone. Le jeton d’accès reste en mémoire. [Configuration Spotify](https://developer.spotify.com/dashboard) · [PKCE](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow) · [URI de retour](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri) · [Conditions du mode développement](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) · [Commandes de lecture](https://developer.spotify.com/documentation/web-api/reference/start-a-users-playback)
 
-`INFocusStatusCenter` renseigne sur le statut partagé de Concentration et `SetFocusFilterIntent` adapte le comportement de notre app lorsqu’un mode change. Ces API ne constituent pas une commande publique d’activation globale de Ne pas déranger.
-
-L’alternative native est la **programmation par app** dans Réglages iOS → Concentration → mode choisi → Ajouter une programmation → App → Cadenza. Elle est configurée une fois par l’utilisateur et s’exécute dans iOS, sans ouvrir Raccourcis. Elle suit l’utilisation de l’app, pas l’identité de notre chronomètre ; un fonctionnement identique à « uniquement pendant une séance » ne doit pas être promis. Une activation manuelle depuis le Centre de contrôle reste possible.
-
-Sources Apple : [Focus et filtres d’app](https://developer.apple.com/documentation/appintents/focus), [INFocusStatusCenter](https://developer.apple.com/documentation/intents/infocusstatuscenter), [activer ou programmer un mode Concentration](https://support.apple.com/en-mt/guide/iphone/iph5c3f5b77b/ios).
-
-## Parcours d’installation et nouveautés
-
-La première installation comporte trois écrans : présentation, connexion PRONOTE, prise en main. Annuler la feuille de connexion conserve l’étape en cours ; l’utilisateur choisit explicitement de connecter son compte ou de le faire plus tard. Les autorisations de localisation ne sont jamais demandées par la simple présentation de ce parcours.
-
-Après une mise à jour, trois écrans présentent les nouveautés. L’identifiant réel `version (build)` du bundle est enregistré lorsque le parcours est terminé. Il n’est pas stocké dans la sauvegarde des séances : une restauration de sauvegarde ne rejoue pas artificiellement une ancienne annonce. Un parcours interrompu reste proposé au prochain lancement. La version 0.5.0 présente la scolarité, les actions directes sur les devoirs et les séances sans aller-retour.
-
-`IntroductionUITests` couvre l’annulation de la connexion, la poursuite manuelle, les trois nouveautés et le retour aux onglets. Les tests ordinaires ignorent les annonces avec `--uitesting` ; des arguments simulateur explicites permettent de tester chacun des deux parcours. Les résultats de compilation et de capture effectifs sont fournis par la CI, pas déduits de la présence de ces tests.
+Les essais avec une bibliothèque Apple Music et un compte Spotify Premium nécessitent l’iPhone et l’accord du titulaire du compte.

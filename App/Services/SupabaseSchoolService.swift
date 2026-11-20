@@ -1,6 +1,5 @@
 import CadenceCore
 import Foundation
-import Security
 
 enum SchoolServiceError: LocalizedError, Equatable {
     case invalidEmail, invalidLogin, authenticationRequired, notAuthorized, rateLimited
@@ -64,7 +63,7 @@ actor SupabaseSchoolService {
 
     init(urlSession: URLSession? = nil) {
         network = urlSession ?? Self.privateURLSession()
-        if let data = try? PrivateSchoolKeychain.read(), let stored = try? JSONDecoder().decode(Session.self, from: data),
+        if let data = try? PrivateCredentialStore.school.read(), let stored = try? JSONDecoder().decode(Session.self, from: data),
            !stored.accessToken.isEmpty, !stored.refreshToken.isEmpty, stored.expiresAt.timeIntervalSince1970.isFinite {
             session = stored
         }
@@ -77,7 +76,7 @@ actor SupabaseSchoolService {
         let normalized = try Self.normalizedEmail(email)
         if let nextLoginRequestAt, nextLoginRequestAt > Date() { throw SchoolServiceError.rateLimited }
         // Check private storage before consuming an email quota or one-time token.
-        _ = try PrivateSchoolKeychain.privateAccessGroup()
+        _ = try PrivateCredentialStore.school.privateAccessGroup()
         let response = try await send(path: "auth/v1/otp", method: "POST", body: ["email": normalized, "create_user": true], maximumBytes: 262_144)
         if response.status == 429 {
             nextLoginRequestAt = Date().addingTimeInterval(60)
@@ -95,13 +94,13 @@ actor SupabaseSchoolService {
         case .code(let code): body = ["email": normalized, "token": code, "type": "email"]
         case .tokenHash(let hash, let type): body = ["token_hash": hash, "type": type]
         }
-        _ = try PrivateSchoolKeychain.privateAccessGroup()
+        _ = try PrivateCredentialStore.school.privateAccessGroup()
         let expectedGeneration = generation
         let response = try await send(path: "auth/v1/verify", method: "POST", body: body, maximumBytes: 262_144)
         guard (200..<300).contains(response.status) else { throw Self.authError(response.status, verifying: true) }
         let fresh = try Self.decodeSession(response.data, expectedEmail: normalized)
         guard generation == expectedGeneration else { throw SchoolServiceError.cancelled }
-        try PrivateSchoolKeychain.write(JSONEncoder().encode(fresh))
+        try PrivateCredentialStore.school.write(JSONEncoder().encode(fresh))
         generation = UUID()
         refreshWork?.task.cancel(); refreshWork = nil
         session = fresh
@@ -181,7 +180,7 @@ actor SupabaseSchoolService {
             try? clearSession()
             throw SchoolServiceError.authenticationRequired
         }
-        try PrivateSchoolKeychain.write(JSONEncoder().encode(fresh))
+        try PrivateCredentialStore.school.write(JSONEncoder().encode(fresh))
         session = fresh
         return fresh
     }
@@ -189,7 +188,7 @@ actor SupabaseSchoolService {
     private func clearSession() throws {
         generation = UUID()
         refreshWork?.task.cancel(); refreshWork = nil
-        try PrivateSchoolKeychain.delete()
+        try PrivateCredentialStore.school.delete()
         session = nil
     }
 
@@ -263,73 +262,5 @@ private final class SchoolNoRedirectDelegate: NSObject, URLSessionTaskDelegate, 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         completionHandler(nil)
-    }
-}
-
-private enum PrivateSchoolKeychain {
-    private static let service = "com.cadence.study.supabase-auth"
-    private static let account = "session-v1"
-
-    // The default group may be shared with widgets. Derive the app's private
-    // application-identifier group using the actual signing prefix and bundle ID.
-    // No credential is ever put in the temporary probe or in the default group.
-    static func privateAccessGroup() throws -> String {
-        guard let bundleID = Bundle.main.bundleIdentifier, !bundleID.isEmpty else { throw SchoolServiceError.secureStorageUnavailable }
-        let probeAccount = UUID().uuidString
-        let probe: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service + ".group-probe", kSecAttrAccount as String: probeAccount,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: Data([0]), kSecReturnAttributes as String: true]
-        var result: CFTypeRef?
-        guard SecItemAdd(probe as CFDictionary, &result) == errSecSuccess else { throw SchoolServiceError.secureStorageUnavailable }
-        _ = SecItemDelete([kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service + ".group-probe", kSecAttrAccount as String: probeAccount] as CFDictionary)
-        guard let values = result as? [String: Any], let group = values[kSecAttrAccessGroup as String] as? String,
-              let prefix = group.split(separator: ".").first, !prefix.isEmpty else { throw SchoolServiceError.secureStorageUnavailable }
-        let privateGroup = String(prefix) + "." + bundleID
-        let check: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service + ".private-probe", kSecAttrAccount as String: probeAccount,
-            kSecAttrAccessGroup as String: privateGroup,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: Data([0])]
-        guard SecItemAdd(check as CFDictionary, nil) == errSecSuccess else { throw SchoolServiceError.secureStorageUnavailable }
-        _ = SecItemDelete([kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service + ".private-probe", kSecAttrAccount as String: probeAccount,
-            kSecAttrAccessGroup as String: privateGroup] as CFDictionary)
-        return privateGroup
-    }
-
-    private static func query() throws -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-         kSecAttrAccount as String: account, kSecAttrAccessGroup as String: try privateAccessGroup(),
-         kSecAttrSynchronizable as String: false]
-    }
-
-    static func read() throws -> Data? {
-        var query = try query()
-        query[kSecReturnData as String] = true; query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data, data.count <= 262_144 else { throw SchoolServiceError.secureStorageUnavailable }
-        return data
-    }
-
-    static func write(_ data: Data) throws {
-        guard data.count <= 262_144 else { throw SchoolServiceError.secureStorageUnavailable }
-        let query = try query()
-        let changes: [String: Any] = [kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
-        let status = SecItemUpdate(query as CFDictionary, changes as CFDictionary)
-        if status == errSecSuccess { return }
-        guard status == errSecItemNotFound else { throw SchoolServiceError.secureStorageUnavailable }
-        var attributes = query
-        for (key, value) in changes { attributes[key] = value }
-        guard SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess else { throw SchoolServiceError.secureStorageUnavailable }
-    }
-
-    static func delete() throws {
-        let status = SecItemDelete(try query() as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw SchoolServiceError.secureStorageUnavailable }
     }
 }

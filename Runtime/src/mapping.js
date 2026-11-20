@@ -28,7 +28,8 @@ export function mapLesson(c) {
     start_local:local,end_local:wallText(c.endDate),subject_id:c.subject?.id==null?null:String(c.subject.id),subject_name:title,
     teacher_names:c.teacherNames??c.attendants??[],classrooms:c.classrooms??[],group_names:c.groupNames??[],
     personal_names:c.personalNames??[],virtual_classrooms:c.virtualClassrooms??[],background_color:c.backgroundColor??null,
-    kind:c.is,canceled:!!c.canceled,exempted:!!c.exempted,is_test:!!c.test,lesson_resource_id:c.lessonResourceID??null};
+    kind:c.is,status_label:typeof c.status==='string'?plainSchoolText(c.status).slice(0,240):null,
+    canceled:!!c.canceled,exempted:!!c.exempted,is_test:!!c.test,lesson_resource_id:c.lessonResourceID??null};
 }
 export function mapAssignment(a) {
   const day=wallText(a.deadline).slice(0,10);

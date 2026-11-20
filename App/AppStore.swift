@@ -22,7 +22,9 @@ final class AppStore: ObservableObject {
     @Published private(set) var schoolError: String?
     @Published private(set) var pronoteProfile: PronoteProfile?
     @Published private(set) var pronoteChallenge: PronoteSecurityChallenge?
-    @Published private(set) var pronotePortal = PronotePortalCache()
+    @Published private(set) var pronotePortal = PronotePortalCache() {
+        didSet { SystemIntegrationService.shared.updateGrade(from: pronotePortal) }
+    }
     @Published private(set) var pronotePortalLoading: Set<String> = []
     @Published private(set) var pronotePortalErrors: [String: String] = [:]
 
@@ -112,7 +114,6 @@ final class AppStore: ObservableObject {
         updateDiagnostics()
         if !writesBlocked { SystemIntegrationService.shared.refresh(state: state) }
         // School refresh never depends on EventKit notifications or permissions.
-        SessionCompanionService.shared.synchronizeExistingSession(activeSessionID: state.activeSession?.id)
     }
 
     #if targetEnvironment(simulator)
@@ -162,14 +163,10 @@ final class AppStore: ObservableObject {
             guard updated != state else { return true }
             try BackupCodec.validate(updated)
             try repository.save(updated)
-            let previousSessionID = state.activeSession?.id
             state = updated
             stateRevision &+= 1
             errorMessage = nil
             SystemIntegrationService.shared.refresh(state: updated)
-            if previousSessionID != updated.activeSession?.id {
-                SessionCompanionService.shared.sessionDidChange(activeSessionID: updated.activeSession?.id)
-            }
             updateDiagnostics()
             return true
         } catch {
@@ -354,6 +351,13 @@ final class AppStore: ObservableObject {
         await refreshSchool(force: false)
     }
 
+    func refreshScheduleInBackground() async {
+        let alerts = TimetableNotificationService.shared
+        guard alerts.enabled, !Task.isCancelled else { return }
+        alerts.scheduleNextRefresh()
+        await refreshSchool(force: true)
+    }
+
     private var isUITestSession: Bool {
         #if targetEnvironment(simulator)
         return ProcessInfo.processInfo.arguments.contains("--uitesting")
@@ -454,6 +458,7 @@ final class AppStore: ObservableObject {
     }
 
     private func invalidateSchoolRequests() {
+        TimetableNotificationService.shared.resetHistory()
         schoolEpoch = UUID(); schoolOperation = nil; schoolSyncing = false
         lastSchoolAttempt = nil
         portalOperations = [:]; remoteWriteOperations = []
@@ -611,6 +616,16 @@ final class AppStore: ObservableObject {
             }
             lastSyncAt = state.schoolSync?.lastSuccessfulFetch
             schoolStatus = snapshot.syncState.hasError ? "Cache actualisé · source PRONOTE à vérifier" : "PRONOTE synchronisé directement"
+            if let profile, !Task.isCancelled {
+                await TimetableNotificationService.shared.observe(snapshot, occurrences: state.occurrences, profile: profile)
+                guard epoch == schoolEpoch, !Task.isCancelled, profile.capabilities.contains("grades") else { return }
+                let period = profile.currentPeriodID(for: "grades")
+                let key = period.map { "grades:" + $0 } ?? "grades"
+                let age = Date().timeIntervalSince(pronotePortal.updatedAt[key] ?? .distantPast)
+                if age > 900, await SystemIntegrationService.shared.hasGradeWidget(), epoch == schoolEpoch, !Task.isCancelled {
+                    await loadPronoteSection("grades", periodID: period)
+                }
+            }
         } catch {
             let signedIn = await schoolService.hasSession
             let email = await schoolService.email
@@ -823,7 +838,6 @@ final class AppStore: ObservableObject {
             errorMessage = nil
             calendarPreview = []; previewWindow = nil
             SystemIntegrationService.shared.refresh(state: restored)
-            SessionCompanionService.shared.synchronizeExistingSession(activeSessionID: restored.activeSession?.id)
             updateDiagnostics()
         } catch { errorMessage = "Restauration refusée ; données conservées. \(error.localizedDescription)" }
     }
