@@ -1,9 +1,9 @@
 # Widgets de Cadenza
 
-La version 0.4 corrige la découverte des groupes après resignature et sépare le groupe privé des jetons du résumé partagé. Voir [l’installation et le contrôle sur appareil](#installation-windows-et-compte-gratuit). Le test de lecture sur l’iPhone reste nécessaire ; une écriture réussie seule ne le remplace pas.
+Cadenza propose ces widgets avec les données enregistrées sur l’iPhone.
 
-Cadenza pour iPhone propose quatre widgets utilisant uniquement vos données locales :
-
+- **Moyenne générale**. Résultat de la période actuelle, avec la mention « Estimée » si Cadenza l’a calculé.
+- **Devoirs à venir**. Nombre de devoirs, retards et prochaine échéance.
 - **Aujourd’hui** : Cours et Révisions ; petit ou moyen format.
 - **Ma semaine** : sept barres quotidiennes, Cours et Révisions, avec la matière la plus travaillée ; petit ou moyen format.
 - **Prochain cours** : matière normalisée, date et horaire du prochain créneau synchronisé ; petit ou moyen format.
@@ -13,16 +13,16 @@ Les valeurs sont un résumé daté publié par l’application. Les widgets se r
 
 ## Installation Windows et compte gratuit
 
-Utiliser **Cadenza-iPhone-0.4.0.ipa** (variante technique `CadenceExtensions`), conserver les extensions dans Sideloadly, le même compte Apple et l’identifiant utilisé pour l’installation existante. Ne pas désinstaller l’application pour la mettre à jour.
+Utiliser **Cadenza-iPhone-0.6.0.ipa** (variante technique `CadenceExtensions`), conserver les extensions dans Sideloadly, le même compte Apple et l’identifiant utilisé pour l’installation existante. Ne pas désinstaller l’application pour la mettre à jour.
 
-Cette variante demande **Keychain Sharing**, que le tableau Apple indique disponible pour un compte Apple Developer gratuit. L’application et son extension demandent le groupe commun `com.cadence.study.widget-summary`, préfixé par le véritable identifiant de signature. Elles recherchent aussi les noms exacts inscrits dans leur propre signature après resignature ; le système contrôle leurs droits effectifs. Le transport du résumé vers les widgets reste local et ne demande aucun serveur ni compte supplémentaire. La connexion directe PRONOTE de l’app sert séparément à récupérer les données scolaires. Seul un petit résumé de statistiques et de prochains cours est partagé ; la base d’étude complète reste dans l’application.
+Cette variante demande **Keychain Sharing**, que le tableau Apple indique disponible pour un compte Apple Developer gratuit. L’application et son extension demandent le groupe commun `com.cadence.study.widget-summary`, préfixé par le véritable identifiant de signature. Elles recherchent aussi les noms exacts inscrits dans leur propre signature après resignature ; le système contrôle leurs droits effectifs. Le transport du résumé vers les widgets reste local et ne demande aucun serveur ni compte supplémentaire. La connexion directe PRONOTE de l’app sert séparément à récupérer les données scolaires. Seul un résumé de la moyenne, des devoirs, des statistiques et des prochains cours est partagé ; la base d’étude complète reste dans l’application.
 
 **La capacité Apple et sa conservation par Sideloadly sont deux vérifications distinctes.** La documentation publique de Sideloadly ne garantit pas le traitement de ce groupe personnalisé. Après installation :
 
 1. Ouvrir Cadenza et vérifier les durées dans Statistiques.
-2. Ajouter un widget Cadenza depuis l’écran d’accueil et choisir Aujourd’hui, Ma semaine ou Prochain cours.
-3. Revenir dans les réglages de Cadenza, rubrique diagnostic des intégrations. « Résumé publié » confirme l’écriture par l’app ; **« Dernière lecture réelle par un widget »** confirme que l’extension a lu les données. Ce reçu ne peut être créé que par l’extension.
-4. Si le widget affiche « Relier mes données », vérifier le diagnostic. L’app et l’extension doivent conserver au moins un groupe commun réellement autorisé. Un renommage cohérent peut fonctionner ; la suppression de tout groupe commun empêche le partage. L’app continue de fonctionner et n’affiche aucun total inventé.
+2. Ajouter un widget Cadenza depuis l’écran d’accueil et choisir Moyenne générale, Devoirs à venir, Aujourd’hui, Ma semaine ou Prochain cours.
+3. Revenir dans les réglages de Cadenza, rubrique Diagnostic. « Résumé publié » confirme l’écriture par l’app ; **« Dernière lecture réelle par un widget »** confirme que l’extension a lu les données. Ce reçu ne peut être créé que par l’extension.
+4. Si le widget affiche « Relier mes données », vérifier le diagnostic. Le code −34018 indique que la signature en cours ne permet pas l’écriture dans le groupe demandé. La 0.6.0 examine les groupes présents dans les deux signatures. L’app et l’extension doivent conserver au moins un groupe commun réellement autorisé. Un renommage cohérent peut fonctionner ; la suppression de tout groupe commun empêche le partage. L’app continue de fonctionner et n’affiche aucun total inventé.
 
 Si une IPA **après resignature** est disponible localement, exécuter :
 

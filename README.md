@@ -2,13 +2,13 @@
 
 Application native SwiftUI française, iPhone uniquement, iOS 17 minimum. Le design Atelier conserve ses surfaces translucides et ses halos bleutés. Les deux catégories de temps sont **Cours** et **Révisions**.
 
-La version **0.5.0, build 6** se connecte directement à PRONOTE avec Pawnote LTS, la bibliothèque utilisée par Papillon. La recherche d’établissement utilise une position approximative uniquement au choix « Autour de moi », ou une ville/adresse, avec une URL HTTPS manuelle en alternative. Le mot de passe initial n’est pas enregistré ; le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
+La version **0.6.0, build 7** se connecte directement à PRONOTE avec Pawnote LTS, la bibliothèque utilisée par Papillon. La recherche d’établissement utilise une position approximative uniquement au choix « Autour de moi », ou une ville/adresse, avec une URL HTTPS manuelle en alternative. Le mot de passe initial n’est pas enregistré ; le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
 
 Cours, devoirs, notes et moyennes, compétences, vie scolaire, informations, messagerie, menus, contenus de cours, bulletin et compte sont présentés selon les droits de l’espace élève. Le cache persistant reste accessible hors connexion. Les messages ne sont envoyés et les informations accusées que sur confirmation dans l’interface. La validation d’un devoir dans Cadenza reste locale.
 
 ## Installer et utiliser
 
-Installer **Cadenza-iPhone-0.5.0.ipa** par-dessus l’app actuelle avec le même compte et les mêmes options Sideloadly, sans désinstaller. Conserver les extensions et l’auto-renouvellement. Ouvrir ensuite Réglages → Connexion PRONOTE. Voir [la refonte 0.5.0](docs/REFONTE_0.5.0.md), [la connexion directe](docs/PRONOTE_DIRECT.md), [les composants et changements](docs/FONCTIONNALITES_0.4.0.md), [les capacités natives](docs/CAPACITES_NATIVES.md) et [les résultats vérifiés](docs/VERIFICATION.md).
+Installer **Cadenza-iPhone-0.6.0.ipa** par-dessus l’app actuelle avec le même compte et les mêmes options Sideloadly, sans désinstaller. Conserver les extensions et l’auto-renouvellement. Ouvrir ensuite Réglages → Connexion PRONOTE. Voir [les changements 0.6.0](CHANGELOG.md), [la connexion directe](docs/PRONOTE_DIRECT.md), [les widgets](docs/WIDGETS_WINDOWS.md) et [la musique](docs/CAPACITES_NATIVES.md).
 
 [Aperçu des captures natives de la version 0.4.0](Verification/0.4.0/APERCU.html), avec données fictives et empreintes des fichiers originaux.
 
@@ -18,15 +18,15 @@ Les identifiants `com.cadence.study`, `cadence://` et le fichier `Cadence/cadenc
 
 - Chronomètre unique, pauses, reprise, matières, alias, historique, sauvegarde JSON et export CSV.
 - Cours passés intégrés automatiquement dans Cours, corrections et exclusions locales, une seule durée pour un cours chronométré et planifié.
-- Devoirs regroupés par date limite exacte, filtres, lancement d’une révision et association au chronomètre actif.
-- Portail PRONOTE depuis l’accueil, ressources liées par leur véritable identifiant et pièces jointes HTTPS.
+- Consignes, documents, validation et lancement de séance directement sur les cartes de devoirs.
+- Notes dans la barre d’onglets. Informations, messagerie, vie scolaire et rubriques disponibles directement depuis l’accueil.
 - Statistiques Charts Cours/Révisions ; provenance historique conservée en interne pour éviter les doubles comptes.
-- Widgets locaux, Dynamic Island, Live Activities et App Intents.
-- Volume système et sortie AirPlay natifs ; début et fin de séance sans lancement de Raccourcis. Le lecteur universel reste dans le Centre de contrôle iOS.
-- Accès direct aux notes, informations et absences depuis Accueil ; ressources de cours classées par matière.
-- Actions Valider / Démarrer sur les cartes de devoirs ; HTML PRONOTE nettoyé, y compris les anciens caches.
+- Widgets locaux pour la moyenne générale, les devoirs, le prochain cours et les statistiques. Dynamic Island, Live Activities et App Intents.
+- Commandes Apple Music et Spotify. Les intégrations de concentration et de volume général sont retirées.
+- Emploi du temps compact avec sélection du jour. Contenus des cours classés par matière depuis la rentrée, puis du plus ancien au plus récent.
+- Alertes locales facultatives sur les changements d’emploi du temps. iOS décide des créneaux d’actualisation en arrière-plan.
 - Période actuelle propre à chaque écran ; moyennes publiées prioritaires et estimations distinctes si absentes.
-- Parcours de première installation et nouveautés versionnés ; recherche des mises à jour publiées depuis Réglages.
+- Parcours de première installation et de nouveautés animés, avec fondu si l’option Réduire les animations est activée. Recherche des mises à jour publiées depuis Réglages.
 - Fonds suspendus hors écran/en arrière-plan et en cas d’économie d’énergie ou de chauffe ; calculs de graphiques regroupés, navigation native conservée.
 
 ## Compiler
@@ -37,4 +37,4 @@ Les variantes CadenceSpike, Cadence, CadenceExtensions et CadenceShared partagen
 
 Le client scolaire n’appelle plus Supabase. Les anciens services, fonctions et tâches PRONOTE du projet Supabase n’ont pas été supprimés ou modifiés par cette version. Les structures historiques restent lisibles.
 
-Sources et licences : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Le code correspondant de la distribution comprenant Pawnote GPL-3.0-or-later est fourni ; le raccourci préfait et sa licence MIT sont inclus. Aucun visuel ni logo Papillon n’est repris.
+Sources et licences : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Le code correspondant de la distribution comprenant Pawnote GPL-3.0-or-later est fourni. Aucun visuel ni logo Papillon n’est repris.

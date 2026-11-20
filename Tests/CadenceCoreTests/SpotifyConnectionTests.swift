@@ -12,6 +12,38 @@ final class SpotifyConnectionTests: XCTestCase {
         XCTAssertNil(SpotifyContentLink("https://open.spotify.com/track/%3Cinvalid%3E"))
     }
 
+    @MainActor
+    func testLoopbackAcceptsOnlyTheMatchingAuthorizationAttempt() async throws {
+        let attempt = SpotifyConnection()
+        let listener = SpotifyCallbackListener(challenge: attempt)
+        let ready = expectation(description: "Loopback listener is ready")
+        let received = expectation(description: "The authorized redirect reaches the app")
+        var port: UInt16?
+        var reply: SpotifyConnection.Callback?
+        try listener.start { value in port = value; ready.fulfill() } result: { result in
+            switch result {
+            case .success(let value): reply = value
+            case .failure(let error): XCTFail(error.localizedDescription)
+            }
+            received.fulfill()
+        }
+        defer { listener.stop() }
+
+        await fulfillment(of: [ready], timeout: 4)
+        let redirect = SpotifyConnection.redirect(port: try XCTUnwrap(port))
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 4
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+
+        let (_, denied) = try await session.data(from: URL(string: redirect + "?state=unrelated&code=code")!)
+        XCTAssertEqual((denied as? HTTPURLResponse)?.statusCode, 404)
+        let (_, accepted) = try await session.data(from: URL(string: redirect + "?state=" + attempt.state + "&code=example")!)
+        XCTAssertEqual((accepted as? HTTPURLResponse)?.statusCode, 200)
+        await fulfillment(of: [received], timeout: 4)
+        XCTAssertEqual(reply, .authorized("example"))
+    }
+
     func testPKCECallbackRequiresExpectedStateAndPath() throws {
         let attempt = SpotifyConnection()
         let redirect = SpotifyConnection.redirect(port: 50401)

@@ -1,5 +1,16 @@
 # Historique
 
+## 0.6.0 — La journée scolaire — 20 novembre 2026
+
+- Onglet Notes, accès immédiat aux rubriques scolaires depuis l’accueil et Statistiques dans Révision.
+- Emploi du temps compact avec bandeau de jours. Contenus classés par matière sur l’année scolaire, puis par date croissante.
+- Consignes complètes, pièces jointes et actions sur chaque carte de devoir.
+- Récupération du détail des informations avec le destinataire PRONOTE et prise en charge des articles en plusieurs blocs.
+- Widgets Moyenne générale et Devoirs à venir. Détection des droits partagés d’après les signatures de l’app et de l’extension.
+- Alertes sur les changements du planning à chaque synchronisation. Actualisation en arrière-plan selon la disponibilité accordée par iOS.
+- Commandes Apple Music, lecteur de liens Spotify et Spotify Connect avec un compte autorisé. Retrait de la fonction Concentration.
+- Transition entre les écrans de bienvenue et de nouveautés.
+
 ## 0.5.0 — Scolarité intégrée — 19 novembre 2026
 
 - Notes, informations et absences accessibles depuis l’accueil ; contenus de cours regroupés par matière.
