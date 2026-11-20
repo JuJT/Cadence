@@ -1,7 +1,7 @@
 import SwiftUI
 import CadenceCore
 
-private enum PronotePortalSection: String, CaseIterable, Identifiable {
+enum PronotePortalSection: String, CaseIterable, Identifiable {
     case grades, evaluations, attendance, news, discussions, menus, contents, gradebook, account, homepage
     var id: String { rawValue }
     var title: String {
@@ -103,26 +103,79 @@ struct PronotePortalView: View {
     }
 }
 
-private struct PronoteSectionView: View {
+/// The same school destinations are available from the daily overview and the course tab.
+struct PronoteQuickLinksView: View {
+    let sections: [PronotePortalSection]
+    @EnvironmentObject private var store: AppStore
+    private var available: [PronotePortalSection] {
+        let profile = store.pronoteProfile ?? store.pronotePortal.profile
+        return sections.filter { section in
+            profile?.capabilities.contains(section.rawValue) == true ||
+            store.pronotePortal.sections.keys.contains { $0 == section.rawValue || $0.hasPrefix(section.rawValue + ":") }
+        }
+    }
+    var body: some View {
+        if !available.isEmpty {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 12)], spacing: 12) {
+                    ForEach(available) { section in
+                        NavigationLink { PronoteSectionView(section: section) } label: {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Image(systemName: section.symbol).font(.title2).foregroundStyle(Atelier.blue).accessibilityHidden(true)
+                                Text(section.title).font(.headline).foregroundStyle(CadenceColors.ink)
+                            }.frame(maxWidth: .infinity, minHeight: 76, alignment: .leading).padding(16).cadenceSurface(radius: 22)
+                        }.buttonStyle(.plain).accessibilityIdentifier("pronote.quick." + section.rawValue)
+                    }
+            }
+        }
+    }
+}
+
+struct PronoteShortcutRow: View {
+    let section: PronotePortalSection
+    var body: some View {
+        NavigationLink { PronoteSectionView(section: section) } label: {
+            AtelierCard {
+                HStack(spacing: 14) {
+                    Image(systemName: section.symbol).font(.title2).foregroundStyle(Atelier.blue).frame(width: 32).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(section.title).font(.headline).foregroundStyle(CadenceColors.ink)
+                        Text(section.subtitle).font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
+                }
+            }
+        }.buttonStyle(.plain).accessibilityIdentifier("pronote.shortcut." + section.rawValue)
+    }
+}
+
+struct PronoteSectionView: View {
     let section: PronotePortalSection
     @EnvironmentObject private var store: AppStore
     @State private var periodID = ""
     @State private var weekDate = Date()
     @State private var showComposer = false
+    private var profile: PronoteProfile? { store.pronoteProfile ?? store.pronotePortal.profile }
     private var periods: [PronotePeriod] {
-        (store.pronoteProfile ?? store.pronotePortal.profile)?.periods.sorted { $0.startDate > $1.startDate } ?? []
+        profile?.periods(for: section.rawValue).sorted { $0.startDate > $1.startDate } ?? []
     }
-    private var cacheKey: String { section.rawValue + (periodID.isEmpty ? "" : ":" + periodID) }
-    private var value: SchoolJSON? { store.pronotePortal.sections[cacheKey] }
+    private var effectivePeriodID: String? {
+        if !periodID.isEmpty { return periodID }
+        return section.usesPeriod ? profile?.currentPeriodID(for: section.rawValue) : nil
+    }
+    private var cacheKey: String { section.rawValue + (effectivePeriodID.map { ":" + $0 } ?? "") }
+    private var value: SchoolJSON? {
+        store.pronotePortal.sections[cacheKey] ?? (periodID.isEmpty ? store.pronotePortal.sections[section.rawValue] : nil)
+    }
     private var loading: Bool { store.pronotePortalLoading.contains(cacheKey) || store.pronotePortalLoading.contains(section.rawValue) }
     private var error: String? { store.pronotePortalErrors[cacheKey] ?? store.pronotePortalErrors[section.rawValue] }
     private var canCompose: Bool { (store.pronoteProfile ?? store.pronotePortal.profile)?.capabilities.contains("compose") == true }
 
     var body: some View {
-        AtelierPage(lazy: true) {
+        AtelierPage(lazy: section != .grades) {
             if section.usesWeek { weekPicker }
             if section.usesPeriod && !periods.isEmpty { periodPicker }
-            PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey], loading: loading, error: error)
+            PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey] ?? (periodID.isEmpty ? store.pronotePortal.updatedAt[section.rawValue] : nil), loading: loading, error: error)
             if let value { sectionContent(value) }
             else if !loading {
                 EmptyCard(title: "Aucun élément disponible", symbol: section.symbol,
@@ -150,7 +203,7 @@ private struct PronoteSectionView: View {
             Text("Période").font(.subheadline).foregroundStyle(CadenceColors.secondary)
             Spacer()
             Picker("Période", selection: $periodID) {
-                Text("Période actuelle").tag("")
+                Text(periods.first(where: { $0.id == profile?.currentPeriodID(for: section.rawValue) }).map { $0.name + " · actuelle" } ?? "Période actuelle").tag("")
                 ForEach(periods) { Text($0.name).tag($0.id) }
             }.pickerStyle(.menu)
         }.padding(.horizontal, 4)
@@ -209,7 +262,7 @@ private struct PronoteSectionView: View {
         periodID = "week:" + formatter.string(from: start)
     }
 
-    private func reload() async { await store.loadPronoteSection(section.rawValue, periodID: periodID.isEmpty ? nil : periodID) }
+    private func reload() async { await store.loadPronoteSection(section.rawValue, periodID: effectivePeriodID) }
 
     @ViewBuilder private func sectionContent(_ value: SchoolJSON) -> some View {
         switch section {
@@ -247,35 +300,99 @@ private struct PronoteCacheStatus: View {
 
 private struct PronoteGradesPanel: View {
     let value: SchoolJSON
+    @State private var selectedSubject = ""
     private var averages: [SchoolJSON] { value["subjectsAverages"]?.arrayValues ?? [] }
     private var grades: [SchoolJSON] {
-        PronoteText.items(value, keys: ["grades"]).sorted { PronoteText.dateValue($0["date"]) > PronoteText.dateValue($1["date"]) }
+        PronoteText.items(value, keys: ["grades"])
+            .filter { selectedSubject.isEmpty || PronoteText.subject($0) == selectedSubject }
+            .sorted { PronoteText.dateValue($0["date"]) > PronoteText.dateValue($1["date"]) }
     }
+    private var subjectNames: [String] {
+        Array(Set((averages + PronoteText.items(value, keys: ["grades"])).map { PronoteText.subject($0) }))
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+    private var studentOverall: SchoolJSON? {
+        PronoteText.validGrade(value["overallAverage"]) ? value["overallAverage"] : value["calculatedOverallAverage"]
+    }
+    private var classOverall: SchoolJSON? {
+        PronoteText.validGrade(value["classAverage"]) ? value["classAverage"] : value["calculatedClassAverage"]
+    }
+    private var calculatedOverall: Bool { !PronoteText.validGrade(value["overallAverage"]) && PronoteText.validGrade(value["calculatedOverallAverage"]) }
     var body: some View {
-        if value["overallAverage"] != nil || value["classAverage"] != nil {
+        if PronoteText.validGrade(studentOverall) || PronoteText.validGrade(classOverall) {
             AtelierCard {
-                CadenceSectionHeader(title: "Moyenne générale")
-                if let average = value["overallAverage"] { PronoteValueRow(title: "Votre moyenne", value: PronoteText.grade(average)) }
-                if let average = value["classAverage"] { PronoteValueRow(title: "Classe", value: PronoteText.grade(average)) }
+                CadenceSectionHeader(title: calculatedOverall ? "Moyenne indicative" : "Moyenne générale",
+                                     subtitle: PronoteText.validGrade(studentOverall) ? (calculatedOverall ? "Calculée à partir de vos notes disponibles" : "Publiée par votre établissement") : nil)
+                if PronoteText.validGrade(studentOverall) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(PronoteText.grade(studentOverall)).font(.system(.largeTitle, design: .rounded).bold()).monospacedDigit()
+                            .foregroundStyle(Atelier.blue)
+                        Text("/ 20").font(.title3).foregroundStyle(CadenceColors.secondary)
+                        Spacer()
+                    }.accessibilityElement(children: .combine).accessibilityIdentifier("pronote.grades.overall")
+                } else {
+                    Text("Votre moyenne n’est pas disponible.").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                }
+                if PronoteText.validGrade(classOverall) {
+                    PronoteValueRow(title: PronoteText.validGrade(value["classAverage"]) ? "Classe" : "Classe · indicative", value: PronoteText.grade(classOverall))
+                }
+                if calculatedOverall {
+                    Text(PronoteText.text(value["calculationNotice"]) ?? "Estimation à partir des notes disponibles. Les matières ont le même poids ; le résultat peut différer du bulletin.")
+                        .font(.caption).foregroundStyle(CadenceColors.secondary)
+                }
+            }
+        } else if !grades.isEmpty {
+            AtelierCard {
+                Label("Moyennes non communiquées", systemImage: "info.circle").font(.subheadline.weight(.semibold))
+                Text("Aucune moyenne n’est disponible pour cette période dans les données reçues. Vos notes restent consultables ci-dessous.")
+                    .font(.subheadline).foregroundStyle(CadenceColors.secondary)
+            }
+        }
+        if !subjectNames.isEmpty {
+            HStack {
+                Label("Matière", systemImage: "line.3.horizontal.decrease").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                Spacer()
+                Picker("Matière", selection: $selectedSubject) {
+                    Text("Toutes les matières").tag("")
+                    ForEach(subjectNames, id: \.self) { Text($0).tag($0) }
+                }.pickerStyle(.menu).accessibilityIdentifier("pronote.grades.subject")
             }
         }
         if !averages.isEmpty {
-            AtelierCard {
-                CadenceSectionHeader(title: "Par matière")
-                ForEach(Array(averages.enumerated()), id: \.offset) { index, average in
-                    if index > 0 { Divider() }
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(PronoteText.subject(average)).font(.headline)
-                        if let grade = average["student"] { PronoteValueRow(title: "Votre moyenne", value: PronoteText.grade(grade, outOf: average["outOf"])) }
-                        if let grade = average["class_average"] { PronoteValueRow(title: "Classe", value: PronoteText.grade(grade, outOf: average["outOf"])) }
-                    }
-                }
+            CadenceSectionHeader(title: "Moyennes par matière")
+            ForEach(Array(averages.filter { selectedSubject.isEmpty || PronoteText.subject($0) == selectedSubject }.enumerated()), id: \.offset) { _, average in
+                PronoteSubjectAverageCard(value: average)
             }
         }
         CadenceSectionHeader(title: "Évaluations", subtitle: "\(grades.count) résultat\(grades.count == 1 ? "" : "s")")
         ForEach(Array(grades.enumerated()), id: \.offset) { _, grade in PronoteGradeCard(value: grade) }
         if grades.isEmpty && averages.isEmpty {
             EmptyCard(title: "Pas encore de note", symbol: "chart.bar.xaxis", description: "Les résultats publiés par vos professeurs apparaîtront ici.")
+        }
+    }
+}
+
+private struct PronoteSubjectAverageCard: View {
+    let value: SchoolJSON
+    private var calculated: Bool { !PronoteText.validGrade(value["student"]) && PronoteText.validGrade(value["calculatedStudent"]) }
+    private var average: SchoolJSON? { PronoteText.validGrade(value["student"]) ? value["student"] : value["calculatedStudent"] }
+    private var classAverage: SchoolJSON? { PronoteText.validGrade(value["class_average"]) ? value["class_average"] : value["calculatedClassAverage"] }
+    var body: some View {
+        AtelierCard {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(PronoteText.subject(value)).font(.headline)
+                Spacer(minLength: 4)
+                Text(PronoteText.grade(average, outOf: calculated ? .number(20) : value["outOf"]))
+                    .font(.title3.bold()).monospacedDigit().foregroundStyle(Atelier.blue).multilineTextAlignment(.trailing)
+            }
+            if calculated {
+                Text("Moyenne indicative · calculée par Cadenza").font(.caption).foregroundStyle(CadenceColors.secondary)
+            } else if !PronoteText.validGrade(average) {
+                Text("Moyenne non communiquée").font(.caption).foregroundStyle(CadenceColors.secondary)
+            }
+            if PronoteText.validGrade(classAverage) {
+                PronoteValueRow(title: PronoteText.validGrade(value["class_average"]) ? "Classe" : "Classe · indicative", value: PronoteText.grade(classAverage, outOf: PronoteText.validGrade(value["class_average"]) ? value["outOf"] : .number(20)))
+            }
         }
     }
 }
@@ -332,18 +449,111 @@ private struct PronoteEvaluationsPanel: View {
 private struct PronoteAttendancePanel: View {
     let value: SchoolJSON
     private let groups = [("absences", "Absences"), ("delays", "Retards"), ("observations", "Observations"), ("punishments", "Punitions"), ("precautionaryMeasures", "Mesures conservatoires")]
+    private var absences: [SchoolJSON] { value["absences"]?.arrayValues ?? [] }
+    private var delays: [SchoolJSON] { value["delays"]?.arrayValues ?? [] }
+    private var pending: Int {
+        (absences + delays).filter { $0["administrativelyFixed"]?.boolValue == false }.count
+    }
     var body: some View {
+        if !absences.isEmpty || !delays.isEmpty {
+            AtelierCard {
+                HStack(alignment: .firstTextBaseline, spacing: 20) {
+                    summary("Absence" + (absences.count == 1 ? "" : "s"), count: absences.count)
+                    Rectangle().fill(CadenceColors.secondary.opacity(0.2)).frame(width: 1, height: 48).accessibilityHidden(true)
+                    summary("Retard" + (delays.count == 1 ? "" : "s"), count: delays.count)
+                }
+                if pending > 0 {
+                    Label("\(pending) événement\(pending == 1 ? "" : "s") à régulariser", systemImage: "exclamationmark.circle")
+                        .font(.subheadline).foregroundStyle(.orange)
+                } else if (absences + delays).allSatisfy({ $0["administrativelyFixed"]?.boolValue == true }) {
+                    Label("Tout est régularisé", systemImage: "checkmark.shield")
+                        .font(.subheadline).foregroundStyle(CadenceColors.positive)
+                }
+            }.accessibilityIdentifier("pronote.attendance.summary")
+        }
         ForEach(groups, id: \.0) { key, title in
-            let items = value[key]?.arrayValues ?? []
+            let items = (value[key]?.arrayValues ?? []).sorted {
+                PronoteText.dateValue($0["startDate"] ?? $0["date"] ?? $0["dateGiven"]) >
+                PronoteText.dateValue($1["startDate"] ?? $1["date"] ?? $1["dateGiven"])
+            }
             if !items.isEmpty {
-                CadenceSectionHeader(title: title)
+                CadenceSectionHeader(title: title, subtitle: "\(items.count) événement\(items.count == 1 ? "" : "s")")
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    AtelierCard { PronoteReadableFields(value: item) }
+                    PronoteAttendanceCard(value: item, category: key)
                 }
             }
         }
         if groups.allSatisfy({ value[$0.0]?.arrayValues?.isEmpty != false }) {
             EmptyCard(title: "Aucun élément de vie scolaire", symbol: "checkmark.circle", description: "Aucune absence, aucun retard ni aucune observation pour cette période.")
+        }
+    }
+    private func summary(_ title: String, count: Int) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("\(count)").font(.largeTitle.bold()).monospacedDigit().foregroundStyle(CadenceColors.ink)
+            Text(title).font(.subheadline).foregroundStyle(CadenceColors.secondary)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct PronoteAttendanceCard: View {
+    let value: SchoolJSON
+    let category: String
+    private var isAbsence: Bool { category == "absences" }
+    private var isDelay: Bool { category == "delays" }
+    private var title: String {
+        if isAbsence { return "Absence" }
+        if isDelay { return "Retard" }
+        return PronoteText.text(value["title"]) ?? PronoteText.text(value["name"]) ?? "Événement de vie scolaire"
+    }
+    private var reason: String? { PronoteText.text(value["reason"]) ?? PronoteText.text(value["reasons"]) }
+    private var duration: String? {
+        if isAbsence {
+            if let hours = value["hoursMissed"]?.numberValue, hours >= 0 {
+                let minutes = max(0, value["minutesMissed"]?.numberValue ?? 0)
+                if hours > 0 || minutes > 0 { return Atelier.duration(hours * 3600 + minutes * 60) + " de cours manqués" }
+            }
+        }
+        if let minutes = (isDelay ? value["minutes"] : value["durationMinutes"])?.numberValue, minutes > 0 {
+            return Atelier.duration(minutes * 60)
+        }
+        return nil
+    }
+    var body: some View {
+        AtelierCard {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: isAbsence ? "calendar.badge.minus" : isDelay ? "clock.badge.exclamationmark" : "text.bubble")
+                    .font(.title2).foregroundStyle(Atelier.blue).frame(width: 32).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.headline)
+                    Text(PronoteText.attendanceDates(value)).font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                    if let duration { Text(duration).font(.subheadline.weight(.semibold)).foregroundStyle(Atelier.blue) }
+                }
+                Spacer(minLength: 0)
+            }
+            if let reason, !reason.isEmpty { Text(reason).font(.body).textSelection(.enabled) }
+            if let subject = value["subject"] { Label(PronoteText.subject(.object(["subject": subject])), systemImage: "book").font(.caption).foregroundStyle(CadenceColors.secondary) }
+            if isAbsence || isDelay {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { statusBadges }
+                    VStack(alignment: .leading, spacing: 8) { statusBadges }
+                }
+                if let justification = PronoteText.text(value["justification"]), !justification.isEmpty {
+                    Text(justification).font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                }
+            } else {
+                PronoteReadableFields(value: value, labels: ["workToDo": "Travail demandé", "circumstances": "Circonstances", "comments": "Commentaire", "giver": "Décidé par"])
+                PronoteAttachments(value: value["workToDoDocuments"] ?? .array([]))
+                PronoteAttachments(value: value["circumstancesDocuments"] ?? .array([]))
+            }
+        }
+    }
+    @ViewBuilder private var statusBadges: some View {
+        if let justified = value["justified"]?.boolValue {
+            Label(justified ? (isAbsence ? "Justifiée" : "Justifié") : "À justifier", systemImage: justified ? "checkmark.circle" : "exclamationmark.circle")
+                .font(.caption.weight(.semibold)).foregroundStyle(justified ? CadenceColors.positive : .orange)
+        }
+        if let regularized = value["administrativelyFixed"]?.boolValue {
+            StatusBadge(title: regularized ? (isAbsence ? "Régularisée" : "Régularisé") : "À régulariser", color: regularized ? CadenceColors.secondary : .orange)
         }
     }
 }
@@ -368,7 +578,7 @@ private struct PronoteNewsPanel: View {
                             .font(.caption).foregroundStyle(Atelier.blue)
                     }
                 }
-            }.buttonStyle(.plain)
+            }.buttonStyle(.plain).accessibilityIdentifier("pronote.news." + (item["id"]?.stringValue ?? "unknown"))
         }
         if items.isEmpty { EmptyCard(title: "Aucune information", symbol: "bell", description: "Les messages de votre établissement apparaîtront ici.") }
     }
@@ -403,16 +613,22 @@ private struct PronoteNewsDetail: View {
             AtelierCard {
                 CadenceSectionHeader(title: PronoteText.text(current["title"]) ?? "Information", subtitle: PronoteText.text(current["author"]))
                 if let date = current["creationDate"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
+                if let articleText {
+                    Text(articleText).font(.body).lineSpacing(4).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                        .accessibilityIdentifier("pronote.news.content")
+                }
                 if needsDetails {
-                    Label(loading ? "Chargement du contenu de cette information…" : "Le contenu de cette information n’est pas encore disponible sur cet iPhone.", systemImage: "doc.text.magnifyingglass")
+                    Label(loading ? "Chargement de l’information…" : "Le chargement n’a pas abouti. Votre information reste disponible dans PRONOTE ; vous pouvez réessayer ici.", systemImage: "doc.text.magnifyingglass")
                         .font(.subheadline).foregroundStyle(CadenceColors.secondary)
                 } else {
-                    if let articleText { Text(articleText).textSelection(.enabled) }
                     PronoteAttachments(value: current["attachments"] ?? .array([]))
+                    if articleText == nil && current["questions"]?.arrayValues?.isEmpty != false && current["attachments"]?.links.isEmpty != false {
+                        Text("Cette information ne contient pas de texte.").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                    }
                 }
             }
             if needsDetails && !loading, let id {
-                SecondaryAction(title: "Charger le contenu", symbol: "arrow.clockwise") { Task { await store.loadPronoteNews(id) } }
+                SecondaryAction(title: "Réessayer le chargement", symbol: "arrow.clockwise") { Task { await store.loadPronoteNews(id) } }
             }
             ForEach(Array((needsDetails ? [] : current["questions"]?.arrayValues ?? []).enumerated()), id: \.offset) { _, question in
                 AtelierCard {
@@ -690,16 +906,67 @@ private struct PronoteMenusPanel: View {
 private struct PronoteResourcesPanel: View {
     let value: SchoolJSON
     private var items: [SchoolJSON] { PronoteText.items(value, keys: ["resources", "items", "contents"]) }
+    private var subjects: [String] { Array(Set(items.map { PronoteText.subject($0) })).sorted { $0.localizedStandardCompare($1) == .orderedAscending } }
     var body: some View {
-        ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+        if !items.isEmpty {
+            CadenceSectionHeader(title: "Vos matières", subtitle: "Les cours de la semaine, rangés par matière.")
+        }
+        ForEach(subjects, id: \.self) { subject in
+            let lessons = items.filter { PronoteText.subject($0) == subject }
+            NavigationLink { PronoteSubjectContentsView(subject: subject, lessons: lessons) } label: {
+                AtelierCard {
+                    HStack(spacing: 14) {
+                        Image(systemName: "books.vertical.fill").font(.title2).foregroundStyle(Atelier.blue)
+                            .frame(width: 44, height: 44).background(Atelier.blue.opacity(0.09), in: RoundedRectangle(cornerRadius: 14))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(subject).font(.headline).foregroundStyle(CadenceColors.ink)
+                            Text("\(lessons.count) cours cette semaine")
+                                .font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                            if let names = PronoteText.teacherNames(lessons), !names.isEmpty {
+                                Text(names).font(.caption).foregroundStyle(CadenceColors.secondary)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
+                    }
+                }
+            }.buttonStyle(.plain).accessibilityIdentifier("pronote.contents.subject." + subject)
+        }
+        if items.isEmpty { EmptyCard(title: "Aucun contenu publié", symbol: "books.vertical", description: "Les leçons et ressources partagées par vos professeurs apparaîtront ici. Choisissez une autre semaine pour consulter les cours précédents.") }
+    }
+}
+
+private struct PronoteSubjectContentsView: View {
+    let subject: String
+    let lessons: [SchoolJSON]
+    private var items: [SchoolJSON] {
+        lessons.sorted { PronoteText.dateValue($0["startDate"]) > PronoteText.dateValue($1["startDate"]) }
+    }
+    var body: some View {
+        AtelierPage(lazy: true) {
+            CadenceSectionHeader(title: "Cahier de textes", subtitle: "Les cours les plus récents apparaissent en premier.")
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in lesson(item) }
+        }
+        .navigationTitle(subject).navigationBarTitleDisplayMode(.large)
+        .accessibilityIdentifier("pronote.contents.subject.detail")
+    }
+    @ViewBuilder private func lesson(_ item: SchoolJSON) -> some View {
             if let id = item["id"]?.stringValue, item["subject"] != nil {
                 NavigationLink { PronoteResourceView(resourceID: id, seed: item) } label: {
                     AtelierCard {
-                        HStack {
+                        HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(PronoteText.subject(item)).font(.headline)
-                                if let date = item["startDate"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
+                                if let date = item["startDate"] { Text(PronoteText.date(date)).font(.headline).foregroundStyle(CadenceColors.ink) }
                                 if let names = PronoteText.text(item["teachers"]), !names.isEmpty { Text(names).font(.caption).foregroundStyle(CadenceColors.secondary) }
+                                let contents = item["contents"]?.arrayValues ?? []
+                                if let first = contents.first, let title = PronoteText.text(first["title"]), !title.isEmpty {
+                                    Text(title).font(.subheadline).foregroundStyle(CadenceColors.ink).lineLimit(2)
+                                } else {
+                                    Text("Consulter la leçon et les documents").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                                }
+                                if item["haveAssignment"]?.boolValue == true {
+                                    Label("Travail à faire associé", systemImage: "checklist").font(.caption).foregroundStyle(Atelier.blue)
+                                }
                             }
                             Spacer(minLength: 4)
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(CadenceColors.secondary)
@@ -707,8 +974,6 @@ private struct PronoteResourcesPanel: View {
                     }
                 }.buttonStyle(.plain).accessibilityIdentifier("pronote.resource." + id)
             } else { PronoteLessonContentCard(value: item) }
-        }
-        if items.isEmpty { EmptyCard(title: "Aucun contenu publié", symbol: "books.vertical", description: "Les leçons et ressources partagées par vos professeurs apparaîtront ici.") }
     }
 }
 
@@ -718,16 +983,20 @@ private struct PronoteResourceView: View {
     @EnvironmentObject private var store: AppStore
     private var cacheKey: String { "resource:" + resourceID }
     private var value: SchoolJSON { store.pronotePortal.sections[cacheKey] ?? seed }
+    private var loading: Bool { store.pronotePortalLoading.contains(cacheKey) }
+    private var hasLoaded: Bool { store.pronotePortal.sections[cacheKey] != nil }
     var body: some View {
         AtelierPage(lazy: true) {
-            PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey], loading: store.pronotePortalLoading.contains(cacheKey), error: store.pronotePortalErrors[cacheKey])
+            PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey], loading: loading, error: store.pronotePortalErrors[cacheKey])
             AtelierCard {
                 CadenceSectionHeader(title: PronoteText.subject(value), subtitle: PronoteText.text(value["teachers"]))
                 if let date = value["startDate"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
             }
             ForEach(Array((value["contents"]?.arrayValues ?? []).enumerated()), id: \.offset) { _, content in PronoteLessonContentCard(value: content) }
-            if value["contents"]?.arrayValues?.isEmpty != false {
+            if hasLoaded && !loading && value["contents"]?.arrayValues?.isEmpty != false {
                 EmptyCard(title: "Aucun détail de leçon", symbol: "doc.text", description: "Votre professeur n’a pas encore partagé de contenu pour ce cours.")
+            } else if !hasLoaded && !loading {
+                SecondaryAction(title: "Réessayer le chargement", symbol: "arrow.clockwise") { Task { await store.loadPronoteResource(resourceID) } }
             }
         }
         .navigationTitle("Contenu du cours").navigationBarTitleDisplayMode(.inline)
@@ -741,7 +1010,9 @@ private struct PronoteLessonContentCard: View {
     var body: some View {
         AtelierCard {
             CadenceSectionHeader(title: PronoteText.text(value["title"]) ?? "Contenu du cours", subtitle: PronoteText.text(value["categoryText"]))
-            if let description = PronoteText.text(value["description"]), !description.isEmpty { Text(description).textSelection(.enabled) }
+            if let description = PronoteText.text(value["description"]), !description.isEmpty {
+                Text(description).font(.body).lineSpacing(4).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            }
             PronoteAttachments(value: value["files"] ?? .array([]))
             if let themes = PronoteText.text(value["themes"]), !themes.isEmpty { Label(themes, systemImage: "tag").font(.caption).foregroundStyle(CadenceColors.secondary) }
         }
@@ -838,6 +1109,15 @@ private enum PronoteText {
     static func subject(_ value: SchoolJSON) -> String {
         text(value["subject"]?["name"]) ?? text(value["subject"]) ?? "Matière"
     }
+    static func teacherNames(_ items: [SchoolJSON]) -> String? {
+        var names = Set<String>()
+        for item in items {
+            for teacher in item["teachers"]?.arrayValues ?? [] {
+                if let name = text(teacher), !name.isEmpty { names.insert(name) }
+            }
+        }
+        return names.isEmpty ? nil : names.sorted().joined(separator: ", ")
+    }
     static func text(_ value: SchoolJSON?) -> String? {
         guard let value else { return nil }
         switch value {
@@ -859,7 +1139,10 @@ private enum PronoteText {
     }
     static func grade(_ value: SchoolJSON?, outOf: SchoolJSON? = nil) -> String {
         guard let value else { return "—" }
-        if let n = value.numberValue { return number(n) }
+        let max = outOf?["points"]?.numberValue ?? outOf?.numberValue
+        if let n = value.numberValue {
+            return number(n) + (max.map { $0.isFinite && $0 > 0 ? " / " + number($0) : "" } ?? "")
+        }
         let kind = value["kind"]?.integerValue ?? -1
         if kind != 0 {
             switch kind {
@@ -875,8 +1158,26 @@ private enum PronoteText {
             }
         }
         guard let points = value["points"]?.numberValue, points.isFinite else { return "—" }
-        let max = outOf?["points"]?.numberValue ?? outOf?.numberValue
         return number(points) + (max.map { $0.isFinite && $0 > 0 ? " / " + number($0) : "" } ?? "")
+    }
+    static func validGrade(_ value: SchoolJSON?) -> Bool {
+        guard let value else { return false }
+        if let number = value.numberValue { return number.isFinite }
+        return value["kind"]?.integerValue == 0 && value["points"]?.numberValue?.isFinite == true
+    }
+    static func attendanceDates(_ value: SchoolJSON) -> String {
+        let first = value["startDate"] ?? value["date"] ?? value["dateGiven"]
+        guard let first, let raw = first.stringValue, let start = SchoolDateCodec.date(from: raw) else { return "Date non précisée" }
+        guard let endRaw = value["endDate"]?.stringValue, let end = SchoolDateCodec.date(from: endRaw), end > start else {
+            return date(start, time: true)
+        }
+        if SchoolDateCodec.parisCalendar.isDate(start, inSameDayAs: end) {
+            let time = DateFormatter()
+            time.locale = Locale(identifier: "fr_FR"); time.timeZone = SchoolDateCodec.parisCalendar.timeZone
+            time.dateFormat = "HH:mm"
+            return date(start) + " · " + time.string(from: start) + "–" + time.string(from: end)
+        }
+        return "Du " + date(start, time: true) + "\nau " + date(end, time: true)
     }
     static func dateValue(_ value: SchoolJSON?) -> Date { value?.stringValue.flatMap { SchoolDateCodec.date(from: $0) } ?? .distantPast }
     static func date(_ value: SchoolJSON, time: Bool = false) -> String {
@@ -900,24 +1201,6 @@ private enum PronoteText {
     }
     /// Convert published HTML to plain text without loading web content or executing markup.
     static func plain(_ input: String) -> String {
-        var text = input.replacingOccurrences(of: "(?is)<(script|style)\\b[^>]*>.*?</\\1\\s*>", with: "", options: .regularExpression)
-        text = text.replacingOccurrences(of: "(?i)<br\\s*/?>|</(?:p|div|li|h[1-6]|tr)\\s*>", with: "\n", options: .regularExpression)
-        text = text.replacingOccurrences(of: "</?[A-Za-z][^>]*>", with: "", options: .regularExpression)
-        for (entity, replacement) in [("&nbsp;", " "), ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""), ("&#39;", "'"), ("&apos;", "'"), ("&amp;", "&")] {
-            text = text.replacingOccurrences(of: entity, with: replacement)
-        }
-        if let regex = try? NSRegularExpression(pattern: "&#(x[0-9A-Fa-f]+|[0-9]+);") {
-            let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
-            for match in matches.reversed() {
-                guard let digitsRange = Range(match.range(at: 1), in: text), let fullRange = Range(match.range, in: text) else { continue }
-                let digits = String(text[digitsRange]); let hex = digits.hasPrefix("x")
-                if let number = UInt32(hex ? String(digits.dropFirst()) : digits, radix: hex ? 16 : 10), let scalar = UnicodeScalar(number) {
-                    text.replaceSubrange(fullRange, with: String(scalar))
-                }
-            }
-        }
-        return text.replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        SchoolRichText.plain(input)
     }
 }

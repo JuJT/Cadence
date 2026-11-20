@@ -46,12 +46,34 @@ public struct PronoteProfile: Codable, Equatable, Sendable {
     public var resources: [PronoteStudentResource]
     public var capabilities: [String]
     public var periods: [PronotePeriod]
+    /// PRONOTE supplies different available/default periods for each screen.
+    /// Optional so caches created by earlier versions remain readable.
+    public var defaultPeriodIDs: [String: String]?
+    public var sectionPeriodIDs: [String: [String]]?
 
     public init(displayName: String, establishment: String, className: String? = nil,
                 resourceID: String, resources: [PronoteStudentResource] = [],
-                capabilities: [String] = [], periods: [PronotePeriod] = []) {
+                capabilities: [String] = [], periods: [PronotePeriod] = [],
+                defaultPeriodIDs: [String: String]? = nil, sectionPeriodIDs: [String: [String]]? = nil) {
         self.displayName = displayName; self.establishment = establishment; self.className = className
         self.resourceID = resourceID; self.resources = resources; self.capabilities = capabilities; self.periods = periods
+        self.defaultPeriodIDs = defaultPeriodIDs; self.sectionPeriodIDs = sectionPeriodIDs
+    }
+
+    public func periods(for section: String) -> [PronotePeriod] {
+        guard let ids = sectionPeriodIDs?[section], !ids.isEmpty else { return periods }
+        return periods.filter { ids.contains($0.id) }
+    }
+
+    public func currentPeriodID(for section: String, at date: Date = Date()) -> String? {
+        let available = periods(for: section)
+        if let id = defaultPeriodIDs?[section], available.contains(where: { $0.id == id }) { return id }
+        let shortest: (PronotePeriod, PronotePeriod) -> Bool = {
+            $0.endDate.timeIntervalSince($0.startDate) < $1.endDate.timeIntervalSince($1.startDate)
+        }
+        if let current = available.filter({ $0.startDate <= date && $0.endDate >= date }).sorted(by: shortest).first { return current.id }
+        if let previous = available.filter({ $0.endDate < date }).sorted(by: { $0.endDate > $1.endDate }).first { return previous.id }
+        return available.sorted { $0.startDate < $1.startDate }.first?.id
     }
 }
 

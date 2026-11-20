@@ -8,6 +8,10 @@ struct CoursesView: View {
     @State private var search = ""
     @State private var showNew = false
     private var calendar: Calendar { store.state.schoolSync == nil ? .current : SchoolDateCodec.parisCalendar }
+    private var hasCourseContents: Bool {
+        (store.pronoteProfile ?? store.pronotePortal.profile)?.capabilities.contains("contents") == true ||
+        store.pronotePortal.sections.keys.contains { $0 == "contents" || $0.hasPrefix("contents:") }
+    }
     private var schoolDataIsOld: Bool {
         guard let sync = store.state.schoolSync else { return false }
         if sync.hasError { return true }
@@ -24,6 +28,7 @@ struct CoursesView: View {
         let groups = dayGroups()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
+                if hasCourseContents { PronoteShortcutRow(section: .contents) }
                 Picker("Affichage", selection: $mode) { Text("Semaine").tag("Semaine"); Text("Jour").tag("Jour"); Text("Liste").tag("Liste") }
                     .pickerStyle(.segmented).cadenceSegmentedStyle()
                 if mode != "Liste" {
@@ -175,7 +180,7 @@ private struct CourseContentsSections: View {
     var body: some View {
         ForEach(contents) { content in
             Section(content.title.isEmpty ? "Contenu du cours" : content.title) {
-                if !content.description.isEmpty { Text(content.description).textSelection(.enabled) }
+                if !SchoolRichText.plain(content.description).isEmpty { Text(SchoolRichText.plain(content.description)).textSelection(.enabled) }
                 if let category = content.categoryText, !category.isEmpty { Text(category).font(.caption).foregroundStyle(.secondary) }
                 ForEach(content.resourceLinks) { resource in
                     Link(destination: resource.url) { Label(resource.title, systemImage: "arrow.up.right.square") }

@@ -16,6 +16,7 @@ function setup(payload,detailReply){
       return {data:{data:payload}};
     }},
     le:value=>new Date(value),
+    De:value=>({id:value.N,name:value.L,url:value.url}),
     ft:value=>({id:value.N,name:value.L,default:value.estDefaut??false}),
     ht:(value,_session,categories)=>({id:value.N,is:'information',title:value.L,
       category:categories.find(c=>c.id===value.categorie.V.N),content:value.listeQuestions.V[0].texte.V,
@@ -70,6 +71,66 @@ test('modern survey detail keeps all published questions without sending an answ
 test('already complete modern information needs no redundant details request',async()=>{
   const f=setup(modern([complete()]));await f.list();const item=await f.details('fixture-news');
   assert.equal(item.content,'Contenu pédagogique fictif');assert.equal(f.calls.length,1);
+});
+
+test('modern categories and personal labels coexist without falling into the legacy decoder',async()=>{
+  const payload={...modern([metadata()]),listeCategories:{V:[{N:'personal-label',L:'Étiquette personnelle'}]}};
+  const f=setup(payload,{genreRequeteActualite:1,detailsActualite:complete()});
+  const list=await f.list();assert.equal(list.items[0].detailsRequired,true);
+  const detail=await f.details('fixture-news');assert.equal(detail.content,'Contenu pédagogique fictif');
+  assert.equal(detail.category.id,category.N);
+});
+
+test('published read-only text is readable without optional acknowledgment or recipient metadata',async()=>{
+  const detail={...complete()};delete detail.public;delete detail.nature;
+  const q={...question()};delete q.reponse;delete q.listeChoix;delete q.listePiecesJointes;detail.listeQuestions={V:[q]};
+  const f=setup(modern([metadata()]),{genreRequeteActualite:1,detailsActualite:detail});await f.list();
+  const value=await f.details('fixture-news');assert.equal(value.content,'Contenu pédagogique fictif');
+  assert.equal(value.acknowledgementAvailable,false);assert.equal(value.needToAcknowledge,false);
+  assert.equal(value.acknowledged,undefined);assert.equal(f.calls.length,2);
+});
+
+test('acknowledgment requires complete answer state and a usable original public reference',async()=>{
+  const valid=()=>({...complete(),public:{V:{N:'fictional-public',G:6}},listeQuestions:{V:[{...question(),reponse:{V:{N:'123',avecReponse:false,estReponseAttendue:true}}}]}});
+  const check=async item=>{
+    const f=setup(modern([metadata()]),{genreRequeteActualite:1,detailsActualite:item});await f.list();
+    const result=await f.details('fixture-news');assert.equal(result.content,'Contenu pédagogique fictif');return result;
+  };
+  const enabled=await check(valid());assert.equal(enabled.acknowledgementAvailable,true);assert.equal(enabled.needToAcknowledge,true);
+  for(const mutate of [
+    item=>{item.public={V:null};},item=>{item.public={V:'invalid-reference'};},item=>{item.public={V:{N:'missing-kind'}};},
+    item=>{delete item.listeQuestions.V[0].reponse.V.avecReponse;},item=>{delete item.listeQuestions.V[0].reponse.V.estReponseAttendue;},
+    item=>{item.listeQuestions.V[0].reponse.V.N='not-a-number';},item=>{item.listeQuestions.V[0].reponse.V.N='9007199254740993';},
+    item=>{item.listeQuestions.V[0].genreReponse=2;}
+  ]){
+    const item=valid();mutate(item);const result=await check(item);
+    assert.equal(result.acknowledgementAvailable,false);assert.equal(result.needToAcknowledge,false);
+  }
+});
+
+test('nullable optional news metadata never blocks a valid published information text',async()=>{
+  for(const empty of [null,{V:null}]){
+  const item={...metadata(),nature:empty,dateCreation:empty,dateDebut:empty,dateFin:empty};
+  const info={...item,public:null,listeQuestions:{V:[{...question(),L:null,titre:null,
+    reponse:{V:{N:null,avecReponse:false,estReponseAttendue:true,reponduLe:empty}},
+    listePiecesJointes:empty,listeChoix:empty}]}};
+  const f=setup({...modern([item]),listeNatures:empty},{genreRequeteActualite:1,detailsActualite:info});
+  const list=await f.list();assert.equal(list.items.length,1);assert.equal(list.items[0].creationDate,undefined);
+  const result=await f.details(item.N);assert.equal(result.content,'Contenu pédagogique fictif');
+  assert.equal(result.needToAcknowledge,false);assert.equal(result.question.answerDate,undefined);
+  assert.equal(result.creationDate,undefined);assert.deepEqual(plain(result.attachments),[]);
+  assert.equal(result.question.answerID,undefined);
+  }
+});
+
+test('null category references, answer objects and blank optional attachment rows stay readable',async()=>{
+  for(const nature of [null,{V:null},{V:{N:null}}]){
+    const info={...complete(),nature,listeQuestions:{V:[{...question(),reponse:{V:null},
+      listePiecesJointes:{V:[null]},listeChoix:{V:[null]}}]}};
+    const f=setup({...modern([info]),listeNatures:{V:[null,category]}});await f.list();
+    const result=await f.details(info.N);assert.equal(result.content,'Contenu pédagogique fictif');
+    assert.equal(result.needToAcknowledge,false);assert.deepEqual(plain(result.attachments),[]);
+  }
 });
 test('unknown or malformed news shapes are not silently accepted as empty',async()=>{
   for(const payload of [{listeModesAff:modes([])}, {listeNatures:{V:[]},listeModesAff:[{}]}, {listeNatures:{V:{}},listeModesAff:[]}]){

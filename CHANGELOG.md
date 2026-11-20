@@ -1,5 +1,15 @@
 # Historique
 
+## 0.5.0 — Scolarité intégrée — 19 novembre 2026
+
+- Notes, informations et absences accessibles depuis l’accueil ; contenus de cours regroupés par matière.
+- HTML scolaire nettoyé dans les flux et les anciens caches ; actions Valider / Démarrer sur les cartes de devoirs.
+- Période actuelle propre à chaque écran PRONOTE ; moyennes officielles prioritaires et estimations clairement identifiées.
+- Lecture des informations PRONOTE 2026 corrigée en présence de natures et catégories personnelles, sans dépendre des métadonnées facultatives d’accusé.
+- Absences structurées par dates, durée, motif et justification ; première installation et nouveautés versionnées en trois étapes.
+- Appels Raccourcis Concentration retirés ; volume système/AirPlay conservés, lecteur universel expliqué dans le Centre de contrôle.
+- Recherche des versions publiques dans Réglages ; compatibilité du renouvellement Sideloadly conservée.
+
 ## 0.4.0 — PRONOTE direct et fluidité — 18 novembre 2026
 
 - Connexion directe Pawnote, annuaire facultatif et portail scolaire avec cache.

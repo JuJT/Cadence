@@ -2,13 +2,13 @@
 
 Application native SwiftUI française, iPhone uniquement, iOS 17 minimum. Le design Atelier conserve ses surfaces translucides et ses halos bleutés. Les deux catégories de temps sont **Cours** et **Révisions**.
 
-La version **0.4.0, build 5** se connecte directement à PRONOTE avec Pawnote LTS, la bibliothèque utilisée par Papillon. La recherche d’établissement utilise une position approximative uniquement au choix « Autour de moi », ou une ville/adresse, avec une URL HTTPS manuelle en alternative. Le mot de passe initial n’est pas enregistré ; le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
+La version **0.5.0, build 6** se connecte directement à PRONOTE avec Pawnote LTS, la bibliothèque utilisée par Papillon. La recherche d’établissement utilise une position approximative uniquement au choix « Autour de moi », ou une ville/adresse, avec une URL HTTPS manuelle en alternative. Le mot de passe initial n’est pas enregistré ; le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
 
 Cours, devoirs, notes et moyennes, compétences, vie scolaire, informations, messagerie, menus, contenus de cours, bulletin et compte sont présentés selon les droits de l’espace élève. Le cache persistant reste accessible hors connexion. Les messages ne sont envoyés et les informations accusées que sur confirmation dans l’interface. La validation d’un devoir dans Cadenza reste locale.
 
 ## Installer et utiliser
 
-Installer **Cadenza-iPhone-0.4.0.ipa** par-dessus l’app actuelle avec le même compte et les mêmes options Sideloadly, sans désinstaller. Conserver les extensions et l’auto-renouvellement. Ouvrir ensuite Réglages → Connexion PRONOTE. Voir [la connexion directe](docs/PRONOTE_DIRECT.md), [les composants et changements](docs/FONCTIONNALITES_0.4.0.md), [les capacités natives](docs/CAPACITES_NATIVES.md) et [les résultats vérifiés](docs/VERIFICATION.md).
+Installer **Cadenza-iPhone-0.5.0.ipa** par-dessus l’app actuelle avec le même compte et les mêmes options Sideloadly, sans désinstaller. Conserver les extensions et l’auto-renouvellement. Ouvrir ensuite Réglages → Connexion PRONOTE. Voir [la refonte 0.5.0](docs/REFONTE_0.5.0.md), [la connexion directe](docs/PRONOTE_DIRECT.md), [les composants et changements](docs/FONCTIONNALITES_0.4.0.md), [les capacités natives](docs/CAPACITES_NATIVES.md) et [les résultats vérifiés](docs/VERIFICATION.md).
 
 [Aperçu des captures natives de la version 0.4.0](Verification/0.4.0/APERCU.html), avec données fictives et empreintes des fichiers originaux.
 
@@ -22,7 +22,11 @@ Les identifiants `com.cadence.study`, `cadence://` et le fichier `Cadence/cadenc
 - Portail PRONOTE depuis l’accueil, ressources liées par leur véritable identifiant et pièces jointes HTTPS.
 - Statistiques Charts Cours/Révisions ; provenance historique conservée en interne pour éviter les doubles comptes.
 - Widgets locaux, Dynamic Island, Live Activities et App Intents.
-- Bouton d’ajout d’un raccourci Concentration signé prêt à importer ; volume système et sélection de sortie audio. Le contrôle universel des pistes d’autres apps n’est pas fourni par les API publiques iOS.
+- Volume système et sortie AirPlay natifs ; début et fin de séance sans lancement de Raccourcis. Le lecteur universel reste dans le Centre de contrôle iOS.
+- Accès direct aux notes, informations et absences depuis Accueil ; ressources de cours classées par matière.
+- Actions Valider / Démarrer sur les cartes de devoirs ; HTML PRONOTE nettoyé, y compris les anciens caches.
+- Période actuelle propre à chaque écran ; moyennes publiées prioritaires et estimations distinctes si absentes.
+- Parcours de première installation et nouveautés versionnés ; recherche des mises à jour publiées depuis Réglages.
 - Fonds suspendus hors écran/en arrière-plan et en cas d’économie d’énergie ou de chauffe ; calculs de graphiques regroupés, navigation native conservée.
 
 ## Compiler

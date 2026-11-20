@@ -35,6 +35,10 @@ on:
         description: 'Recontrôle ciblé du formulaire après un changement limité à son en-tête'
         type: boolean
         default: false
+      school_interface_only:
+        description: 'Recontrôle ciblé Notes, Son et mode sombre après correction de leur affichage'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -59,6 +63,7 @@ jobs:
     env:
       INCLUDE_SHARED: ${{ (github.event_name == 'push' || inputs.include_shared_variant) && 'true' || 'false' }}
       ONLY_SESSION_PRESENTATION: ${{ inputs.session_presentation_only && 'true' || 'false' }}
+      ONLY_SCHOOL_INTERFACE: ${{ inputs.school_interface_only && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v7
         with:

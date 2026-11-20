@@ -1,3 +1,9 @@
+# Vérification de la refonte 0.5.0
+
+La refonte est suivie dans la [proposition de version 0.5.0](https://github.com/JuJT/Cadence/pull/1). Les [exécutions de compilation sur sa branche](https://github.com/JuJT/Cadence/actions/workflows/build-unsigned-ipa.yml?query=branch%3Afeat%2Fpronote-integrated-0.5.0) vérifient le moteur Pawnote, le noyau Swift, les IPA et les parcours natifs en simulateur. Seul un run entièrement réussi constitue une validation ; ses rapports et captures sont livrés avec l’IPA correspondante. Les résultats historiques ci-dessous ne valident pas la nouvelle version.
+
+Les fixtures sont fictives. Le compte personnel, l’installation iPhone, le son matériel et le prochain renouvellement Sideloadly ne sont pas testés par le simulateur. L’audit local du 19 novembre confirme seulement que l’auto-renouvellement existant est configuré et sans échec enregistré.
+
 # Vérification de Cadenza 0.4.0 — 18 novembre 2026
 
 Compilation et contrôles finaux : [GitHub Actions](https://github.com/JuJT/Cadence/actions/runs/44347981845), commit `ffe0013fa0589791dae70e31bb7f38ca16969339`, version 0.4.0 build 5. Les quatre variantes ciblent uniquement l’iPhone et conservent l’identifiant `com.cadence.study`.

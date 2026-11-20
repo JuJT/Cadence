@@ -11,7 +11,10 @@ candidates = [(runtime, item['name'], item['udid']) for runtime, devices in data
               if item.get('isAvailable') and item['name'].startswith('iPhone')]
 if not candidates:
     raise SystemExit('Aucun simulateur iPhone disponible. Aucun test simulateur validé.')
-print(sorted(candidates, reverse=True)[0][2])
+# Prefer an ordinary Pro device on the previously verified 26.4 runtime when
+# installed. The Air / 26.5 image can report terminal data-migration failures.
+preferred = [(r, n, u) for r, n, u in candidates if r.endswith('iOS-26-4') and n == 'iPhone 17 Pro']
+print((preferred or sorted(candidates, reverse=True))[0][2])
 PY
 )"
 derived="${RUNNER_TEMP:-$PWD/work}/CadenceSimulator"
@@ -48,11 +51,20 @@ if [[ "${ONLY_SESSION_PRESENTATION:-false}" == "true" ]]; then
   printf '%s\n' 'Contrôle ciblé de Nouvelle séance, du formulaire et de la confirmation de fin. Les autres parcours ne sont pas exécutés par ce run.' > dist/reports/simulator-status.txt
   exit 0
 fi
-run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
-  -skip-testing:CadenceUITests/CadenceUITests/testDarkStatistics
+if [[ "${ONLY_SCHOOL_INTERFACE:-false}" == "true" ]]; then
+  run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
+    -only-testing:CadenceUITests/CadenceUITests/testMusicAndFocusSheetHasNavigationAndClosesToSession \
+    -only-testing:CadenceUITests/CadenceUITests/testPronotePortalReadsSyntheticGradesLessonAndMessages
+else
+  run_tests "$simulator_id" dist/CadenceUITests.xcresult iphone \
+    -skip-testing:CadenceUITests/CadenceUITests/testDarkStatistics
+fi
 xcrun simctl ui "$simulator_id" appearance dark
 run_tests "$simulator_id" dist/CadenceDarkUITests.xcresult dark \
   -only-testing:CadenceUITests/CadenceUITests/testDarkStatistics
 xcrun simctl ui "$simulator_id" appearance light
 
 printf '%s\n' 'Cadenza : parcours iPhone uniquement, captures XCTest natives. Aucune prise en charge iPad dans cette livraison.' > dist/reports/simulator-status.txt
+if [[ "${ONLY_SCHOOL_INTERFACE:-false}" == "true" ]]; then
+  printf '%s\n' 'Recontrôle ciblé des deux parcours corrigés (Notes et Son), puis Statistiques en mode sombre. Les autres parcours ne sont pas rejoués par ce run.' >> dist/reports/simulator-status.txt
+fi

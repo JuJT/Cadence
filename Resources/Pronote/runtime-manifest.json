@@ -1,21 +1,22 @@
 {
   "library": "@blockshub/pawnote-lts",
   "version": "1.6.4",
-  "sha256": "5737b1f641291209a5d6fa3c90ed9fe02b29f837c4ec26d9b2180fbe5d8934b0",
+  "runtimeVersion": "0.5.0",
+  "sha256": "12ff0352c92bde8c1f2d9cb63d083f785fb602fa2a52d115a4b551ed9eb40b38",
   "patch": "PapillonApp/Papillon, pinned source in Runtime/patches",
-  "bytes": 421420,
+  "bytes": 426145,
   "license": "GPL-3.0-or-later",
   "sdkSourceHash": "1147d007e48c23c0cfb3a952ded5249c751be78b348017e07038ba7927542219",
   "compatibility": {
-    "id": "cadenza-pronote2026-lazy-news-v2",
+    "id": "cadenza-pronote2026-lazy-news-v3",
     "source": "https://demo.index-education.net/pronote/eleve.html",
     "protocol": {
       "sourceURL": "https://demo.index-education.net/pronote/E_3_C_26A61756062CEBB94B47B3C6829978280DB11D70F4823EE0434C06DDCB7796AA_L_1036/eleve_defer.js",
-      "sourceSHA256": "bb67d249720fffe00b3219c85aff891ee99094e992fa37ac7913cbe9cb286fd1",
-      "inspectedAtUTC": "2026-11-18",
+      "sourceSHA256": "ebcc104485a3f99a30600e67c871a235d24ad06c4450c75e6948f127f3c4fa42",
+      "inspectedAtUTC": "2026-11-19",
       "providerVersion": "2026.2.8"
     },
     "news2026Empty": "supported",
-    "news2026Nonempty": "lazy read-only detail; strict known forms; unrecognized forms preserve cache with an explicit error"
+    "news2026Nonempty": "lazy read-only detail; optional recipient metadata does not block reading; unrecognized content forms preserve cache with an explicit error"
   }
 }

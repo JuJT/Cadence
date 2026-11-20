@@ -84,13 +84,14 @@ struct RevisionView: View {
             AtelierCard {
                 if let id = active.activeHomeworkID, let item = store.state.homework.first(where: { $0.id == id }) {
                     Label(item.source.subject, systemImage: "checklist").font(.headline)
-                    Text(item.source.description).font(.subheadline).lineLimit(3)
+                    Text(SchoolRichText.plain(item.source.description)).font(.subheadline).lineLimit(3)
+                        .accessibilityIdentifier("session.homework.description")
                     Button("Valider ce devoir", systemImage: "checkmark.circle") { store.setHomeworkCompletion(id, isDone: true) }
                         .accessibilityIdentifier("session.homework.complete")
                 }
                 Button(active.activeHomeworkID == nil ? "Associer un devoir" : "Changer de devoir", systemImage: "list.bullet.clipboard") { showHomework = true }
                     .accessibilityIdentifier("session.homework.choose")
-                Button("Concentration et musique", systemImage: "headphones") { showCompanion = true }
+                Button("Son et concentration", systemImage: "headphones") { showCompanion = true }
                     .accessibilityIdentifier("session.companion")
             }
             NavigationLink { SessionEditorView(session: active) } label: {

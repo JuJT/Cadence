@@ -38,11 +38,12 @@ struct SettingsView: View {
                 Text("Sauvegardez avant un renouvellement de signature. Une restauration remplace les données actuelles après confirmation. Aucun fichier n’est envoyé à un serveur.")
             }
             Section("Intégrations Apple") {
-                NavigationLink { SessionCompanionView() } label: { Label("Concentration et musique", systemImage: "headphones") }
+                NavigationLink { SessionCompanionView() } label: { Label("Son et concentration", systemImage: "headphones") }
                 Toggle("Live Activities", isOn: Binding(get: { store.state.settings.liveActivityEnabled }, set: { enabled in var settings = store.state.settings; settings.liveActivityEnabled = enabled; store.updateSettings(settings) }))
                 NavigationLink { IntegrationsHelpView() } label: { Label("Widgets, Raccourcis et Apple Watch", systemImage: "square.stack.3d.up") }
             }
             Section("À propos") {
+                NavigationLink { AppUpdatesView() } label: { Label("Mises à jour", systemImage: "arrow.down.circle") }
                 NavigationLink("Sources et licences") { CadenzaLicensesView() }
             }
             Section("Diagnostic") {

@@ -4,7 +4,11 @@ cd "$(dirname "$0")/.."
 mkdir -p dist/reports
 build_root="${RUNNER_TEMP:-$PWD/work}/CadenceDevice"
 schemes=(CadenceSpike Cadence CadenceExtensions)
-if [[ "${INCLUDE_SHARED:-false}" == "true" ]]; then schemes+=(CadenceShared); fi
+if [[ "${ONLY_SCHOOL_INTERFACE:-false}" == "true" ]]; then
+  schemes=(CadenceExtensions)
+elif [[ "${INCLUDE_SHARED:-false}" == "true" ]]; then
+  schemes+=(CadenceShared)
+fi
 for scheme in "${schemes[@]}"; do
   derived="$build_root/$scheme"
   xcodebuild -project Cadence.xcodeproj -scheme "$scheme" \

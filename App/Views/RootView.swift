@@ -16,7 +16,9 @@ struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selected: CadenceSection = .accueil
     @State private var showSettings = false
+    @State private var introductionCompletedThisLaunch = false
     @AppStorage("cadence.appearance") private var appearance = "system"
+    @AppStorage("cadence.introduction.lastSeenRelease") private var lastSeenRelease = ""
     var body: some View {
         TabView(selection: $selected) {
             ForEach(CadenceSection.allCases) { section in
@@ -28,8 +30,18 @@ struct RootView: View {
         .preferredColorScheme(appearance == "light" ? .light : appearance == "dark" ? .dark : nil)
         .environment(\.locale, Locale(identifier: "fr_FR"))
         .sheet(isPresented: $showSettings) { NavigationStack { SettingsView() } }
-        .fullScreenCover(isPresented: Binding(get: { !store.needsRecovery && !store.state.settings.onboardingCompleted }, set: { _ in })) {
-            OnboardingView()
+        .fullScreenCover(isPresented: Binding(get: { introductionMode != nil }, set: { _ in })) {
+            if let mode = introductionMode {
+                AppIntroductionView(mode: mode) {
+                    if mode == .setup {
+                        var settings = store.state.settings
+                        settings.onboardingCompleted = true
+                        store.updateSettings(settings)
+                    }
+                    lastSeenRelease = AppIntroductionView.releaseID
+                    introductionCompletedThisLaunch = true
+                }
+            }
         }
         .alert("Cadenza", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("Compris", role: .cancel) { store.errorMessage = nil }
@@ -42,6 +54,17 @@ struct RootView: View {
         .sensoryFeedback(.selection, trigger: store.state.activeSession?.id)
         .sensoryFeedback(.selection, trigger: store.state.activeSession?.isPaused)
     }
+    private var introductionMode: AppIntroductionMode? {
+        guard !store.needsRecovery, !introductionCompletedThisLaunch else { return nil }
+        #if targetEnvironment(simulator)
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--uitesting-onboarding") { return .setup }
+        if arguments.contains("--uitesting-whats-new") { return .update }
+        if arguments.contains("--uitesting") { return nil }
+        #endif
+        if !store.state.settings.onboardingCompleted { return .setup }
+        return lastSeenRelease != AppIntroductionView.releaseID ? .update : nil
+    }
     private func navigation(_ section: CadenceSection) -> some View {
         NavigationStack {
             Group {
@@ -53,7 +76,7 @@ struct RootView: View {
                 case .statistiques: StatisticsView()
                 }
             }
-            .environment(\.cadenceTabIsActive, selected == section && !showSettings)
+            .environment(\.cadenceTabIsActive, selected == section && !showSettings && introductionMode == nil)
             .background(CadenceBackground(animated: false))
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
@@ -78,38 +101,4 @@ struct RootView: View {
             Text("Cadenza").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
         }.fixedSize(horizontal: true, vertical: false).accessibilityElement(children: .combine)
     }
-}
-
-private struct OnboardingView: View {
-    @EnvironmentObject private var store: AppStore
-    @State private var page = 0
-    @State private var showCalendar = false
-    var body: some View {
-        NavigationStack {
-            AtelierPage {
-                Spacer(minLength: 24)
-                Image(systemName: page == 0 ? "chart.bar.xaxis" : "calendar.badge.clock")
-                    .font(.system(size: 64, weight: .light)).foregroundStyle(Atelier.blue)
-                    .frame(maxWidth: .infinity).accessibilityHidden(true)
-                Text(page == 0 ? "Votre temps,\nvotre cadence." : "Un agenda qui\nvous ressemble.")
-                    .font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
-                Text(page == 0 ? "Gardez un suivi distinct de vos cours et de vos révisions. Vos séances personnelles restent sur cet appareil." : "Connectez votre espace scolaire sécurisé pour retrouver automatiquement vos cours et vos devoirs, même hors connexion après synchronisation.")
-                    .font(.title3).foregroundStyle(.secondary)
-                AtelierCard {
-                    Label(page == 0 ? "Cours et révisions séparés" : "Connexion initiale sécurisée", systemImage: page == 0 ? "books.vertical" : "lock.shield")
-                    Label(page == 0 ? "Des matières personnalisables" : "Cours passés comptés automatiquement", systemImage: page == 0 ? "pencil" : "checkmark.shield")
-                    Label(page == 0 ? "Des sauvegardes que vous contrôlez" : "Retirez les cours qui n’ont pas eu lieu", systemImage: page == 0 ? "square.and.arrow.up" : "calendar.badge.minus")
-                }
-                if page == 0 {
-                    ProminentAction(title: "Continuer", symbol: "arrow.right") { page = 1 }
-                } else {
-                    ProminentAction(title: "Connecter mon espace scolaire", symbol: "graduationcap") { showCalendar = true }
-                    SecondaryAction(title: "Commencer avec le suivi manuel", symbol: "arrow.right") { complete() }
-                }
-            }
-            .navigationTitle("Bienvenue sur Cadenza").navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showCalendar, onDismiss: { complete() }) { NavigationStack { SchoolConnectionView() } }
-        }.interactiveDismissDisabled()
-    }
-    private func complete() { var settings = store.state.settings; settings.onboardingCompleted = true; store.updateSettings(settings) }
 }

@@ -27,7 +27,7 @@ enum SchoolUITestFixtures {
             ],
             homework: [
                 SchoolHomework(uid: "fixture-homework-math-today", subject: "Mathématiques", deadline: date(0),
-                    description: "Exemple fictif : résoudre deux équations et vérifier les résultats.",
+                    description: "<div style=\"font-family: Arial\">Exemple fictif : résoudre deux équations et vérifier les résultats.&nbsp;</div>",
                     difficulty: .string("Exemple de difficulté"), lengthMinutes: 20,
                     attachmentNames: .array([.string("exercices-fictifs.pdf")]), sourceUpdatedAt: now, syncedAt: now),
                 SchoolHomework(uid: "fixture-homework-english-tomorrow", subject: "Anglais", deadline: date(1),
@@ -42,7 +42,7 @@ enum SchoolUITestFixtures {
             ],
             courseContent: [
                 SchoolCourseContent(resourceID: "fixture-resource-french", contentID: "fixture-content-french",
-                    title: "Lecture — exemple fictif", description: "Contenu pédagogique fictif réservé aux tests du simulateur.")
+                    title: "Lecture — exemple fictif", description: "&lt;div&gt;Contenu pédagogique fictif réservé aux tests du simulateur.&lt;/div&gt;")
             ],
             syncState: SchoolSyncState(lastTimetableSync: now, lastHomeworkSync: now, lastContentSync: now),
             windowStart: date(-30), windowEnd: date(31)

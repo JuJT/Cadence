@@ -1,4 +1,5 @@
 import {mapLesson,mapAssignment,mapResource,localDayArgument,profileFor,safeJSON} from './mapping.js';
+import {resolvePeriod,projectGrades} from './school-data.js';
 
 export function createRuntime(api,native) {
   let session=null,credential=null,challenge=null,authenticated=false,discussionsCache=null;
@@ -36,7 +37,6 @@ export function createRuntime(api,native) {
   function requireCompose(kind){requireCapability('discussions');requireCapability('compose');if(kind!==3)throw Error('UnsupportedSection');}
   function messageContent(text){return session.user.authorizations?.hasAdvancedDiscussionEditor?
     text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\r?\n/g,'<br>'):text;}
-  function period(id){const list=session.instance.periods??[];const found=id?list.find(x=>x.id===id):list.find(x=>x.startDate<=new Date()&&x.endDate>=new Date())||list[0];if(!found)throw Error('InvalidPeriod');return found;}
   function weekRange(args){
     const selected=typeof args.periodID==='string'&&args.periodID.startsWith('week:')?args.periodID.slice(5):null;
     const start=localDayArgument(selected??args.dateDay??args.date??new Date().toISOString());
@@ -122,15 +122,15 @@ export function createRuntime(api,native) {
     if(name==='section') {
       const section=args.section;
       requireCapability(section);
-      const p=()=>period(args.periodID);
-      if(section==='grades')return safeJSON(await api.gradesOverview(session,p()));
+      const p=()=>resolvePeriod(session,section,args.periodID);
+      if(section==='grades')return safeJSON(projectGrades(await api.gradesOverview(session,p())));
       if(section==='evaluations')return safeJSON(await api.evaluations(session,p()));
       if(section==='gradebook')return safeJSON(await api.gradebook(session,p()));
       if(section==='attendance')return safeJSON(await api.notebook(session,p()));
       if(section==='menus')return safeJSON(await api.menus(session,weekRange(args).start));
       if(section==='account')return safeJSON(await api.account(session));
       if(section==='homepage')return safeJSON(await api.homepage(session));
-      if(section==='news') {const value=await api.news(session);for(const item of value.items??[])newsItems.set(item.id,item);return safeJSON(value);}
+      if(section==='news') {const value=await api.news(session);for(const item of value.items??[])newsItems.set(String(item.id),item);return safeJSON(value);}
       if(section==='discussions') return fetchDiscussions();
       if(section==='contents') {const range=weekRange(args);const value=await api.resourcesFromIntervals(session,range.start,range.end);
         for(const item of value)resources.set(item.id,item);return safeJSON(value);}

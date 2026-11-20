@@ -52,7 +52,9 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Son et concentration"].waitForExistence(timeout: 4))
         let volume = app.descendants(matching: .any).matching(identifier: "companion.system.volume").firstMatch
         XCTAssertTrue(volume.waitForExistence(timeout: 3))
-        XCTAssertTrue(reveal(app.buttons["companion.focus.add"], in: app))
+        let focusGuide = app.staticTexts["companion.focus.guide"]
+        XCTAssertTrue(reveal(focusGuide, in: app))
+        XCTAssertFalse(app.buttons["companion.focus.add"].exists)
         capture(app, name: "musique-et-concentration")
         tap(app.buttons["Fermer"], in: app)
         XCTAssertFalse(app.navigationBars["Son et concentration"].exists)
@@ -74,13 +76,15 @@ final class CadenceUITests: XCTestCase {
 
         tap(app.buttons["pronote.portal.contents"], in: app)
         XCTAssertTrue(app.navigationBars["Contenus des cours"].waitForExistence(timeout: 4))
+        tap(app.buttons["pronote.contents.subject.Mathématiques"], in: app)
         tap(app.buttons["pronote.resource.fixture-resource"], in: app)
         XCTAssertTrue(app.navigationBars["Contenu du cours"].waitForExistence(timeout: 4))
         XCTAssertTrue(reveal(app.staticTexts["Leçon fictive : les équations"], in: app))
         XCTAssertTrue(app.staticTexts["Contenu entièrement fictif : isoler une inconnue puis vérifier la solution."].exists)
         capture(app, name: "pronote-lecon")
         app.navigationBars.buttons.firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Contenus des cours"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.navigationBars["Mathématiques"].waitForExistence(timeout: 4))
+        app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
 
         tap(app.buttons["pronote.portal.discussions"], in: app)
@@ -98,6 +102,26 @@ final class CadenceUITests: XCTestCase {
         context.name = "pronote-portail-contexte"
         context.lifetime = .keepAlways
         add(context)
+    }
+
+    @MainActor
+    func testSchoolOverviewOpensReadableAttendanceAndNews() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        tap(app.buttons["pronote.quick.attendance"], in: app)
+        XCTAssertTrue(app.navigationBars["Vie scolaire"].waitForExistence(timeout: 4))
+        XCTAssertTrue(reveal(app.staticTexts["Motif fictif : maladie"], in: app))
+        XCTAssertTrue(app.staticTexts["4 h 00 de cours manqués"].exists)
+        XCTAssertTrue(app.staticTexts["Régularisée"].exists)
+        capture(app, name: "pronote-absences-refonte")
+        app.navigationBars.buttons.firstMatch.tap()
+        tap(app.buttons["pronote.quick.news"], in: app)
+        tap(app.buttons["pronote.news.fixture-news"], in: app)
+        let content = app.staticTexts["pronote.news.content"]
+        XCTAssertTrue(content.waitForExistence(timeout: 4))
+        XCTAssertFalse(content.label.contains("<div"))
+        capture(app, name: "pronote-information-refonte")
     }
 
     @MainActor
@@ -391,6 +415,37 @@ final class CadenceUITests: XCTestCase {
         homeworkTab.tap()
         XCTAssertTrue(app.buttons["homework.complete"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["homework.complete"].label.contains("Remettre à faire"))
+    }
+
+    @MainActor
+    func testHomeworkQuickActionsCleanHTMLAndKeepNavigationSimple() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments(["--uitesting-school"])
+        app.launch()
+        let tabs = app.tabBars
+        XCTAssertTrue(tabs.buttons["Devoirs"].waitForExistence(timeout: 8))
+        tabs.buttons["Devoirs"].tap()
+        let mathID = "fixture-homework-math-today"
+        let row = app.buttons["homework.row." + mathID]
+        XCTAssertTrue(reveal(row, in: app))
+        XCTAssertTrue(row.label.contains("Exemple fictif : résoudre deux équations et vérifier les résultats."))
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "<div")).firstMatch.exists)
+        tap(app.buttons["homework.quick.complete." + mathID], in: app)
+        XCTAssertTrue(app.navigationBars["Devoirs"].exists)
+        XCTAssertFalse(row.exists)
+        tap(app.segmentedControls.buttons["Terminés"], in: app)
+        tap(app.buttons["homework.quick.complete." + mathID], in: app)
+        tap(app.segmentedControls.buttons["À faire"], in: app)
+        tap(app.buttons["homework.quick.start." + mathID], in: app)
+        XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        let instructions = app.staticTexts["session.homework.description"]
+        XCTAssertTrue(reveal(instructions, in: app))
+        XCTAssertEqual(instructions.label, "Exemple fictif : résoudre deux équations et vérifier les résultats.")
+        tabs.buttons["Devoirs"].tap()
+        XCTAssertTrue(app.navigationBars["Devoirs"].exists)
+        XCTAssertTrue(reveal(app.buttons["homework.quick.start." + mathID], in: app))
+        XCTAssertTrue(app.buttons["homework.quick.start." + mathID].label.contains("Séance en cours"))
+        capture(app, name: "devoirs-actions-directes")
     }
 
     @MainActor

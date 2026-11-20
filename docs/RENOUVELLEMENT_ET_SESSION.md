@@ -1,23 +1,31 @@
-# Renouvellement, son et concentration
+# Renouvellement de signature et nouvelles versions
 
-## Renouvellement Sideloadly
+## Situation vérifiée le 19 novembre 2026
 
-L’audit local du 16 novembre 2026 a trouvé Sideloadly, son daemon et son entrée de démarrage, avec Cadenza inscrite au renouvellement automatique sans échec enregistré. Ce constat n’est pas une promesse de disponibilité permanente du PC ou de l’iPhone.
+L’audit local a trouvé le daemon Sideloadly actif et son démarrage Windows configuré. Cadenza 0.4.0 est inscrite au renouvellement automatique (`one_off=0`), avec extensions conservées (`drop_plugins=0`). Le cache annonce une validité de sept jours et un seuil de renouvellement à 96 heures. Sa dernière mise à jour enregistrée date du 18 novembre à 19 h 09, sans erreur enregistrée et avec un compteur d’échecs à zéro. Ce constat ne prouve pas un prochain renouvellement ni une disponibilité permanente du PC et de l’iPhone.
 
-Chaque profil gratuit reste valable sept jours. Le PC doit pouvoir joindre l’iPhone en USB ou sur le réseau Wi-Fi configuré pour le renouveler avant expiration. À chaque mise à jour, conserver le même compte, le même identifiant d’app et l’auto-renouvellement ; installer par-dessus sans désinstaller. L’app ne peut pas prolonger seule son profil Apple. La resignature automatique ne télécharge pas automatiquement les nouvelles versions de Cadenza.
+Le renouvellement automatique **est donc déjà configuré**. Le PC doit rester disponible et pouvoir joindre l’iPhone en USB ou par le Wi-Fi préalablement configuré. Selon la FAQ officielle Sideloadly, le daemon tente de renouveler les apps proches de leur expiration lorsqu’il détecte l’appareil.
+
+Pour remplacer l’IPA par une nouvelle version, l’installer par-dessus avec **le même compte Apple, le même bundle ID et l’option d’auto-renouvellement activée**. Sideloadly remplace alors aussi la version qu’il conserve pour les renouvellements. Ne pas désinstaller l’app pour effectuer cette opération ; les données locales pourraient être supprimées. Exporter une sauvegarde avant un remplacement reste utile.
+
+Source : [FAQ officielle Sideloadly — auto-renouvellement, nouvelles IPA et conservation des données](https://sideloadly.io/faq).
+
+## Mise à jour à distance
+
+La compilation distante GitHub Actions produit les IPA et des rapports dans une release **brouillon**. Cela permet de récupérer une version à distance, mais ne crée pas un canal d’installation automatique sur iPhone. Le code Swift embarqué doit être compilé et signé de nouveau ; une mise à jour du texte des annonces n’effectue pas cette opération. L’app ne possède aucun identifiant Apple ni certificat permettant de prolonger sa propre signature.
+
+Les options concrètes sont :
+
+| Canal | Nouvelles versions | Renouvellement et conditions |
+|---|---|---|
+| Sideloadly actuel | Charger la nouvelle IPA une fois sur le PC ; installation ensuite possible en USB ou Wi-Fi configuré | Daemon déjà configuré ; PC et iPhone joignables nécessaires, compte et bundle stables |
+| TestFlight | Téléchargement distant et mises à jour automatiques activables sur iPhone | Compte Apple Developer Program, signature de distribution et canal App Store Connect à mettre en place ; chaque build de test est utilisable jusqu’à 90 jours |
+| App Store | Distribution distante et mises à jour par le mécanisme système | Compte développeur, configuration de distribution et validation Apple |
+
+Cette livraison conserve le canal Sideloadly existant. Elle ne crée ni abonnement développeur, ni publication App Store, ni accès TestFlight. Réglages → Mises à jour recherche les versions publiques. Les releases brouillon CI ne sont pas visibles par ce vérificateur anonyme ; dans ce cas, il indique explicitement qu’aucune mise à jour publique n’est proposée. La recherche ne remplace pas l’installation et la resignature de la nouvelle IPA.
+
+Sources : [TestFlight Apple — mises à jour automatiques et durée des builds](https://testflight.apple.com/), [TestFlight pour développeurs](https://developer.apple.com/testflight/), [compte développeur Apple](https://developer.apple.com/help/account/basics/about-your-developer-account/), [mises à jour automatiques App Store](https://developer.apple.com/help/app-store-connect/update-your-app/release-a-version-update-in-phases/).
 
 ## Son et concentration
 
-Depuis Révision ou Réglages, ouvrir **Son et concentration**. Le volume système et le choix de sortie audio utilisent les vrais contrôles Apple. Aucun lecteur MP3 ni lien vers Deezer n’est proposé.
-
-Pour la musique déjà lancée dans Deezer ou Fichiers, les commandes de piste et de position restent dans le Centre de contrôle et sur l’écran verrouillé. Les API publiques iOS permettent à une app de publier son propre lecteur, mais ne lui donnent pas un lecteur universel des autres apps. Cadenza n’affiche pas de faux titres, durées ou boutons de piste.
-
-Le bouton **Ajouter le raccourci Concentration** propose le fichier signé **HongMix Focus**, sous licence MIT. Choisir Raccourcis dans la feuille de partage, confirmer son ajout en gardant ce nom, revenir à Cadenza puis utiliser **Tester le raccourci ajouté**. Il n’est pas nécessaire de construire les actions manuellement. Apple peut demander l’autorisation initiale d’exécuter le raccourci.
-
-Le helper est épinglé et vérifié : chaîne Apple, audience publique, signature de l’archive et liste exacte des dix actions Focus, sans réseau ni lecture de données scolaires. Son nom d’origine et sa licence sont conservés. La génération facultative d’un autre fichier avec shortcuts sign requiert un compte iCloud ; la livraison utilise le fichier préfait déjà signé et n’en dépend pas.
-
-Activer ensuite l’appel automatique si souhaité. Un début de cours ou de révision chronométrée appelle le helper. Le mode déjà actif est conservé ; un mode Ne pas déranger activé pour la séance est demandé à la désactivation à sa fin. Une pause conserve le mode. Le résultat du raccourci est vérifié selon son contrat, sans prétendre écrire directement un réglage iOS inaccessible.
-
-La validation de la signature et du graphe n’est pas une preuve d’exécution sur cet iPhone. L’import, les autorisations et le comportement réel restent à essayer sur l’appareil. Voir [les preuves et références](CAPACITES_NATIVES.md) et [le partage des widgets](WIDGETS_WINDOWS.md).
-
-Sources : [Sideloadly](https://sideloadly.io/faq), [événements du lecteur Apple](https://developer.apple.com/documentation/mediaplayer/handling-external-player-events-notifications), [URL Raccourcis](https://support.apple.com/guide/shortcuts/apd624386f42/ios).
+La version 0.5.0 retire les appels à Raccourcis : aucune ouverture de Raccourcis n’a lieu au début ou à la fin des séances. Une programmation native du mode Concentration par app peut être choisie dans les réglages iOS. Le lecteur universel reste celui du Centre de contrôle ; Cadenza présente les contrôles publics de volume et d’AirPlay. Voir [les possibilités et limites vérifiées](CAPACITES_NATIVES.md).

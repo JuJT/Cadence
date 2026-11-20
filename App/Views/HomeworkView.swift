@@ -87,12 +87,17 @@ struct HomeworkView: View {
     private func homeworkSection(_ group: HomeworkDateGroup, worked: [String: TimeInterval], now: Date) -> some View {
         Section {
             ForEach(group.items) { item in
-                NavigationLink { HomeworkDetailView(homeworkID: item.id) } label: {
-                    HomeworkRow(item: item, subject: Atelier.subject(item.subjectID, in: store.state),
-                                workedSeconds: worked[item.id, default: 0], now: now)
+                VStack(alignment: .leading, spacing: 0) {
+                    NavigationLink { HomeworkDetailView(homeworkID: item.id) } label: {
+                        HomeworkRow(item: item, subject: Atelier.subject(item.subjectID, in: store.state),
+                                    workedSeconds: worked[item.id, default: 0], now: now)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("homework.row." + item.id)
+                    Divider().padding(.horizontal, 16)
+                    HomeworkQuickActions(item: item).padding(.horizontal, 12).padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("homework.row." + item.id)
+                .cadenceSurface(radius: 24)
             }
         } header: {
             CadenceSectionHeader(title: HomeworkPresentation.deadline(group.date),
@@ -114,7 +119,7 @@ struct HomeworkView: View {
             let matchesSubject = subjectFilter == "all" ||
                 (subjectFilter == "unclassified" && item.subjectID == nil) || item.subjectID?.uuidString == subjectFilter
             let matchesSearch = search.isEmpty || item.source.subject.localizedStandardContains(search) ||
-                item.source.description.localizedStandardContains(search) ||
+                SchoolRichText.plain(item.source.description).localizedStandardContains(search) ||
                 (Atelier.subject(item.subjectID, in: store.state)?.name.localizedStandardContains(search) ?? false)
             return matchesState && matchesSubject && matchesSearch
         }.sorted { lhs, rhs in
@@ -167,10 +172,10 @@ struct HomeworkDetailView: View {
                     HomeworkStateBadge(item: item, now: now)
                     if item.subjectID == nil { StatusBadge(title: "Matière à classer", color: .orange) }
                 }
-                if item.source.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if SchoolRichText.plain(item.source.description).isEmpty {
                     Text("Aucune consigne supplémentaire dans le flux PRONOTE.").foregroundStyle(.secondary)
                 } else {
-                    Text(item.source.description).font(.body).foregroundStyle(CadenceColors.ink)
+                    Text(SchoolRichText.plain(item.source.description)).font(.body).foregroundStyle(CadenceColors.ink)
                         .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                         .accessibilityIdentifier("homework.description")
                 }
@@ -340,7 +345,7 @@ struct HomeworkPickerSheet: View {
                             SubjectMark(subject: Atelier.subject(item.subjectID, in: store.state))
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(Atelier.subject(item.subjectID, in: store.state)?.name ?? item.source.subject).font(.headline)
-                                Text(item.source.description.isEmpty ? "Consigne non renseignée" : item.source.description)
+                                Text(SchoolRichText.plain(item.source.description).isEmpty ? "Consigne non renseignée" : SchoolRichText.plain(item.source.description))
                                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
                                 Text("Pour le " + HomeworkPresentation.deadline(item.source.deadline)).font(.caption).foregroundStyle(.secondary)
                             }
@@ -366,7 +371,7 @@ private struct HomeworkRow: View {
             SubjectMark(subject: subject)
             VStack(alignment: .leading, spacing: 7) {
                 Text(subject?.name ?? item.source.subject).font(.headline).foregroundStyle(CadenceColors.ink)
-                Text(item.source.description.isEmpty ? "Consigne non renseignée" : item.source.description)
+                Text(SchoolRichText.plain(item.source.description).isEmpty ? "Consigne non renseignée" : SchoolRichText.plain(item.source.description))
                     .font(.subheadline).foregroundStyle(CadenceColors.secondary).lineLimit(3)
                 Text("Pour le " + HomeworkPresentation.deadline(item.source.deadline)).font(.caption).foregroundStyle(.secondary)
                 HStack(spacing: 8) {
@@ -378,7 +383,55 @@ private struct HomeworkRow: View {
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).padding(.top, 13)
-        }.padding(16).frame(maxWidth: .infinity, alignment: .leading).cadenceSurface(radius: 22)
+        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Independent controls below the detail link: completing or starting a task
+/// never requires opening its detail screen or nesting buttons in a link.
+private struct HomeworkQuickActions: View {
+    let item: HomeworkItem
+    @EnvironmentObject private var store: AppStore
+    private var active: StudySession? { store.state.activeSession }
+    private var isAttached: Bool { active?.activeHomeworkID == item.id }
+    private var canStart: Bool {
+        active != nil || store.state.subjects.contains { $0.id == item.subjectID && !$0.isArchived }
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { completion; session }
+            VStack(alignment: .leading, spacing: 4) { completion; session }
+        }
+    }
+
+    private var completion: some View {
+        Button {
+            store.setHomeworkCompletion(item.id, isDone: !item.isDone)
+        } label: {
+            Label(item.isDone ? "À refaire" : "Valider", systemImage: item.isDone ? "arrow.uturn.backward" : "checkmark.circle")
+                .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderless).tint(item.isDone ? Atelier.blue : CadenceColors.positive)
+        .accessibilityLabel(item.isDone ? "Remettre ce devoir à faire" : "Marquer ce devoir comme terminé")
+        .accessibilityHint("Votre choix est enregistré dans Cadenza.")
+        .accessibilityIdentifier("homework.quick.complete." + item.id)
+    }
+
+    private var session: some View {
+        Button {
+            if !isAttached {
+                if active == nil { store.startHomework(item.id) }
+                else { store.assignHomeworkToActiveSession(item.id) }
+            }
+            if store.state.activeSession?.activeHomeworkID == item.id { store.route = "revision" }
+        } label: {
+            Label(isAttached ? "Séance en cours" : active == nil ? "Démarrer" : "Associer", systemImage: isAttached ? "timer" : active == nil ? "play.fill" : "link")
+                .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderless).disabled(!canStart)
+        .accessibilityHint(canStart ? "Ouvre le chronomètre associé à ce devoir." : "Ouvrez le devoir pour choisir une matière.")
+        .accessibilityIdentifier("homework.quick.start." + item.id)
     }
 }
 

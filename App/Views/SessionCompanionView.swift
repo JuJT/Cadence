@@ -3,7 +3,6 @@ import MediaPlayer
 import SwiftUI
 
 struct SessionCompanionView: View {
-    @ObservedObject private var companion = SessionCompanionService.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -23,43 +22,32 @@ struct SessionCompanionView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }.padding(.vertical, 6)
             }
-            Section("Lecture en cours dans une autre app") {
-                Label("Deezer et Fichiers gardent leur lecteur", systemImage: "waveform")
-                Text("Pour mettre en pause, changer de piste ou avancer dans le morceau, ouvrez le Centre de contrôle en glissant depuis l’angle supérieur droit de l’écran. Un appui prolongé sur le lecteur affiche ses commandes.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Text("Cadenza laisse votre musique continuer et ne remplace pas le lecteur de l’autre app.")
-                    .font(.footnote).foregroundStyle(.secondary)
+            Section("Lecteur média d’iOS") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Votre lecture, au même endroit", systemImage: "play.rectangle.on.rectangle")
+                        .font(.headline)
+                    Text("Le Centre de contrôle rassemble le média en cours, quelle que soit son app d’origine.")
+                        .font(.subheadline)
+                    Label("Glissez vers le bas depuis l’angle supérieur droit de l’écran.", systemImage: "hand.draw")
+                    Text("Sur un iPhone avec bouton principal, glissez vers le haut depuis le bord inférieur.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Label("Maintenez le lecteur pour retrouver lecture, pause et pistes.", systemImage: "playpause")
+                    Text("Ce lecteur système ne peut pas être intégré à l’intérieur de Cadenza avec les fonctions publiques d’iOS.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 6)
+                .accessibilityIdentifier("companion.control-center.guide")
             }
-            Section("Ne pas déranger pendant la séance") {
-                if let url = companion.preparedShortcutURL {
-                    ShareLink(item: url, preview: SharePreview(SessionCompanionService.preparedShortcutName, image: Image(systemName: "moon.fill"))) {
-                        Label("Ajouter le raccourci Concentration", systemImage: "plus.circle.fill")
-                    }
-                    .accessibilityIdentifier("companion.focus.add")
-                    Text("Ouvrez le fichier avec Raccourcis, puis confirmez Ajouter. Gardez son nom « HongMix Focus ». Les actions sont déjà préparées.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                    Text("Raccourci libre sous licence MIT, fourni par HongMix et vérifié avant intégration.")
-                        .font(.caption2).foregroundStyle(.secondary)
-                } else {
-                    Label("Fichier du raccourci indisponible dans cette compilation", systemImage: "exclamationmark.triangle")
+            Section("Concentration") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Une séance sans interruption", systemImage: "moon.fill").font(.headline)
+                    Text("Dans le Centre de contrôle, touchez Concentration, puis Ne pas déranger. Pour l’activer à chaque ouverture de Cadenza, ajoutez l’app à la programmation d’un mode dans Réglages → Concentration.")
+                        .font(.subheadline)
+                        .accessibilityIdentifier("companion.focus.guide")
+                    Text("Vos séances démarrent et se terminent directement ici. L’ancien appel à Raccourcis a été retiré ; un mode déjà actif reste sous votre contrôle.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Button("Tester le raccourci ajouté", systemImage: "checkmark.shield") { companion.verifyPreparedFocusShortcut() }
-                    .accessibilityIdentifier("companion.focus.test")
-                Text("Le test ne change aucun mode Concentration.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Toggle("Activer pour mes séances chronométrées", isOn: $companion.focusEnabled)
-                    .disabled(!companion.preparedShortcutVerified && !companion.focusEnabled)
-                    .accessibilityIdentifier("companion.focus.enabled")
-                if companion.activeSessionID != nil {
-                    Button("Activer pour cette séance", systemImage: "moon.fill") { companion.enableFocusForCurrentSession() }
-                        .disabled(!companion.preparedShortcutVerified)
-                }
-                Button("Terminer le mode de cette séance", systemImage: "moon") { companion.disableManagedFocus() }
-                    .disabled(!companion.canEndManagedFocus)
-                Text(companion.focusStatusText).font(.footnote).foregroundStyle(.secondary)
-                Text("Après l’ajout initial, Cadenza appelle le raccourci au début et à la fin des séances. Une pause conserve le mode. Un mode déjà actif est conservé.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                .padding(.vertical, 6)
             }
         }
         .cadenceListStyle()
