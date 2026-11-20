@@ -43,11 +43,11 @@ struct SessionCompanionView: View {
                     Label("Une séance sans interruption", systemImage: "moon.fill").font(.headline)
                     Text("Dans le Centre de contrôle, touchez Concentration, puis Ne pas déranger. Pour l’activer à chaque ouverture de Cadenza, ajoutez l’app à la programmation d’un mode dans Réglages → Concentration.")
                         .font(.subheadline)
+                        .accessibilityIdentifier("companion.focus.guide")
                     Text("Vos séances démarrent et se terminent directement ici. L’ancien appel à Raccourcis a été retiré ; un mode déjà actif reste sous votre contrôle.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 6)
-                .accessibilityIdentifier("companion.focus.guide")
             }
         }
         .cadenceListStyle()

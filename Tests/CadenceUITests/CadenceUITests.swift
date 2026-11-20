@@ -52,7 +52,7 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Son et concentration"].waitForExistence(timeout: 4))
         let volume = app.descendants(matching: .any).matching(identifier: "companion.system.volume").firstMatch
         XCTAssertTrue(volume.waitForExistence(timeout: 3))
-        let focusGuide = app.descendants(matching: .any).matching(identifier: "companion.focus.guide").firstMatch
+        let focusGuide = app.staticTexts["companion.focus.guide"]
         XCTAssertTrue(reveal(focusGuide, in: app))
         XCTAssertFalse(app.buttons["companion.focus.add"].exists)
         capture(app, name: "musique-et-concentration")

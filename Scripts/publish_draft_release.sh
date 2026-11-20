@@ -12,6 +12,17 @@ mkdir -p dist/reports
 # Une release brouillon n'est jamais présentée comme une compilation réussie.
 shopt -s nullglob
 assets=(dist/*-unsigned.ipa)
+# A compact, unmodified set of reports and named screenshots for delivery. Keep
+# the full xcresult archive below as the independent debug/audit evidence.
+compact_paths=()
+for path in dist/reports dist/screenshots; do
+  if [[ -d "$path" ]]; then compact_paths+=("${path#dist/}"); fi
+done
+if (( ${#compact_paths[@]} > 0 )); then
+  compact_zip="$PWD/dist/Cadence-apercu-et-resultats.zip"
+  (cd dist && /usr/bin/zip -qry "$compact_zip" "${compact_paths[@]}")
+  assets+=("$compact_zip")
+fi
 report_paths=()
 for path in dist/reports dist/screenshots dist/test-attachments dist/*.xcresult; do
   if [[ -d "$path" ]]; then report_paths+=("${path#dist/}"); fi

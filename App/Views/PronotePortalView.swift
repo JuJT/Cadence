@@ -172,7 +172,7 @@ struct PronoteSectionView: View {
     private var canCompose: Bool { (store.pronoteProfile ?? store.pronotePortal.profile)?.capabilities.contains("compose") == true }
 
     var body: some View {
-        AtelierPage(lazy: true) {
+        AtelierPage(lazy: section != .grades) {
             if section.usesWeek { weekPicker }
             if section.usesPeriod && !periods.isEmpty { periodPicker }
             PronoteCacheStatus(date: store.pronotePortal.updatedAt[cacheKey] ?? (periodID.isEmpty ? store.pronotePortal.updatedAt[section.rawValue] : nil), loading: loading, error: error)
