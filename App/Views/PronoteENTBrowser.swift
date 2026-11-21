@@ -114,7 +114,7 @@ private struct PronoteENTWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
-                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+                     decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
             guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
             if navigationAction.targetFrame?.isMainFrame == false, url.absoluteString == "about:blank" {
                 decisionHandler(.allow)
@@ -130,7 +130,7 @@ private struct PronoteENTWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
-                     decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+                     decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void) {
             guard navigationResponse.canShowMIMEType,
                   let url = navigationResponse.response.url,
                   PronoteLoginAddress.publicHTTPS(url.absoluteString) != nil else { decisionHandler(.cancel); return }
