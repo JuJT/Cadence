@@ -131,10 +131,12 @@ export function createRuntime(api,native) {
     if(name==='security') {
       if(!session||!challenge)throw Error('NotConnected');
       const h=challenge;
+      const createsPIN=h.shouldCustomDoubleAuth&&args.mode===3&&!h.shouldEnterPIN;
       if(h.shouldEnterPIN&&(!args.pin||!await api.securityCheckPIN(session,args.pin)))throw new api.BadCredentialsError();
+      if(createsPIN&&(typeof args.pin!=='string'||!/^[0-9]+$/.test(args.pin)))throw new api.BadCredentialsError();
       if(h.shouldCustomPassword&&(!args.password||!await api.securityCheckCustomPassword(session,args.password)))throw new api.BadCredentialsError();
       const options={};
-      if(h.shouldEnterPIN&&args.pin)options.pin=args.pin;
+      if(h.shouldEnterPIN||createsPIN)options.pin=args.pin;
       if(h.shouldCustomPassword&&args.password)options.password=args.password;
       if(h.shouldCustomDoubleAuth){if(!h.availableSecurityModes.includes(args.mode))throw new api.BadCredentialsError();options.mode=args.mode;}
       if(h.shouldEnterSource||h.shouldEnterPIN)options.deviceName=String(args.source||'Cadenza iPhone').slice(0,30);

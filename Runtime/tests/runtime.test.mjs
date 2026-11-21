@@ -182,6 +182,16 @@ test('security mode must be one offered by the server',async()=>{
   await assert.rejects(f.runtime.command('security',{mode:0}),f.api.BadCredentialsError);
   assert.equal(f.trace.some(x=>Array.isArray(x)&&x[0]==='securitySave'),false);
 });
+test('choosing PIN mode saves the new PIN without checking it as an existing PIN',async()=>{
+  const f=fixture();
+  const handle={shouldEnterPIN:false,shouldCustomDoubleAuth:true,availableSecurityModes:[2,3],context:{authentication:{},identity:{}}};
+  f.api.loginCredentials=async()=>{throw new f.api.SecurityError(handle);};
+  f.api.securityCheckPIN=async()=>{assert.fail('The user is creating a new PIN');};
+  try{await login(f);}catch(e){f.runtime.classify(e);}
+  await assert.rejects(f.runtime.command('security',{mode:3,pin:''}),f.api.BadCredentialsError);
+  await f.runtime.command('security',{mode:3,pin:'0042'});
+  assert.deepEqual(f.trace.filter(entry=>Array.isArray(entry)&&entry[0]==='securitySave'),[['securitySave',{mode:3,pin:'0042'}]]);
+});
 test('discussions preserve real participant IDs, avoid circular cache and never mark read',async()=>{
   const f=fixture();await login(f);
   const item={participantsMessageID:'real-thread-fixture',subject:'Sujet fictif',date:DATE(),closed:false,possessions:{secret:'protocol-only'}};

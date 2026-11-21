@@ -180,8 +180,11 @@ private struct PronoteENTWebView: UIViewRepresentable {
 
         private func continueFromMobileInfo(_ webView: WKWebView) async {
             let value = try? await evaluate(webView, on: address.mobileInfo, "return (document.body?.innerText || '').slice(0, 131072);")
-            guard !Task.isCancelled, address.recognizes(webView.url, as: address.mobileInfo), let text = value as? String,
-                  let info = try? JSONDecoder().decode(MobileInfo.self, from: Data(text.utf8)) else { return }
+            guard !Task.isCancelled, address.recognizes(webView.url, as: address.mobileInfo) else { return }
+            guard let text = value as? String, let info = try? JSONDecoder().decode(MobileInfo.self, from: Data(text.utf8)) else {
+                browser.onError("La réponse de l’établissement ne permet pas de poursuivre la connexion ENT. Ouvrez PRONOTE dans votre navigateur habituel pour générer un QR code.")
+                return
+            }
             guard let cas = info.CAS, cas.actif == true || cas.jetonCAS?.isEmpty == false else {
                 browser.onError("Cet établissement ne propose pas d’ENT dans son espace mobile PRONOTE. Choisissez les identifiants PRONOTE ou utilisez un QR code.")
                 return

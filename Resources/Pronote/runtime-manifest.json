@@ -2,9 +2,9 @@
   "library": "@blockshub/pawnote-lts",
   "version": "1.6.4",
   "runtimeVersion": "0.7.0",
-  "sha256": "d9ef2fdbc44a56a7501a954e63de5e03fbc682dfbba1011e8dcc310d89f2bb49",
+  "sha256": "78285596b6571727a13c981de54f7525468d1dc159f006f8b179f30b55db5cec",
   "patch": "PapillonApp/Papillon, pinned source in Runtime/patches",
-  "bytes": 427883,
+  "bytes": 428027,
   "license": "GPL-3.0-or-later",
   "sdkSourceHash": "1147d007e48c23c0cfb3a952ded5249c751be78b348017e07038ba7927542219",
   "compatibility": {
