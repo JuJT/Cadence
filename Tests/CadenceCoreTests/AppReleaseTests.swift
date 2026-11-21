@@ -5,7 +5,7 @@ import XCTest
 final class AppReleaseTests: XCTestCase {
     private let page = "https://github.com/JuJT/Cadence/releases/tag/v0.10.0"
     private let installerURL = "https://github.com/JuJT/Cadence/releases/download/v0.10.0/Cadenza-iPhone-0.10.0.ipa"
-    private let hash = String(repeating: "a", count: 64)
+    private let installerDigest = String(repeating: "a", count: 64)
 
     func testStableReleaseUsesNumericComparisonAndCanonicalInstaller() throws {
         let data = try response(assets: [asset(url: installerURL)])
@@ -16,7 +16,7 @@ final class AppReleaseTests: XCTestCase {
         XCTAssertEqual(release.page.absoluteString, page)
         XCTAssertEqual(release.notes, "Changements de la version")
         XCTAssertEqual(release.installer?.url.absoluteString, installerURL)
-        XCTAssertEqual(release.installer?.sha256, hash)
+        XCTAssertEqual(release.installer?.sha256, installerDigest)
         XCTAssertEqual(release.installer?.size, 4_059_869)
 
         for version in ["0.10.0", "0.11.0"] {
@@ -77,7 +77,7 @@ final class AppReleaseTests: XCTestCase {
     private func asset(url: String, state: String = "uploaded", digest: String? = nil) -> [String: Any] {
         [
             "name": "Cadenza-iPhone-0.10.0.ipa", "browser_download_url": url,
-            "state": state, "size": 4_059_869, "digest": digest ?? "sha256:" + hash,
+            "state": state, "size": 4_059_869, "digest": digest ?? "sha256:" + installerDigest,
         ]
     }
 }
