@@ -10,6 +10,8 @@ enum PronoteServiceError: Error, LocalizedError {
         case .failure(let name):
             switch name {
             case "BadCredentialsError", "AuthenticateError": return "Les identifiants ou le code de sécurité PRONOTE ne sont pas valides."
+            case "InvalidPairingCode": return "Ce QR code élève n’est plus utilisable. Générez-en un nouveau dans PRONOTE et vérifiez le code à quatre chiffres."
+            case "InvalidENTResult": return "La connexion ENT est expirée ou incomplète. Rouvrez la connexion ou utilisez un QR code généré dans PRONOTE."
             case "AccountDisabledError": return "Ce compte est désactivé par l’établissement."
             case "AccessDeniedError", "UnsupportedSection": return "Cette rubrique n’est pas accessible avec ce compte PRONOTE."
             case "UnsupportedNewsFormat": return "Ces informations utilisent un format PRONOTE encore non pris en charge. Les données déjà enregistrées sont conservées."
@@ -25,6 +27,12 @@ enum PronoteServiceError: Error, LocalizedError {
             }
         }
     }
+}
+
+enum PronoteSignIn: Sendable {
+    case credentials(address: PronoteLoginAddress, username: String, password: String)
+    case pairing(code: PronotePairingCode, pin: String)
+    case ent(address: PronoteLoginAddress, device: UUID, username: String, token: String)
 }
 
 /// One rotating credential and one ordered session. Passwords are used only for
@@ -59,16 +67,41 @@ actor PronoteSchoolService {
         }
     }
 
-    func connect(url: String, username: String, password: String, kind: Int) async throws -> PronoteProfile {
-        let portal = try Self.portalURL(url)
-        guard [6, 7].contains(kind), !username.isEmpty, username.utf8.count <= 256,
-              !password.isEmpty, password.utf8.count <= 4096 else { throw PronoteServiceError.failure("BadCredentialsError") }
+    func connect(_ signIn: PronoteSignIn) async throws -> PronoteProfile {
+        let command: String
+        let portal: URL
+        var body: [String: Any] = ["kind": 6, "deviceUUID": UUID().uuidString]
+        switch signIn {
+        case let .credentials(address, username, password):
+            guard (1...256).contains(username.utf8.count), (1...4096).contains(password.utf8.count) else {
+                throw PronoteServiceError.failure("BadCredentialsError")
+            }
+            command = "login"
+            portal = address.base
+            body["username"] = username
+            body["password"] = password
+        case let .pairing(code, pin):
+            guard let address = PronoteLoginAddress(code.url), PronotePairingCode.isValidPIN(pin) else {
+                throw PronoteServiceError.failure("InvalidPairingCode")
+            }
+            command = "pair"
+            portal = address.base
+            body["pin"] = pin
+            body["qr"] = ["url": code.url, "login": code.login, "jeton": code.token]
+        case let .ent(address, device, username, token):
+            guard (1...256).contains(username.utf8.count), (1...4096).contains(token.utf8.count) else {
+                throw PronoteServiceError.failure("InvalidENTResult")
+            }
+            command = "loginENT"
+            portal = address.base
+            body["deviceUUID"] = device.uuidString
+            body["username"] = username
+            body["token"] = token
+        }
+        body["url"] = portal.absoluteString
         let expected = try await reset(deleteCredential: false)
         guard expected == epoch else { throw CancellationError() }
-        let deviceID = UUID().uuidString
-        let body: [String: Any] = ["url": portal.absoluteString, "username": username, "password": password,
-                                  "kind": kind, "deviceUUID": deviceID]
-        let data = try await enqueue("login", body: body, host: portal.host, requiresSession: false)
+        let data = try await enqueue(command, body: body, host: portal.host, requiresSession: false)
         guard expected == epoch else { throw CancellationError() }
         let result = try Self.decode(PronoteProfile.self, data)
         profile = result; validUntil = Date().addingTimeInterval(240)
@@ -131,6 +164,7 @@ actor PronoteSchoolService {
     }
     func acknowledge(_ id: String) async throws { _ = try await enqueue("acknowledge", body: ["id": id]) }
     func signOut() async throws { _ = try await reset(deleteCredential: true) }
+    func cancelSignIn() async { _ = try? await reset(deleteCredential: false) }
 
     private func enqueue(_ name: String, body: [String: Any], host: String? = nil, requiresSession: Bool = true) async throws -> Data {
         guard operations.count < 16 else { throw PronoteServiceError.failure("Busy") }

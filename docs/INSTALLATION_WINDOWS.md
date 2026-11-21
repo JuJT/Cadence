@@ -1,8 +1,8 @@
 # Compiler puis installer depuis Windows
 
-Après installation, ouvrir Réglages → Connexion PRONOTE et choisir son établissement, puis saisir ses identifiants de l’espace élève dans l’app. Voir [la connexion directe](PRONOTE_DIRECT.md).
+Après installation, suivre les écrans de bienvenue pour connecter son espace élève. Le même parcours est disponible dans Réglages → Connexion PRONOTE. [Connexion PRONOTE](PRONOTE_DIRECT.md)
 
-La livraison actuelle est **Cadenza 0.4.0 pour iPhone**. Installer `IPA/Cadenza-iPhone-0.4.0.ipa` par-dessus l’app existante, avec le même compte et les mêmes options Sideloadly. La signature Apple reste obligatoire. Le [rapport de vérification](VERIFICATION.md) précise le run, les empreintes et les tests réellement exécutés. Le dépôt, les schémas et les identifiants techniques conservent leur nom Cadence.
+Télécharger `Cadenza-iPhone-<version>.ipa` depuis **Réglages → Mises à jour** ou la dernière publication de Cadenza. Installer par-dessus l’app existante, avec le même compte et les mêmes options Sideloadly. Conserver les extensions et l’auto-renouvellement. [Version publique](https://github.com/JuJT/Cadence/releases/latest)
 
 Pour le premier essai, utilisez directement l’IPA fournie et passez à la section **2 · Premier essai Sideloadly**. La section suivante sert aux prochaines compilations.
 
@@ -19,7 +19,7 @@ Le moteur Pawnote est reconstruit depuis les dépendances épinglées et testé 
 |---|---|
 | `CadenceSpike-unsigned.ipa` | Premier test minimal : minuteur, Live Activity, widget d’ouverture et Raccourcis |
 | `Cadence-unsigned.ipa` | Application complète autonome, sans extension ni App Group |
-| `CadenceExtensions-unsigned.ipa` | Application complète + Live Activity + quatre widgets, résumé via Keychain Sharing ; livrée sous `Cadenza-iPhone-0.4.0.ipa` |
+| `CadenceExtensions-unsigned.ipa` | Application complète avec Live Activity et widgets, publiée sous `Cadenza-iPhone-<version>.ipa` |
 | `CadenceShared-unsigned.ipa` | Option expérimentale : snapshot widget partagée, uniquement si le profil final autorise l’App Group |
 
 Les quatre variantes utilisent **le même bundle ID `com.cadence.study`**, pour remplacer la même installation. Elles ne sont pas destinées à être installées côte à côte. Conserver la même identité lors de la resignature ; sauvegarder avant chaque remplacement.
@@ -28,9 +28,9 @@ Les quatre variantes utilisent **le même bundle ID `com.cadence.study`**, pour 
 
 1. Installer Sideloadly Windows depuis [le site officiel](https://sideloadly.io/), puis ses prérequis Apple indiqués sur ce site. Ne pas modifier des pilotes déjà fonctionnels sans diagnostic. Le site demande actuellement les versions web d’iTunes et d’iCloud pour Windows.
 2. Connecter l’iPhone en USB, le déverrouiller et accepter « Faire confiance ». Activer le mode développeur si iOS le demande.
-3. Charger `CadenceSpike-unsigned.ipa` dans Sideloadly. Saisir **vous-même**, dans Sideloadly local uniquement, votre compte Apple et les confirmations requises. Ne transmettre ces informations ni à Codex ni à GitHub.
+3. Charger l’IPA publique de Cadenza dans Sideloadly. Saisir son compte Apple et effectuer les confirmations demandées dans Sideloadly sur le PC.
 4. Garder le bundle ID stable. Conserver l’extension pour tester la faisabilité. Si la signature de l’extension bloque, essayer `Cadence-unsigned.ipa` comme solution autonome, puis noter le message d’erreur nettoyé de toute information personnelle.
-5. Sur l’iPhone, autoriser le profil développeur si demandé par Réglages. Exécuter les six tests de [SPIKE_IPHONE.md](SPIKE_IPHONE.md). Ne conclure à un succès que sur le résultat observé.
+5. Sur l’iPhone, autoriser le profil développeur si iOS le demande. Ouvrir Cadenza, vérifier la version et les données existantes, puis suivre le test de lecture des widgets. [Vérification des widgets](WIDGETS_WINDOWS.md)
 
 Sideloadly peut supprimer des extensions : si cette option est activée, widgets et Live Activities de Cadenza ne peuvent pas être validés. La présence d’un dossier `.appex` dans l’IPA unsigned ne prouve pas sa conservation après resignature. Le [guide des widgets](WIDGETS_WINDOWS.md) détaille le contrôle du partage.
 

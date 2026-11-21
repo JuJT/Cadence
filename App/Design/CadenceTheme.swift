@@ -2,12 +2,16 @@ import SwiftUI
 import CadenceCore
 
 enum CadenceColors {
-    static let blue = Color(cadenceHex: "#2776F8")
+    static let blue = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.52, green: 0.73, blue: 1, alpha: 1) : UIColor(red: 0.06, green: 0.33, blue: 0.80, alpha: 1) })
+    static let actionBlue = Color(cadenceHex: "#1559D5")
     static let ice = Color(cadenceHex: "#82C7FF")
     static let revision = Color(cadenceHex: "#8793EA")
     static let positive = Color(cadenceHex: "#319A73")
     static let ink = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.92, green: 0.95, blue: 1, alpha: 1) : UIColor(red: 0.075, green: 0.12, blue: 0.21, alpha: 1) })
     static let secondary = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.67, green: 0.74, blue: 0.85, alpha: 1) : UIColor(red: 0.35, green: 0.41, blue: 0.51, alpha: 1) })
+    static let canvas = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.045, green: 0.068, blue: 0.11, alpha: 1) : UIColor(red: 0.955, green: 0.972, blue: 0.994, alpha: 1) })
+    static let paper = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.087, green: 0.12, blue: 0.18, alpha: 1) : .white })
+    static let outline = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.23, green: 0.29, blue: 0.39, alpha: 1) : UIColor(red: 0.84, green: 0.89, blue: 0.95, alpha: 1) })
 }
 
 enum CadenceSpacing {
@@ -82,7 +86,7 @@ struct CadenceTimelineView<Content: View>: View {
 
 /// Diffuse halos move slowly enough to sample at two updates per second.
 struct CadenceBackground: View {
-    var animated = true
+    var animated = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -101,7 +105,7 @@ struct CadenceBackground: View {
                     lightFields(size: geometry.size, date: context.date)
                 }
             } else {
-                lightFields(size: geometry.size, date: nil)
+                CadenceColors.canvas
             }
         }.ignoresSafeArea().accessibilityHidden(true).allowsHitTesting(false)
             .onAppear {
@@ -186,6 +190,17 @@ struct CadenceGlassStyle: ViewModifier {
 
 extension View {
     func cadenceSurface(radius: CGFloat = CadenceRadius.card) -> some View { modifier(CadenceGlassStyle(radius: radius)) }
+    func cadenceReadingSurface(radius: CGFloat = CadenceRadius.row, tint: Color = .clear) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return background {
+            ZStack {
+                shape.fill(CadenceColors.paper)
+                shape.fill(tint.opacity(0.06))
+            }
+        }.overlay {
+            shape.strokeBorder(CadenceColors.outline, lineWidth: 1).allowsHitTesting(false)
+        }
+    }
     func cadenceListStyle() -> some View { scrollContentBackground(.hidden).background(CadenceBackground()).tint(CadenceColors.blue) }
     func cadenceSegmentedStyle() -> some View { padding(5).cadenceSurface(radius: 22).tint(CadenceColors.blue) }
 }
@@ -243,7 +258,7 @@ struct CadenceSectionHeader: View {
 struct ProminentAction: View {
     let title: String
     let symbol: String
-    var tint: Color = Atelier.blue
+    var tint: Color = CadenceColors.actionBlue
     let action: () -> Void
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var body: some View {

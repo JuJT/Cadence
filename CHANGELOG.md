@@ -1,5 +1,14 @@
 # Historique
 
+## 0.7.0 — Révision et vie scolaire
+
+- Révision et Statistiques accessibles dès l’accueil. Accès à la séance en cours depuis les autres onglets.
+- Horaires mieux séparés, notes regroupées par matière et actions de devoirs réunies sur les cartes d’échéance.
+- Chronomètre actualisé dès l’ouverture d’une séance depuis un devoir, et recalé au retour au premier plan.
+- Connexion PRONOTE intégrée au démarrage, avec identifiants directs, QR et parcours ENT compatibles.
+- Autorisation des alertes de changements de cours à la fin de la présentation de Cadenza.
+- Téléchargement et partage de l’IPA publique depuis Mises à jour pour l’installer via Sideloadly.
+
 ## 0.6.0 — La journée scolaire — 20 novembre 2026
 
 - Onglet Notes, accès immédiat aux rubriques scolaires depuis l’accueil et Statistiques dans Révision.

@@ -11,6 +11,9 @@ final class TimetableNotificationService: NSObject, ObservableObject, UNUserNoti
     @Published private(set) var enabled = UserDefaults.standard.bool(forKey: "cadenza.timetable.notify")
     @Published private(set) var authorization: UNAuthorizationStatus = .notDetermined
     @Published private(set) var message: String?
+    private var authorized: Bool {
+        authorization == .authorized || authorization == .provisional || authorization == .ephemeral
+    }
     private let center = UNUserNotificationCenter.current()
     private let stateKey = "cadenza.timetable.alertHistory.v1"
     private var generation = UUID()
@@ -35,21 +38,26 @@ final class TimetableNotificationService: NSObject, ObservableObject, UNUserNoti
     func setEnabled(_ value: Bool) async {
         message = nil
         if value {
-            do {
-                let allowed = try await center.requestAuthorization(options: [.alert, .sound])
-                await readPermission()
-                guard allowed else { return }
-            } catch {
-                message = "La demande de notification a échoué. Réessayez dans un instant."
-                return
+            await readPermission()
+            if authorization == .notDetermined {
+                do {
+                    _ = try await center.requestAuthorization(options: [.alert, .sound])
+                    await readPermission()
+                } catch {
+                    message = "La demande de notification a échoué. Réessayez dans un instant."
+                    return
+                }
             }
+            guard authorized else { return }
         }
-        enabled = value
-        UserDefaults.standard.set(value, forKey: "cadenza.timetable.notify")
-        resetHistory()
+        if enabled != value {
+            enabled = value
+            UserDefaults.standard.set(value, forKey: "cadenza.timetable.notify")
+            resetHistory()
+        }
         if value {
             scheduleNextRefresh()
-            await AppStore.shared.refreshSchool()
+            Task { await AppStore.shared.refreshSchool() }
         } else {
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.taskID)
         }
@@ -85,7 +93,6 @@ final class TimetableNotificationService: NSObject, ObservableObject, UNUserNoti
             window: DateInterval(start: snapshot.windowStart, end: snapshot.windowEnd), occurrences: occurrences,
             fetchedIDs: Set(snapshot.timetable.map(\.id)), now: now)
         let previous = UserDefaults.standard.data(forKey: stateKey).flatMap { try? JSONDecoder().decode(History.self, from: $0) }
-        let authorized = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
         var history = History(baseline: baseline, pending: [])
         if authorized, let previous, previous.baseline.account == account {
             history.pending = previous.pending.filter { $0.changes.contains { $0.lesson.endAt > now } }

@@ -34,11 +34,19 @@ enum PronoteUITestFixtures {
                 "subjectsAverages": .array([.object([
                     "subject": subject("Mathématiques"), "student": grade(16.5),
                     "class_average": grade(14), "outOf": grade(20)
+                ]), .object([
+                    "subject": subject("Français"), "student": grade(15), "outOf": grade(20)
                 ])]),
                 "grades": .array([.object([
+                    "id": .string("fixture-equations"),
                     "subject": subject("Mathématiques"), "date": timestamp(date(-2, hour: 10)),
                     "value": grade(16.5), "outOf": grade(20), "coefficient": .number(1),
                     "comment": .string("Évaluation fictive — équations"), "average": grade(14)
+                ]), .object([
+                    "id": .string("fixture-commentaire"),
+                    "subject": subject("Français"), "date": timestamp(date(-3, hour: 11)),
+                    "value": grade(15), "outOf": grade(20), "coefficient": .number(2),
+                    "comment": .string("Commentaire composé")
                 ])])
             ]),
             "evaluations": .object(["evaluations": .array([.object([

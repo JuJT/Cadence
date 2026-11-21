@@ -28,7 +28,7 @@ export function createRuntime(api,native) {
     for (const name of ['BadCredentialsError','AccountDisabledError','AuthenticateError','AccessDeniedError','SuspendedIPError','SessionExpiredError','RateLimitedError','BusyPageError','PageUnavailableError','UnreachableError']) {
       if(api[name]&&e instanceof api[name])return {name,message:name};
     }
-    const recognized=['SecureStorageUnavailable','InvalidCredential','NotConnected','UnsupportedSection','InvalidPeriod','NetworkUnavailable','MissingDiscussion','MissingResource','ResponseTooLarge','UnsupportedNewsFormat'];
+    const recognized=['SecureStorageUnavailable','InvalidCredential','InvalidPairingCode','InvalidENTResult','NotConnected','UnsupportedSection','InvalidPeriod','NetworkUnavailable','MissingDiscussion','MissingResource','ResponseTooLarge','UnsupportedNewsFormat'];
     return {name:recognized.includes(e?.message)?e.message:'PronoteError',message:'La requête PRONOTE n’a pas abouti.'};
   }
   function clearData(){threads.clear();newsItems.clear();discussionsCache=null;}
@@ -97,16 +97,32 @@ export function createRuntime(api,native) {
   async function command(name,args={}) {
     if(name==='discover')return safeJSON(await api.geolocation({latitude:args.latitude,longitude:args.longitude},fetcher));
     if(name==='inspect')return safeJSON(await api.instance(args.url,fetcher));
-    if(name==='login'||name==='resume') {
-      clearData();challenge=null;authenticated=false;credential={...args};session=api.createSessionHandle(fetcher);
+    if(['login','pair','loginENT','resume'].includes(name)) {
+      clearData();challenge=null;authenticated=false;session=api.createSessionHandle(fetcher);
       const params={url:args.url,username:args.username,kind:args.kind??6,deviceUUID:args.deviceUUID,navigatorIdentifier:args.navigatorIdentifier};
+      credential={...params,resourceID:args.resourceID};
       let fresh;
-      try {
-        fresh=name==='login'?await api.loginCredentials(session,{...params,password:args.password}):
-          await api.loginToken(session,{...params,token:args.token},{
-            onAuthenticationSent:()=>{const {password,...stored}=credential;if(!native.credential(JSON.stringify({...stored,tokenState:'consuming'})))throw Error('SecureStorageUnavailable');},
+      switch(name){
+        case 'login': fresh=await api.loginCredentials(session,{...params,password:args.password});break;
+        case 'pair':
+          if(typeof args.pin!=='string'||args.pin.length!==4||!/^[0-9]{4}$/.test(args.pin)||!args.qr?.jeton||!args.qr?.login||!args.qr?.url)throw Error('InvalidPairingCode');
+          try { fresh=await api.loginQrCode(session,{qr:args.qr,pin:args.pin,deviceUUID:params.deviceUUID}); }
+          catch(error){
+            const failure=classify(error).name;
+            if(['BadCredentialsError','AuthenticateError','PronoteError'].includes(failure)) throw Error('InvalidPairingCode');
+            throw error;
+          }
+          break;
+        case 'loginENT':
+          if(!args.token||!args.username)throw Error('InvalidENTResult');
+          fresh=await api.loginToken(session,{...params,token:args.token},{onTokenIssued:save});
+          break;
+        case 'resume':
+          fresh=await api.loginToken(session,{...params,token:args.token},{
+            onAuthenticationSent:()=>{if(!native.credential(JSON.stringify({...credential,token:args.token,tokenState:'consuming'})))throw Error('SecureStorageUnavailable');},
             onTokenIssued:save});
-      } finally {delete credential.password;}
+          break;
+      }
       save(fresh);
       if(args.resourceID&&session.user.resources.some(r=>r.id===args.resourceID))api.use(session,session.user.resources.find(r=>r.id===args.resourceID));
       save(credential);authenticated=true;

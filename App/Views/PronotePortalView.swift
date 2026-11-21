@@ -270,7 +270,7 @@ struct PronoteSectionView: View {
 
     @ViewBuilder private func sectionContent(_ value: SchoolJSON) -> some View {
         switch section {
-        case .grades: PronoteGradesPanel(value: value)
+        case .grades: PronoteGradesPanel(value: value).id(cacheKey)
         case .evaluations: PronoteEvaluationsPanel(value: value)
         case .attendance: PronoteAttendancePanel(value: value)
         case .news: PronoteNewsPanel(value: value)
@@ -304,17 +304,8 @@ private struct PronoteCacheStatus: View {
 
 private struct PronoteGradesPanel: View {
     let value: SchoolJSON
+    @EnvironmentObject private var store: AppStore
     @State private var selectedSubject = ""
-    private var averages: [SchoolJSON] { value["subjectsAverages"]?.arrayValues ?? [] }
-    private var grades: [SchoolJSON] {
-        PronoteText.items(value, keys: ["grades"])
-            .filter { selectedSubject.isEmpty || PronoteText.subject($0) == selectedSubject }
-            .sorted { PronoteText.dateValue($0["date"]) > PronoteText.dateValue($1["date"]) }
-    }
-    private var subjectNames: [String] {
-        Array(Set((averages + PronoteText.items(value, keys: ["grades"])).map { PronoteText.subject($0) }))
-            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-    }
     private var studentOverall: SchoolJSON? {
         PronoteText.validGrade(value["overallAverage"]) ? value["overallAverage"] : value["calculatedOverallAverage"]
     }
@@ -323,6 +314,8 @@ private struct PronoteGradesPanel: View {
     }
     private var calculatedOverall: Bool { !PronoteText.validGrade(value["overallAverage"]) && PronoteText.validGrade(value["calculatedOverallAverage"]) }
     var body: some View {
+        let groups = subjectGroups
+        let selection = groups.contains { $0.id == selectedSubject } ? selectedSubject : ""
         if PronoteText.validGrade(studentOverall) || PronoteText.validGrade(classOverall) {
             AtelierCard {
                 CadenceSectionHeader(title: calculatedOverall ? "Moyenne indicative" : "Moyenne générale",
@@ -345,82 +338,153 @@ private struct PronoteGradesPanel: View {
                         .font(.caption).foregroundStyle(CadenceColors.secondary)
                 }
             }
-        } else if !grades.isEmpty {
-            AtelierCard {
-                Label("Moyennes non communiquées", systemImage: "info.circle").font(.subheadline.weight(.semibold))
-                Text("Aucune moyenne n’est disponible pour cette période dans les données reçues. Vos notes restent consultables ci-dessous.")
-                    .font(.subheadline).foregroundStyle(CadenceColors.secondary)
-            }
+        } else if groups.contains(where: { !$0.grades.isEmpty }) {
+            Label("Moyennes non communiquées", systemImage: "info.circle")
+                .font(.subheadline).foregroundStyle(CadenceColors.secondary)
         }
-        if !subjectNames.isEmpty {
+        if groups.count > 1 {
             HStack {
-                Label("Matière", systemImage: "line.3.horizontal.decrease").font(.subheadline).foregroundStyle(CadenceColors.secondary)
+                Label("Matière", systemImage: "line.3.horizontal.decrease")
+                    .font(.subheadline).foregroundStyle(CadenceColors.secondary)
                 Spacer()
-                Picker("Matière", selection: $selectedSubject) {
+                Picker("Matière", selection: Binding(get: { selection }, set: { selectedSubject = $0 })) {
                     Text("Toutes les matières").tag("")
-                    ForEach(subjectNames, id: \.self) { Text($0).tag($0) }
+                    ForEach(groups) { Text($0.name).tag($0.id) }
                 }.pickerStyle(.menu).accessibilityIdentifier("pronote.grades.subject")
             }
         }
-        if !averages.isEmpty {
-            CadenceSectionHeader(title: "Moyennes par matière")
-            ForEach(Array(averages.filter { selectedSubject.isEmpty || PronoteText.subject($0) == selectedSubject }.enumerated()), id: \.offset) { _, average in
-                PronoteSubjectAverageCard(value: average)
-            }
+        ForEach(groups.filter { selection.isEmpty || $0.id == selection }) { group in
+            let subject = SubjectAliasResolver.subjectID(for: group.name, subjects: store.state.subjects)
+            PronoteSubjectGradeGroup(group: group, subject: Atelier.subject(subject, in: store.state))
         }
-        CadenceSectionHeader(title: "Évaluations", subtitle: "\(grades.count) résultat\(grades.count == 1 ? "" : "s")")
-        ForEach(Array(grades.enumerated()), id: \.offset) { _, grade in PronoteGradeCard(value: grade) }
-        if grades.isEmpty && averages.isEmpty {
+        if groups.isEmpty {
             EmptyCard(title: "Pas encore de note", symbol: "chart.bar.xaxis", description: "Les résultats publiés par vos professeurs apparaîtront ici.")
         }
     }
-}
 
-private struct PronoteSubjectAverageCard: View {
-    let value: SchoolJSON
-    private var calculated: Bool { !PronoteText.validGrade(value["student"]) && PronoteText.validGrade(value["calculatedStudent"]) }
-    private var average: SchoolJSON? { PronoteText.validGrade(value["student"]) ? value["student"] : value["calculatedStudent"] }
-    private var classAverage: SchoolJSON? { PronoteText.validGrade(value["class_average"]) ? value["class_average"] : value["calculatedClassAverage"] }
-    var body: some View {
-        AtelierCard {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(PronoteText.subject(value)).font(.headline)
-                Spacer(minLength: 4)
-                Text(PronoteText.grade(average, outOf: calculated ? .number(20) : value["outOf"]))
-                    .font(.title3.bold()).monospacedDigit().foregroundStyle(Atelier.blue).multilineTextAlignment(.trailing)
-            }
-            if calculated {
-                Text("Moyenne indicative · calculée par Cadenza").font(.caption).foregroundStyle(CadenceColors.secondary)
-            } else if !PronoteText.validGrade(average) {
-                Text("Moyenne non communiquée").font(.caption).foregroundStyle(CadenceColors.secondary)
-            }
-            if PronoteText.validGrade(classAverage) {
-                PronoteValueRow(title: PronoteText.validGrade(value["class_average"]) ? "Classe" : "Classe · indicative", value: PronoteText.grade(classAverage, outOf: PronoteText.validGrade(value["class_average"]) ? value["outOf"] : .number(20)))
-            }
+    private var subjectGroups: [PronoteSubjectGrades] {
+        let averages = value["subjectsAverages"]?.arrayValues ?? []
+        let grades = PronoteText.items(value, keys: ["grades"])
+        let byAverage = Dictionary(grouping: averages, by: PronoteSubjectGrades.key)
+        let byGrade = Dictionary(grouping: grades, by: PronoteSubjectGrades.key)
+        return Set(byAverage.keys).union(byGrade.keys).compactMap { key in
+            let average = byAverage[key]?.first
+            let notes = byGrade[key, default: []]
+            guard let info = average ?? notes.first else { return nil }
+            return PronoteSubjectGrades(id: key, name: PronoteText.subject(info), average: average,
+                grades: notes.sorted { PronoteText.dateValue($0["date"]) > PronoteText.dateValue($1["date"]) })
+        }.sorted { lhs, rhs in
+            let order = lhs.name.localizedStandardCompare(rhs.name)
+            return order == .orderedSame ? lhs.id < rhs.id : order == .orderedAscending
         }
     }
 }
 
-private struct PronoteGradeCard: View {
-    let value: SchoolJSON
+private struct PronoteSubjectGrades: Identifiable {
+    let id: String
+    let name: String
+    let average: SchoolJSON?
+    let grades: [SchoolJSON]
+
+    static func key(_ value: SchoolJSON) -> String {
+        if let id = PronoteText.text(value["subject"]?["id"]), !id.isEmpty { return "id:" + id }
+        return "name:" + SubjectAliasResolver.normalize(PronoteText.subject(value))
+    }
+}
+
+private struct PronoteSubjectGradeGroup: View {
+    let group: PronoteSubjectGrades
+    let subject: Subject?
+    private var calculated: Bool { !PronoteText.validGrade(group.average?["student"]) && PronoteText.validGrade(group.average?["calculatedStudent"]) }
+    private var average: SchoolJSON? { calculated ? group.average?["calculatedStudent"] : group.average?["student"] }
+    private var classAverage: SchoolJSON? { PronoteText.validGrade(group.average?["class_average"]) ? group.average?["class_average"] : group.average?["calculatedClassAverage"] }
     var body: some View {
-        AtelierCard {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(PronoteText.subject(value)).font(.headline)
-                    if let date = value["date"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
-                }
-                Spacer(minLength: 8)
-                Text(PronoteText.grade(value["value"], outOf: value["outOf"]))
-                    .font(.title3.bold()).foregroundStyle(Atelier.blue).multilineTextAlignment(.trailing)
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            ForEach(Array(group.grades.enumerated()), id: \.offset) { _, grade in
+                Divider().padding(.horizontal, 14)
+                PronoteGradeRow(value: grade)
             }
-            if let comment = PronoteText.text(value["comment"]), !comment.isEmpty { Text(comment).font(.subheadline) }
-            if let comment = PronoteText.text(value["commentaireSurNote"]), !comment.isEmpty { Text(comment).font(.subheadline).foregroundStyle(CadenceColors.secondary) }
-            if let coefficient = value["coefficient"]?.numberValue { Text("Coefficient " + PronoteText.number(coefficient)).font(.caption).foregroundStyle(CadenceColors.secondary) }
-            if let average = value["average"] { PronoteValueRow(title: "Moyenne de la classe", value: PronoteText.grade(average, outOf: value["outOf"])) }
-            if let file = value["subjectFile"] { PronoteAttachments(value: file) }
-            if let file = value["correctionFile"] { PronoteAttachments(value: file) }
         }
+        .cadenceReadingSurface()
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: subject?.symbol ?? "book").foregroundStyle(Atelier.blue).accessibilityHidden(true)
+                Text(subject?.name ?? group.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 6)
+                if PronoteText.validGrade(average) {
+                    Text(PronoteText.grade(average, outOf: calculated ? .number(20) : group.average?["outOf"]))
+                        .font(.subheadline.bold()).monospacedDigit().foregroundStyle(Atelier.blue)
+                        .fixedSize().accessibilityLabel("Moyenne " + PronoteText.grade(average, outOf: calculated ? .number(20) : group.average?["outOf"]))
+                }
+            }
+            if calculated || !PronoteText.validGrade(average) {
+                Text(calculated ? "Moyenne indicative" : "Moyenne non communiquée")
+                    .font(.caption).foregroundStyle(CadenceColors.secondary)
+            }
+            if PronoteText.validGrade(classAverage) {
+                let official = PronoteText.validGrade(group.average?["class_average"])
+                Text((official ? "Classe · " : "Classe · indicative · ") + PronoteText.grade(classAverage, outOf: official ? group.average?["outOf"] : .number(20)))
+                    .font(.caption).foregroundStyle(CadenceColors.secondary)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+    }
+}
+
+private struct PronoteGradeRow: View {
+    let value: SchoolJSON
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var expanded = false
+
+    private var title: String {
+        [value["name"], value["title"], value["comment"]].compactMap(PronoteText.text)
+            .first { !$0.isEmpty } ?? "Évaluation"
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { expanded.toggle() } label: { summary }
+                .buttonStyle(.plain)
+                .accessibilityValue(expanded ? "Détails affichés" : "Détails masqués")
+                .accessibilityIdentifier("pronote.grade." + (PronoteText.text(value["id"]) ?? title))
+            if expanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let comment = PronoteText.text(value["comment"]), !comment.isEmpty { Text(comment).textSelection(.enabled) }
+                    if let comment = PronoteText.text(value["commentaireSurNote"]), !comment.isEmpty { Text(comment).textSelection(.enabled) }
+                    if let coefficient = value["coefficient"]?.numberValue { Text("Coefficient " + PronoteText.number(coefficient)) }
+                    if let average = value["average"] { PronoteValueRow(title: "Moyenne de la classe", value: PronoteText.grade(average, outOf: value["outOf"])) }
+                    if let file = value["subjectFile"] { PronoteAttachments(value: file) }
+                    if let file = value["correctionFile"] { PronoteAttachments(value: file) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .font(.subheadline).foregroundStyle(CadenceColors.secondary).padding(.bottom, 11)
+            }
+        }
+        .padding(.horizontal, 14)
+    }
+
+    private var summary: some View {
+        HStack(spacing: 9) {
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 5))
+                : AnyLayout(HStackLayout(spacing: 8))
+            layout {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.subheadline.weight(.medium)).foregroundStyle(CadenceColors.ink).lineLimit(2)
+                    if let date = value["date"] { Text(PronoteText.date(date)).font(.caption).foregroundStyle(CadenceColors.secondary) }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Text(PronoteText.grade(value["value"], outOf: value["outOf"]))
+                    .font(.subheadline.bold()).monospacedDigit().foregroundStyle(CadenceColors.ink)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                .font(.caption.weight(.semibold)).foregroundStyle(Atelier.blue).accessibilityHidden(true)
+        }
+        .frame(minHeight: 48).padding(.vertical, 3).contentShape(Rectangle())
     }
 }
 

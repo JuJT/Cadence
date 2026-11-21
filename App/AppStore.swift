@@ -15,6 +15,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var calendarPermissionDescription = "Calendrier non lié"
     @Published private(set) var storageDiagnostic = "Stockage local"
     @Published var route = "accueil"
+    @Published private(set) var revisionNavigationID = UUID()
     @Published private(set) var schoolSignedIn = false
     @Published private(set) var schoolEmail: String?
     @Published private(set) var schoolSyncing = false
@@ -183,15 +184,27 @@ final class AppStore: ObservableObject {
     func pause() { performMutation { _ = try CadenceEngine.pause(state: &$0) } }
     func resume() { performMutation { _ = try CadenceEngine.resume(state: &$0) } }
     func finish() { performMutation { _ = try CadenceEngine.finish(state: &$0) } }
+
+    func openRevisionRoot() {
+        if route != "revision" { route = "revision" }
+        revisionNavigationID = UUID()
+    }
+
     func startHomework(_ id: String) {
+        if let active = state.activeSession {
+            guard active.activeHomeworkID == id || performMutation({
+                try CadenceEngine.setActiveHomework(state: &$0, homeworkID: id)
+            }) else { return }
+            openRevisionRoot()
+            return
+        }
         guard let item = state.homework.first(where: { $0.id == id }), let subjectID = item.subjectID else {
             errorMessage = "Choisissez d’abord la matière de ce devoir."; return
         }
-        if state.activeSession != nil { assignHomeworkToActiveSession(id); return }
         if performMutation({ state in
             _ = try CadenceEngine.start(state: &state, subjectID: subjectID, kind: .revision,
                 topic: item.source.subject, homeworkID: id)
-        }) { route = "revision" }
+        }) { openRevisionRoot() }
     }
     func assignHomeworkToActiveSession(_ id: String?) {
         performMutation { try CadenceEngine.setActiveHomework(state: &$0, homeworkID: id) }
@@ -375,8 +388,8 @@ final class AppStore: ObservableObject {
     }
 
     @discardableResult
-    func connectPronote(url: String, username: String, password: String, kind: Int = 6) async -> Bool {
-        guard !isUITestSession, !schoolSyncing else { return false }
+    func connectPronote(_ signIn: PronoteSignIn) async -> Bool {
+        guard !isUITestSession, !schoolSyncing, !schoolSignedIn else { return false }
         await loadInitialPortal()
         guard !schoolSyncing else { return false }
         invalidateSchoolRequests()
@@ -385,7 +398,7 @@ final class AppStore: ObservableObject {
         schoolError = nil; pronoteChallenge = nil; schoolSignedIn = false
         defer { finishSchoolOperation(operation) }
         do {
-            let profile = try await schoolService.connect(url: url, username: username, password: password, kind: kind)
+            let profile = try await schoolService.connect(signIn)
             guard epoch == schoolEpoch else { return false }
             await installProfile(profile, epoch: epoch)
             guard epoch == schoolEpoch else { return false }
@@ -396,6 +409,19 @@ final class AppStore: ObservableObject {
             handleSchoolError(error, epoch: epoch)
             return false
         }
+    }
+
+    func cancelPronoteChallenge() async {
+        guard pronoteChallenge != nil, !schoolSyncing else { return }
+        invalidateSchoolRequests()
+        let epoch = schoolEpoch, operation = UUID()
+        schoolOperation = operation; schoolSyncing = true
+        defer { finishSchoolOperation(operation) }
+        await schoolService.cancelSignIn()
+        guard epoch == schoolEpoch else { return }
+        pronoteChallenge = nil
+        schoolError = nil
+        schoolStatus = "Reconnectez votre espace PRONOTE."
     }
 
     @discardableResult

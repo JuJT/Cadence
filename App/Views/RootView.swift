@@ -14,17 +14,19 @@ private enum CadenceSection: String, CaseIterable, Identifiable {
 
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
-    @State private var selected: CadenceSection = .accueil
-    @State private var showStatistics = false
     @State private var showSettings = false
     @State private var introductionCompletedThisLaunch = false
     @AppStorage("cadence.appearance") private var appearance = "system"
     @AppStorage("cadence.introduction.lastSeenRelease") private var lastSeenRelease = ""
+
+    private var statisticsPresented: Bool { store.route == "statistiques" }
+    private var selected: CadenceSection {
+        statisticsPresented ? .revision : CadenceSection(rawValue: store.route) ?? .accueil
+    }
+
     var body: some View {
         TabView(selection: Binding(get: { selected }, set: { section in
-            selected = section
-            if section == .revision { showStatistics = false }
-            store.route = section.rawValue
+            if store.route != section.rawValue { store.route = section.rawValue }
         })) {
             ForEach(CadenceSection.allCases) { section in
                 navigation(section).tabItem { Label(section.title, systemImage: section.symbol) }.tag(section)
@@ -51,18 +53,6 @@ struct RootView: View {
         .alert("Cadenza", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("Compris", role: .cancel) { store.errorMessage = nil }
         } message: { Text(store.errorMessage ?? "Une erreur est survenue.") }
-        .onChange(of: store.route, initial: true) { _, route in
-            if route == "statistiques" {
-                selected = .revision
-                showStatistics = true
-            } else if let section = CadenceSection(rawValue: route) {
-                selected = section
-                if section == .revision { showStatistics = false }
-            }
-        }
-        .onChange(of: showStatistics) { _, presented in
-            if !presented && store.route == "statistiques" { store.route = "revision" }
-        }
         .sensoryFeedback(.selection, trigger: store.state.activeSession?.id)
         .sensoryFeedback(.selection, trigger: store.state.activeSession?.isPaused)
     }
@@ -92,7 +82,9 @@ struct RootView: View {
                                     .accessibilityIdentifier("revision.statistics")
                             }
                         }
-                        .navigationDestination(isPresented: $showStatistics) { StatisticsView() }
+                        .navigationDestination(isPresented: Binding(get: { statisticsPresented }, set: { presented in
+                            if !presented && statisticsPresented { store.route = "revision" }
+                        })) { StatisticsView() }
                 case .notes:
                     if store.pronoteProfile == nil && store.pronotePortal.profile == nil && !store.pronotePortal.sections.keys.contains(where: { $0.hasPrefix("grades") }) {
                         AtelierPage {
@@ -102,7 +94,6 @@ struct RootView: View {
                     } else { PronoteSectionView(section: .grades) }
                 }
             }
-            .environment(\.cadenceTabIsActive, selected == section && !showSettings && introductionMode == nil)
             .background(CadenceBackground(animated: false))
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
@@ -119,6 +110,15 @@ struct RootView: View {
                 }
             }
         }
+        .id(section == .revision ? store.revisionNavigationID : nil)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if selected == section && (section != .revision || statisticsPresented), let session = store.state.activeSession {
+                ActiveSessionBar(session: session, subject: Atelier.subject(session.subjectID, in: store.state)) {
+                    store.openRevisionRoot()
+                }
+            }
+        }
+        .environment(\.cadenceTabIsActive, selected == section && !showSettings && introductionMode == nil)
     }
     private var brandMark: some View {
         HStack(spacing: 7) {
@@ -126,5 +126,61 @@ struct RootView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 7)).accessibilityHidden(true)
             Text("Cadenza").font(.subheadline.weight(.semibold)).foregroundStyle(CadenceColors.secondary)
         }.fixedSize(horizontal: true, vertical: false).accessibilityElement(children: .combine)
+    }
+}
+
+private struct ActiveSessionBar: View {
+    let session: StudySession
+    let subject: Subject?
+    let open: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 10) {
+                Image(systemName: session.isPaused ? "pause.circle.fill" : "timer")
+                    .font(.title3)
+                    .foregroundStyle(Atelier.blue)
+                    .accessibilityHidden(true)
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 3) {
+                        sessionInfo
+                        elapsed
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    sessionInfo.lineLimit(1)
+                    Spacer(minLength: 0)
+                    elapsed
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 7)
+            .frame(minHeight: 44)
+            .cadenceReadingSurface(radius: 16, tint: Atelier.blue)
+        }
+        .buttonStyle(.plain)
+        .tint(Atelier.blue)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+        .accessibilityIdentifier("session.banner")
+        .accessibilityHint("Ouvre le chronomètre de la séance")
+    }
+
+    private var sessionInfo: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(subject?.name ?? session.kind.label).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+            Text(session.isPaused ? "Séance en pause" : "\(session.kind.label) en cours")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var elapsed: some View {
+        SessionElapsedText(session: session)
+            .font(.subheadline.weight(.semibold)).foregroundStyle(Atelier.blue)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }

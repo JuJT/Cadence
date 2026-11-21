@@ -14,6 +14,8 @@ struct HomeView: View {
                         NavigationLink("Restaurer une sauvegarde") { SettingsView() }
                     }
                 }
+                studyActions
+                CadenceSectionHeader(title: "Vie scolaire")
                 if let next = store.state.visibleOccurrences.filter({
                     $0.start > now && !$0.sourceMissing && $0.school?.canceled != true && $0.school?.exempted != true
                         && ![.cancelled, .ignored, .absent].contains($0.accountingStatus)
@@ -54,12 +56,6 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }.buttonStyle(.bordered)
                 }
-                if let active = store.state.activeSession {
-                    ActiveSessionCard(session: active) { store.route = "revision" }
-                } else {
-                    SecondaryAction(title: "Nouvelle séance", symbol: "plus") { showNewSession = true }
-                        .accessibilityIdentifier("session.new")
-                }
                 NavigationLink { SchoolConnectionView() } label: {
                     HStack(spacing: 8) {
                         if store.schoolSyncing { ProgressView().controlSize(.small) }
@@ -75,6 +71,41 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showNewSession) { NewSessionSheet() }
         .refreshable { await store.refreshSchool(force: true) }
+    }
+
+    private var studyActions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CadenceSectionHeader(title: "Révision")
+            if let active = store.state.activeSession {
+                ActiveSessionCard(session: active) {
+                    if store.state.activeSession?.isPaused == true { store.resume() }
+                    store.openRevisionRoot()
+                }
+            } else {
+                ProminentAction(title: "Démarrer une révision", symbol: "play.fill") { store.openRevisionRoot() }
+                    .accessibilityIdentifier("home.revision")
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { studyLinks(singleLine: true) }
+                VStack(alignment: .leading, spacing: 8) { studyLinks(singleLine: false) }
+            }
+        }
+    }
+
+    @ViewBuilder private func studyLinks(singleLine: Bool) -> some View {
+        studyLink("Statistiques", symbol: "chart.bar.xaxis", id: "home.statistics", singleLine: singleLine) { store.route = "statistiques" }
+        if store.state.activeSession == nil {
+            studyLink("Nouvelle séance", symbol: "plus", id: "session.new", singleLine: singleLine) { showNewSession = true }
+        }
+    }
+
+    private func studyLink(_ title: String, symbol: String, id: String, singleLine: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.subheadline.weight(.semibold)).fixedSize(horizontal: singleLine, vertical: true)
+                .frame(maxWidth: .infinity, minHeight: 48).padding(.horizontal, 12)
+                .cadenceReadingSurface(radius: 14)
+        }.buttonStyle(.plain).foregroundStyle(Atelier.blue).accessibilityIdentifier(id)
     }
 
     private var syncDescription: String {
@@ -198,6 +229,7 @@ private struct NewSessionSheet: View {
 
 struct ActiveSessionCard: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let session: StudySession
     let open: () -> Void
     var body: some View {
@@ -212,8 +244,14 @@ struct ActiveSessionCard: View {
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(.secondary)
                 }
-                CadenceTimelineView(interval: 1, paused: session.isPaused) { now in
-                    Text(Atelier.clock(session.elapsed(at: now))).font(.title2.monospacedDigit().bold()).foregroundStyle(Atelier.color(for: session.kind))
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 5))
+                    : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+                layout {
+                    Text(session.isPaused ? "Reprendre la séance" : "Ouvrir la séance")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Atelier.blue)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    SessionElapsedText(session: session).font(.title3.monospacedDigit().bold()).foregroundStyle(Atelier.blue)
                 }
             }.foregroundStyle(.primary)
         }.buttonStyle(.plain)

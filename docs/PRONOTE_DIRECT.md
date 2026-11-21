@@ -1,8 +1,12 @@
-# Connexion PRONOTE directe
+# Connexion à PRONOTE
 
-Depuis Réglages → Connexion PRONOTE, choisir un établissement dans l’annuaire ou saisir son URL HTTPS. « Autour de moi » demande la localisation à ce moment seulement, avec une précision large ; la ville/adresse reste une alternative. Cadenza ne conserve pas la position. La requête de recherche est adressée à l’annuaire officiel PRONOTE, pas à Supabase.
+Le parcours est proposé à la première ouverture et dans **Réglages → Connexion PRONOTE**. Il peut être passé pendant la configuration initiale.
 
-Cette version utilise l’espace **Élève** et les identifiants PRONOTE directs. Les parcours ENT/EduConnect et QR ne sont pas présentés comme pris en charge. Saisir le mot de passe uniquement dans l’app sur l’iPhone. Si PRONOTE impose un code PIN ou une vérification de sécurité, suivre les champs affichés ; un nouveau mot de passe n’est demandé que si le serveur l’exige.
+1. Pour trouver l’établissement, chercher une ville ou un code postal, choisir « Autour de moi », ou coller l’adresse HTTPS de l’espace **Élève** PRONOTE. La localisation approximative est demandée uniquement pour « Autour de moi ». La recherche passe par l’annuaire Index Éducation.
+2. Après avoir choisi l’établissement, saisir ses identifiants PRONOTE ou choisir l’ENT. L’ENT/EduConnect s’ouvre sur la page de connexion habituelle si le portail permet la validation pour PRONOTE mobile. Le nom de domaine de la page de connexion apparaît en haut.
+3. Pour utiliser un QR code, ouvrir son espace élève PRONOTE sur un autre appareil, générer le QR avec le bouton prévu à cet effet, le scanner et saisir le code à quatre chiffres choisi lors de la génération. Cette méthode reste accessible quand l’ENT direct est indisponible.
+
+Si PRONOTE demande une vérification de sécurité supplémentaire, suivre les champs affichés. L’écran Web ENT utilise un stockage éphémère. Seule une validation mobile émise depuis la page PRONOTE de l’établissement choisi est transmise au moteur de connexion. Le QR et son code restent en mémoire le temps de la connexion.
 
 L’authentification et le chiffrement PRONOTE s’exécutent dans Pawnote, sur une file JavaScriptCore dédiée hors du fil principal. Les requêtes restent limitées à l’hôte HTTPS de l’établissement ; les redirections ne transmettent pas les identifiants à un autre hôte. Les cookies restent privés à cette connexion. Aucun code JavaScript provenant d’une page distante n’est exécuté dans le moteur.
 

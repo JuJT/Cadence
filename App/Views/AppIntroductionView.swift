@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// Kept outside the personal backup schema: importing a study backup must not
 /// replay an old release tour or silently complete a fresh setup.
@@ -9,13 +10,18 @@ struct AppIntroductionView: View {
     let onComplete: () -> Void
     @EnvironmentObject private var store: AppStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var notifications = TimetableNotificationService.shared
+    @AppStorage("cadence.introduction.notificationChoiceRecorded") private var notificationChoiceRecorded = false
     @State private var page = 0
     @State private var movingForward = true
     @State private var showConnection = false
+    @State private var showNotificationStep = false
+    @State private var checkingPermission = false
+    @State private var requestingPermission = false
 
-    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.6.0" }
+    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.7.0" }
     static var releaseID: String {
-        version + " (" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "7") + ")"
+        version + " (" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "8") + ")"
     }
     private var currentPage: IntroductionPage { pages[page] }
     private var lastPage: Bool { page == pages.count - 1 }
@@ -23,16 +29,20 @@ struct AppIntroductionView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                pageContent
-                    .id(page)
-                    .transition(pageTransition)
+                if showNotificationStep {
+                    notificationContent
+                } else {
+                    pageContent.id(page).transition(pageTransition)
+                }
             }
             .clipped()
-            .safeAreaInset(edge: .bottom, spacing: 0) { footer }
-            .navigationTitle(mode == .setup ? "Bienvenue" : "Nouveautés · " + Self.version)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if showNotificationStep { notificationFooter } else { footer }
+            }
+            .navigationTitle(showNotificationStep ? "Notifications" : mode == .setup ? "Bienvenue" : "Nouveautés · " + Self.version)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if page > 0 {
+                if page > 0 && !showNotificationStep {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Précédent", systemImage: "chevron.left") { go(to: page - 1) }
                             .accessibilityIdentifier("intro.previous")
@@ -43,7 +53,7 @@ struct AppIntroductionView: View {
                 // Cancelling or failing authentication leaves setup open. Merely
                 // presenting a connection sheet never completes onboarding.
                 if mode == .setup && store.schoolSignedIn { go(to: 2) }
-            }) { NavigationStack { SchoolConnectionView() } }
+            }) { NavigationStack { SchoolConnectionView(isOnboarding: true) } }
             .onChange(of: store.schoolSignedIn) { _, connected in
                 if connected && showConnection && mode == .setup {
                     showConnection = false
@@ -141,8 +151,9 @@ struct AppIntroductionView: View {
             } else {
                 ProminentAction(title: lastPage ? (mode == .setup ? "C’est parti" : "Découvrir Cadenza") : "Continuer",
                                 symbol: lastPage ? "checkmark" : "arrow.right") {
-                    if lastPage { onComplete() } else { go(to: page + 1) }
+                    if lastPage { finishTour() } else { go(to: page + 1) }
                 }
+                .disabled(checkingPermission)
                 .accessibilityIdentifier(lastPage ? "intro.finish" : "intro.continue")
             }
         }
@@ -151,6 +162,82 @@ struct AppIntroductionView: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
+    }
+
+    private var notificationContent: some View {
+        AtelierPage {
+            VStack(spacing: 16) {
+                Image(systemName: "bell.badge")
+                    .font(.system(size: 64, weight: .light))
+                    .foregroundStyle(Atelier.blue)
+                    .accessibilityHidden(true)
+                Text("Votre emploi du temps change ?")
+                    .font(.largeTitle.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Text("Cadenza peut vous prévenir quand PRONOTE annonce une absence ou un cours déplacé, annulé ou modifié.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+
+            AtelierCard {
+                Label("Vous pouvez modifier votre choix dans Réglages.", systemImage: "gearshape")
+                    .font(.subheadline)
+                if let message = notifications.message, notifications.authorization == .notDetermined {
+                    Text(message).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var notificationFooter: some View {
+        VStack(spacing: 10) {
+            if requestingPermission { ProgressView() }
+            ProminentAction(title: "Autoriser les notifications", symbol: "bell") { requestNotifications() }
+                .disabled(requestingPermission)
+                .accessibilityIdentifier("intro.notifications.allow")
+            Button("Plus tard") { finishNotifications() }
+                .frame(minHeight: 44)
+                .disabled(requestingPermission)
+                .accessibilityIdentifier("intro.notifications.skip")
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+    }
+
+    private func finishTour() {
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--uitesting-notifications-intro") {
+            showNotificationStep = true
+            return
+        }
+        #endif
+        guard !notificationChoiceRecorded else { onComplete(); return }
+        checkingPermission = true
+        Task {
+            await notifications.readPermission()
+            checkingPermission = false
+            if notifications.authorization == .notDetermined { showNotificationStep = true }
+            else { onComplete() }
+        }
+    }
+
+    private func requestNotifications() {
+        requestingPermission = true
+        Task {
+            await notifications.setEnabled(true)
+            requestingPermission = false
+            if notifications.authorization != .notDetermined { finishNotifications() }
+        }
+    }
+
+    private func finishNotifications() {
+        notificationChoiceRecorded = true
+        onComplete()
     }
 
     private var pages: [IntroductionPage] {
@@ -178,22 +265,22 @@ struct AppIntroductionView: View {
         }
         return [
             .init(symbol: "graduationcap", title: "Votre scolarité au quotidien",
-                  description: "Retrouvez vos résultats depuis le nouvel onglet Notes.", features: [
+                  description: "Retrouvez les repères de votre journée dès l’accueil.", features: [
                     .init(symbol: "bell", title: "Votre établissement", description: "Informations, messagerie et vie scolaire sont accessibles depuis l’accueil."),
-                    .init(symbol: "books.vertical", title: "Une année par matière", description: "Chaque matière réunit les contenus de cours depuis la rentrée."),
-                    .init(symbol: "checklist", title: "Les devoirs sur une seule carte", description: "Lisez la consigne, ouvrez les documents et validez votre travail sur place.")
+                    .init(symbol: "chart.bar", title: "Notes par matière", description: "Consultez les moyennes et ouvrez une évaluation pour voir ses détails."),
+                    .init(symbol: "checklist", title: "Du devoir à la révision", description: "Lancez le chronomètre directement depuis votre devoir.")
                   ]),
             .init(symbol: "calendar", title: "Votre journée de cours",
                   description: "Choisissez un jour pour voir ses horaires, ses salles et les changements annoncés.", features: [
-                    .init(symbol: "calendar.day.timeline.left", title: "Un planning compact", description: "Les cours se suivent sur une ligne du temps avec un repère par matière."),
-                    .init(symbol: "bell.badge", title: "Les changements de planning", description: "Activez les alertes dans Réglages pour être prévenu lors des actualisations."),
-                    .init(symbol: "square.grid.2x2", title: "Les widgets scolaires", description: "Retrouvez votre moyenne et vos devoirs sur l’écran d’accueil de l’iPhone.")
+                    .init(symbol: "calendar.day.timeline.left", title: "Des cours faciles à distinguer", description: "Retrouvez chaque matière, l’horaire, la salle et les changements annoncés."),
+                    .init(symbol: "bell.badge", title: "Les changements de planning", description: "Choisissez si vous voulez être prévenu des changements de cours."),
+                    .init(symbol: "books.vertical", title: "Une année par matière", description: "Retrouvez les contenus de cours depuis la rentrée.")
                   ]),
-            .init(symbol: "music.note", title: "La musique en révision",
-                  description: "Choisissez votre service dans Réglages ou pendant une séance.", features: [
-                    .init(symbol: "music.note.list", title: "Apple Music", description: "Choisissez un morceau de votre bibliothèque et pilotez la lecture."),
-                    .init(symbol: "hifispeaker", title: "Spotify Connect", description: "Connectez votre compte Premium pour piloter votre lecteur Spotify actif."),
-                    .init(symbol: "chart.bar", title: "Statistiques", description: "Retrouvez vos durées et l’historique depuis l’onglet Révision.")
+            .init(symbol: "timer", title: "Gardez le fil de vos révisions",
+                  description: "Retrouvez votre séance en cours quel que soit l’onglet.", features: [
+                    .init(symbol: "timer", title: "Retour au chronomètre", description: "Touchez le bandeau de la séance pour reprendre là où vous en étiez."),
+                    .init(symbol: "chart.bar", title: "Statistiques et historique", description: "Retrouvez votre temps par période et par matière dans Révision."),
+                    .init(symbol: "headphones", title: "Musique", description: "Ouvrez vos commandes Apple Music ou Spotify pendant la séance.")
                   ])
         ]
     }

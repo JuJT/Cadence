@@ -10,39 +10,27 @@ struct RevisionView: View {
     @State private var showManual = false
     @State private var showHomework = false
     @State private var showMusic = false
+
     var body: some View {
         ScrollViewReader { scrollProxy in
             AtelierPage {
-            if let active = store.state.activeSession {
-                timer(active).id("revision.content.top")
-            } else {
-                Text("Un moment pour vous concentrer.")
-                    .font(.title3).foregroundStyle(.secondary).padding(.bottom, 4)
-                    .id("revision.content.top")
-                AtelierCard {
-                    Label("Votre prochaine révision", systemImage: "books.vertical")
-                        .font(.headline)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Matière").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                        SubjectPicker(selection: $subjectID).pickerStyle(.menu)
-                            .font(.title3.weight(.semibold)).controlSize(.large)
-                    }.padding(.vertical, 4)
-                    Divider().overlay(Color.white.opacity(0.25))
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Chapitre ou objectif").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                        TextField("Ex. Suites, exercices, lecture…", text: $topic)
-                            .font(.body).textFieldStyle(.plain).padding(.vertical, 8)
-                            .accessibilityLabel("Chapitre ou objectif (facultatif)")
+                if let active = store.state.activeSession {
+                    timer(active).id("revision.content.top")
+                } else {
+                    newRevision.id("revision.content.top")
+                    AtelierCard {
+                        CadenceSectionHeader(title: "Votre suivi")
+                        statisticsShortcut
+                        Divider()
+                        NavigationLink(destination: HistoryView(initialKind: .revision)) {
+                            RevisionActionLabel(title: "Historique des révisions", symbol: "clock.arrow.circlepath")
+                        }.buttonStyle(.plain).accessibilityIdentifier("revision.history")
+                        Divider()
+                        Button { showManual = true } label: {
+                            RevisionActionLabel(title: "Ajouter une révision passée", symbol: "plus")
+                        }.buttonStyle(.plain)
                     }
                 }
-                ProminentAction(title: "Démarrer une révision", symbol: "play.fill", tint: Atelier.blue) {
-                    guard let id = subjectID ?? store.state.subjects.first(where: { !$0.isArchived })?.id else { return }
-                    store.start(kind: .revision, subjectID: id, topic: topic)
-                }.disabled(store.state.subjects.allSatisfy(\.isArchived)).accessibilityIdentifier("session.start")
-                SecondaryAction(title: "Ajouter une révision passée", symbol: "plus") { showManual = true }
-                NavigationLink("Historique des révisions", destination: HistoryView(initialKind: .revision))
-                    .font(.subheadline.weight(.medium)).frame(minHeight: 44)
-            }
             }
             .onChange(of: store.state.activeSession?.id) { _, _ in
                 // La nouvelle mise en page ne doit pas hériter du défilement du formulaire.
@@ -63,45 +51,76 @@ struct RevisionView: View {
         .sheet(isPresented: $showMusic) { NavigationStack { MusicView() } }
     }
 
+    private var newRevision: some View {
+        AtelierCard {
+            CadenceSectionHeader(title: "Nouvelle séance")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Matière").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                SubjectPicker(selection: $subjectID)
+                    .pickerStyle(.menu)
+                    .font(.headline)
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Chapitre ou objectif").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                TextField("Ex. Suites, exercices, lecture…", text: $topic)
+                    .font(.body).textFieldStyle(.plain)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("Chapitre ou objectif (facultatif)")
+            }
+            ProminentAction(title: "Démarrer une révision", symbol: "play.fill") {
+                guard let id = subjectID ?? store.state.subjects.first(where: { !$0.isArchived })?.id else { return }
+                store.start(kind: .revision, subjectID: id, topic: topic)
+            }
+            .disabled(store.state.subjects.allSatisfy(\.isArchived))
+            .accessibilityIdentifier("session.start")
+        }
+    }
+
+    private var statisticsShortcut: some View {
+        Button { store.route = "statistiques" } label: {
+            RevisionActionLabel(title: "Statistiques", symbol: "chart.bar.xaxis")
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("revision.statistics.shortcut")
+    }
+
     private func timer(_ active: StudySession) -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             SessionDial(session: active, subject: Atelier.subject(active.subjectID, in: store.state))
-                .frame(maxWidth: .infinity).padding(.top, 8)
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: 12) { controls(active) }
             } else {
                 HStack(spacing: 12) { controls(active) }
             }
             AtelierCard {
-                HStack(spacing: 12) {
-                    Label("Type de séance", systemImage: "scope")
-                        .font(.subheadline.weight(.medium))
-                    Spacer(minLength: 4)
-                    StatusBadge(title: active.kind.label, color: Atelier.color(for: active.kind))
-                }
-            }
-            sessionStatistics(active)
-            AtelierCard {
                 if let id = active.activeHomeworkID, let item = store.state.homework.first(where: { $0.id == id }) {
-                    Label(item.source.subject, systemImage: "checklist").font(.headline)
-                    Text(SchoolRichText.plain(item.source.description)).font(.subheadline).lineLimit(3)
+                    CadenceSectionHeader(title: "Devoir associé", subtitle: item.source.subject)
+                    Text(SchoolRichText.plain(item.source.description)).font(.subheadline)
                         .accessibilityIdentifier("session.homework.description")
                     Button("Valider ce devoir", systemImage: "checkmark.circle") { store.setHomeworkCompletion(id, isDone: true) }
+                        .frame(minHeight: 44)
                         .accessibilityIdentifier("session.homework.complete")
+                    Divider()
                 }
-                Button(active.activeHomeworkID == nil ? "Associer un devoir" : "Changer de devoir", systemImage: "list.bullet.clipboard") { showHomework = true }
+                Button { showHomework = true } label: {
+                    RevisionActionLabel(title: active.activeHomeworkID == nil ? "Associer un devoir" : "Changer de devoir", symbol: "checklist")
+                }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("session.homework.choose")
-                Button("Musique", systemImage: "headphones") { showMusic = true }
-                    .accessibilityIdentifier("session.music")
             }
-            NavigationLink { SessionEditorView(session: active) } label: {
-                HStack(spacing: 10) {
-                    Label("Modifier les notes et le chapitre", systemImage: "square.and.pencil")
-                        .font(.subheadline.weight(.medium))
-                    Spacer(minLength: 4)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                }.frame(minHeight: 44)
-            }.buttonStyle(.plain).foregroundStyle(Atelier.blue)
+            AtelierCard {
+                Button { showMusic = true } label: {
+                    RevisionActionLabel(title: "Musique", symbol: "headphones")
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("session.music")
+                Divider()
+                NavigationLink { SessionEditorView(session: active) } label: {
+                    RevisionActionLabel(title: "Modifier les notes et le chapitre", symbol: "square.and.pencil")
+                }.buttonStyle(.plain)
+            }
+            sessionStatistics(active)
             Text(active.isPaused ? "Votre séance est en pause. Reprenez quand vous le souhaitez." : "Votre temps est conservé, même lorsque l’application est fermée.")
                 .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
@@ -113,6 +132,8 @@ struct RevisionView: View {
             let week = Calendar.current.dateInterval(of: .weekOfYear, for: now) ?? Atelier.day(now)
             let subjectTotals = Statistics.bySubject(state: store.state, in: week, now: now)[active.subjectID] ?? StudyTotals()
             AtelierCard {
+                statisticsShortcut
+                Divider()
                 if dynamicTypeSize.isAccessibilitySize {
                     sessionMetric("Aujourd’hui", detail: "Cours et révisions", seconds: dayTotals.total, symbol: "stopwatch")
                     Divider()
@@ -143,114 +164,101 @@ struct RevisionView: View {
         SecondaryAction(title: active.isPaused ? "Reprendre" : "Pause", symbol: active.isPaused ? "play.fill" : "pause.fill") {
             if active.isPaused { store.resume() } else { store.pause() }
         }.accessibilityIdentifier(active.isPaused ? "session.resume" : "session.pause")
-        ProminentAction(title: "Terminer", symbol: "stop.fill", tint: Atelier.blue) { showFinish = true }.accessibilityIdentifier("session.finish")
+        ProminentAction(title: "Terminer", symbol: "stop.fill") { showFinish = true }.accessibilityIdentifier("session.finish")
     }
 }
 
-/// Un anneau de lumière encadre le temps écoulé, sans représenter un objectif.
+private struct RevisionActionLabel: View {
+    let title: String
+    let symbol: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .foregroundStyle(Atelier.blue)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+    }
+}
+
 private struct SessionDial: View {
     let session: StudySession
     let subject: Subject?
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 52.0
-    @State private var launchProgress = 1.0
-    @State private var animatedSessionID: UUID?
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 51.0
 
     var body: some View {
-        CadenceTimelineView(interval: 1, paused: session.isPaused) { now in
-            if dynamicTypeSize >= .xxLarge {
-                AtelierCard {
-                    dialContent(now: now)
-                        .frame(maxWidth: .infinity).padding(.vertical, 14)
-                }.frame(maxWidth: 520)
-            } else {
-                ZStack {
-                    dialSurface.padding(14)
-                    Circle()
-                        .stroke(Atelier.blue.opacity(colorScheme == .dark ? 0.16 : 0.08), lineWidth: 20)
-                        .padding(9)
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Atelier.blue.opacity(0.27), .cyan.opacity(0.65), Atelier.blue, Atelier.blue.opacity(0.25)],
-                                startPoint: .bottomLeading, endPoint: .topTrailing
-                            ),
-                            style: StrokeStyle(lineWidth: 16, lineCap: .round)
-                        )
-                        .padding(9)
-                        .opacity(session.isPaused ? 0.55 : 1)
-                        .shadow(color: Atelier.blue.opacity(colorScheme == .dark ? 0.16 : 0.24), radius: 15, x: 0, y: 8)
-                    Circle()
-                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.13 : 0.65), lineWidth: 1)
-                        .padding(18)
-                    dialContent(now: now).padding(36)
+        AtelierCard {
+            HStack(alignment: .top, spacing: 12) {
+                SubjectMark(subject: subject)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(subject?.name ?? "Matière archivée")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(CadenceColors.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Label(session.isPaused ? "En pause" : session.kind.label,
+                          systemImage: session.isPaused ? "pause.circle" : session.kind.symbol)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
-                .aspectRatio(1, contentMode: .fit).frame(maxWidth: 420)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: session.isPaused)
+                Spacer(minLength: 0)
             }
-        }
-        .scaleEffect(reduceMotion ? 1 : 0.975 + 0.025 * launchProgress)
-        .opacity(0.75 + 0.25 * launchProgress)
-        .overlay {
-            if !reduceMotion && !reduceTransparency && dynamicTypeSize < .xxLarge {
-                Circle().stroke(Atelier.ice.opacity(0.5), lineWidth: 2)
-                    .scaleEffect(1 + launchProgress * 0.12)
-                    .opacity((1 - launchProgress) * 0.6)
-                    .accessibilityHidden(true).allowsHitTesting(false)
-            }
-        }
-        .task(id: session.id) {
-            let age = Date().timeIntervalSince(session.startedAt)
-            guard animatedSessionID != session.id, age >= 0, age < 8,
-                  !reduceMotion, scenePhase == .active,
-                  !ProcessInfo.processInfo.isLowPowerModeEnabled else { launchProgress = 1; return }
-            animatedSessionID = session.id
-            launchProgress = 0
-            do { try await Task.sleep(nanoseconds: 20_000_000) }
-            catch { launchProgress = 1; return }
-            guard !Task.isCancelled else { launchProgress = 1; return }
-            withAnimation(.spring(response: 0.62, dampingFraction: 0.88)) { launchProgress = 1 }
-        }
-        .onChange(of: reduceMotion) { _, reduced in if reduced { launchProgress = 1 } }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { launchProgress = 1 } }
-    }
 
-    @ViewBuilder private var dialSurface: some View {
-        if reduceTransparency {
-            Circle().fill(Color(uiColor: .secondarySystemGroupedBackground))
-        } else {
-            Circle().fill(.ultraThinMaterial)
+            let topic = session.topic.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !topic.isEmpty && topic.localizedCaseInsensitiveCompare(subject?.name ?? "") != .orderedSame {
+                Text(topic).font(.subheadline).foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 5) {
+                SessionElapsedText(session: session)
+                    .font(.system(size: timerFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(Atelier.blue)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.42)
+                    .accessibilityIdentifier("session.elapsed")
+                Text("Temps écoulé").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
         }
     }
+}
 
-    private func dialContent(now: Date) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: subject?.symbol ?? "book.closed")
-                .font(.system(size: 26, weight: .medium, design: .rounded))
-                .foregroundStyle(Atelier.blue).frame(width: 52, height: 52)
-                .background(Atelier.blue.opacity(colorScheme == .dark ? 0.15 : 0.09), in: RoundedRectangle(cornerRadius: 17))
-                .overlay(RoundedRectangle(cornerRadius: 17).stroke(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.7), lineWidth: 1))
-                .accessibilityHidden(true)
-            Text(subject?.name ?? "Matière archivée")
-                .font(.title3.weight(.semibold)).foregroundStyle(CadenceColors.ink).multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            if !session.topic.isEmpty {
-                Text(session.topic).font(.subheadline).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+struct SessionElapsedText: View {
+    let session: StudySession
+    @Environment(\.cadenceTabIsActive) private var activeTab
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var now = Date()
+
+    private var runningSessionID: UUID? {
+        session.isActive && !session.isPaused && activeTab && scenePhase == .active ? session.id : nil
+    }
+
+    var body: some View {
+        let elapsed = DurationText.clock(session.elapsed(at: now))
+        Text(elapsed)
+            .monospacedDigit()
+            .accessibilityLabel("Temps suivi : " + elapsed)
+            .task(id: runningSessionID) { @MainActor in
+                guard runningSessionID != nil else { return }
+                now = .now
+                // The view only samples the clock. Persisted segments retain the time across launches.
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .seconds(1)) }
+                    catch { return }
+                    guard !Task.isCancelled else { return }
+                    now = .now
+                }
             }
-            Text(Atelier.clock(session.elapsed(at: now)))
-                .font(.system(size: timerFontSize, weight: .bold, design: .rounded))
-                .monospacedDigit().tracking(-1.8).lineLimit(1).minimumScaleFactor(0.65)
-                .foregroundStyle(CadenceColors.ink)
-                .padding(.vertical, 5)
-                .accessibilityLabel("Temps suivi : \(Atelier.clock(session.elapsed(at: now)))")
-            Text(session.isPaused ? "En pause" : "Temps écoulé")
-                .font(.caption.weight(.medium)).foregroundStyle(.secondary)
-        }
     }
 }
 

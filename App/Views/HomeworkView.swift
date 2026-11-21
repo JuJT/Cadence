@@ -91,9 +91,9 @@ struct HomeworkView: View {
                     HomeworkRow(item: item, subject: Atelier.subject(item.subjectID, in: store.state),
                                 workedSeconds: worked[item.id, default: 0], now: now)
                     Divider().padding(.horizontal, 16)
-                    HomeworkQuickActions(item: item).padding(.horizontal, 12).padding(.vertical, 6)
+                    HomeworkQuickActions(item: item).padding(.horizontal, 14).padding(.vertical, 8)
                 }
-                .cadenceSurface(radius: 24)
+                .cadenceReadingSurface()
             }
         } header: {
             CadenceSectionHeader(title: HomeworkPresentation.deadline(group.date),
@@ -241,7 +241,7 @@ private struct HomeworkRow: View {
             if subject == nil || subject?.isArchived == true {
                 Text("Choisissez une matière dans le menu du devoir pour démarrer une séance.").font(.caption).foregroundStyle(.secondary)
             }
-        }.padding(.horizontal, 16).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+        }.padding(.horizontal, 14).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder private var metadata: some View {
@@ -291,16 +291,14 @@ private struct HomeworkQuickActions: View {
 
     private var session: some View {
         Button {
-            if !isAttached {
-                if active == nil { store.startHomework(item.id) }
-                else { store.assignHomeworkToActiveSession(item.id) }
-            }
-            if store.state.activeSession?.activeHomeworkID == item.id { store.route = "revision" }
+            store.startHomework(item.id)
         } label: {
-            Label(isAttached ? "Séance en cours" : active == nil ? "Démarrer" : "Associer", systemImage: isAttached ? "timer" : active == nil ? "play.fill" : "link")
+            Label(isAttached ? "Ouvrir la séance" : active == nil ? "Réviser" : "Associer", systemImage: isAttached ? "timer" : active == nil ? "play.fill" : "link")
                 .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.horizontal, 5)
+                .background(Atelier.blue.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.borderless).disabled(!canStart)
+        .buttonStyle(.borderless).tint(Atelier.blue).disabled(!canStart)
         .accessibilityHint(canStart ? "Ouvre le chronomètre associé à ce devoir." : "Choisissez une matière dans le menu du devoir.")
         .accessibilityIdentifier("homework.quick.start." + item.id)
     }

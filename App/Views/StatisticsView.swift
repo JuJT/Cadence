@@ -16,7 +16,6 @@ struct StatisticsView: View {
         CadenceTimelineView(interval: 30) { now in
             let snapshot = StatisticsSnapshot(state: store.state, interval: interval, kind: kind, now: now)
             AtelierPage {
-                CadenceSectionHeader(title: "Votre rythme", subtitle: "Un regard sur le temps consacré à vos matières.")
                 filters
                 summary(snapshot)
                 distribution(snapshot)
@@ -64,17 +63,13 @@ struct StatisticsView: View {
 
     private func summary(_ snapshot: StatisticsSnapshot) -> some View {
         AtelierCard {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(kind?.label ?? "Cours et révisions").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
-                    Text(Atelier.duration(snapshot.displayedTotal))
-                        .font(.system(size: totalFontSize, weight: .semibold, design: .rounded))
-                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
-                        .contentTransition(.numericText())
-                    Text(period == "Jour" ? "sur cette journée" : period == "Mois" ? "sur ce mois" : "sur cette semaine")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                summaryRing(snapshot)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 16) {
+                    studyTotal(snapshot).fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    summaryRing(snapshot)
+                }
+                studyTotal(snapshot)
             }
             Text(snapshot.interval.start.cadenceFormatted(date: .abbreviated, time: .omitted) + " – " + snapshot.interval.end.addingTimeInterval(-1).cadenceFormatted(date: .abbreviated, time: .omitted))
                 .font(.caption).foregroundStyle(.secondary)
@@ -92,6 +87,17 @@ struct StatisticsView: View {
                 }
             }
         }
+    }
+
+    private func studyTotal(_ snapshot: StatisticsSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(kind?.label ?? "Cours et révisions").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+            Text(Atelier.duration(snapshot.displayedTotal))
+                .font(.system(size: totalFontSize, weight: .semibold, design: .rounded))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+                .foregroundStyle(Atelier.blue)
+                .contentTransition(.numericText())
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func summaryRing(_ snapshot: StatisticsSnapshot) -> some View {

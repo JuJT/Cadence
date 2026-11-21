@@ -13,7 +13,7 @@ Les valeurs sont un résumé daté publié par l’application. Les widgets se r
 
 ## Installation Windows et compte gratuit
 
-Utiliser **Cadenza-iPhone-0.6.0.ipa** (variante technique `CadenceExtensions`), conserver les extensions dans Sideloadly, le même compte Apple et l’identifiant utilisé pour l’installation existante. Ne pas désinstaller l’application pour la mettre à jour.
+Utiliser l’IPA publiée pour iPhone (variante `CadenceExtensions`) et l’installer par-dessus Cadenza avec le même compte Apple et le même identifiant d’application. Conserver les extensions dans Sideloadly. [Version publique](https://github.com/JuJT/Cadence/releases/latest)
 
 Cette variante demande **Keychain Sharing**, que le tableau Apple indique disponible pour un compte Apple Developer gratuit. L’application et son extension demandent le groupe commun `com.cadence.study.widget-summary`, préfixé par le véritable identifiant de signature. Elles recherchent aussi les noms exacts inscrits dans leur propre signature après resignature ; le système contrôle leurs droits effectifs. Le transport du résumé vers les widgets reste local et ne demande aucun serveur ni compte supplémentaire. La connexion directe PRONOTE de l’app sert séparément à récupérer les données scolaires. Seul un résumé de la moyenne, des devoirs, des statistiques et des prochains cours est partagé ; la base d’étude complète reste dans l’application.
 

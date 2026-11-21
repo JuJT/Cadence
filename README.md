@@ -1,14 +1,14 @@
 # Cadenza — Atelier Liquid Glass pour iPhone
 
-Application native SwiftUI française, iPhone uniquement, iOS 17 minimum. Le design Atelier conserve ses surfaces translucides et ses halos bleutés. Les deux catégories de temps sont **Cours** et **Révisions**.
+Application native SwiftUI française pour iPhone, à partir d’iOS 17. Cadenza mêle les couleurs bleu et blanc, une navigation native et des repères visuels par matière. Les deux catégories de temps sont **Cours** et **Révisions**.
 
-La version **0.6.0, build 7** se connecte directement à PRONOTE avec Pawnote LTS, la bibliothèque utilisée par Papillon. La recherche d’établissement utilise une position approximative uniquement au choix « Autour de moi », ou une ville/adresse, avec une URL HTTPS manuelle en alternative. Le mot de passe initial n’est pas enregistré ; le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
+La connexion PRONOTE utilise Pawnote LTS, la bibliothèque utilisée par Papillon. Les écrans de bienvenue proposent l’annuaire par ville ou position approximative, l’URL manuelle et le QR PRONOTE. Les portails ENT compatibles utilisent leur propre page de connexion dans Cadenza. Le jeton de l’appareil reste dans le trousseau privé, séparé des widgets.
 
 Cours, devoirs, notes et moyennes, compétences, vie scolaire, informations, messagerie, menus, contenus de cours, bulletin et compte sont présentés selon les droits de l’espace élève. Le cache persistant reste accessible hors connexion. Les messages ne sont envoyés et les informations accusées que sur confirmation dans l’interface. La validation d’un devoir dans Cadenza reste locale.
 
 ## Installer et utiliser
 
-Installer **Cadenza-iPhone-0.6.0.ipa** par-dessus l’app actuelle avec le même compte et les mêmes options Sideloadly, sans désinstaller. Conserver les extensions et l’auto-renouvellement. Ouvrir ensuite Réglages → Connexion PRONOTE. Voir [les changements 0.6.0](CHANGELOG.md), [la connexion directe](docs/PRONOTE_DIRECT.md), [les widgets](docs/WIDGETS_WINDOWS.md) et [la musique](docs/CAPACITES_NATIVES.md).
+Télécharger l’IPA iPhone dans [la dernière version publique](https://github.com/JuJT/Cadence/releases/latest), ou depuis **Réglages → Mises à jour** dans Cadenza. Installer par-dessus l’app avec le même compte Apple et les mêmes options Sideloadly, en conservant les extensions et l’auto-renouvellement. [Historique des versions](CHANGELOG.md) · [Connexion PRONOTE](docs/PRONOTE_DIRECT.md) · [Widgets](docs/WIDGETS_WINDOWS.md) · [Musique](docs/CAPACITES_NATIVES.md)
 
 [Aperçu des captures natives de la version 0.4.0](Verification/0.4.0/APERCU.html), avec données fictives et empreintes des fichiers originaux.
 
@@ -23,11 +23,11 @@ Les identifiants `com.cadence.study`, `cadence://` et le fichier `Cadence/cadenc
 - Statistiques Charts Cours/Révisions ; provenance historique conservée en interne pour éviter les doubles comptes.
 - Widgets locaux pour la moyenne générale, les devoirs, le prochain cours et les statistiques. Dynamic Island, Live Activities et App Intents.
 - Commandes Apple Music et Spotify. Les intégrations de concentration et de volume général sont retirées.
-- Emploi du temps compact avec sélection du jour. Contenus des cours classés par matière depuis la rentrée, puis du plus ancien au plus récent.
+- Emploi du temps avec horaires alignés et créneaux distincts. Contenus des cours classés par matière depuis la rentrée, puis du plus ancien au plus récent.
 - Alertes locales facultatives sur les changements d’emploi du temps. iOS décide des créneaux d’actualisation en arrière-plan.
 - Période actuelle propre à chaque écran ; moyennes publiées prioritaires et estimations distinctes si absentes.
 - Parcours de première installation et de nouveautés animés, avec fondu si l’option Réduire les animations est activée. Recherche des mises à jour publiées depuis Réglages.
-- Fonds suspendus hors écran/en arrière-plan et en cas d’économie d’énergie ou de chauffe ; calculs de graphiques regroupés, navigation native conservée.
+- Fond fixe dans les écrans de lecture. Zones de chronomètre rafraîchies à l’écran lorsque la séance est en cours.
 
 ## Compiler
 

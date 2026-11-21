@@ -13,10 +13,27 @@ final class CadenceUITests: XCTestCase {
         XCTAssertEqual(app.alerts.count, 0)
         let nearby = app.buttons["school.find.nearby"]
         XCTAssertTrue(nearby.exists)
+        XCTAssertTrue(app.buttons["school.method.qr"].exists)
+        tap(app.buttons["school.method.address"], in: app)
         let url = app.textFields["school.login.url"]
-        let connect = app.buttons["school.login.connect"]
+        let next = app.buttons["school.address.continue"]
         tap(url, in: app)
         url.typeText("http://school-example.index-education.net/pronote/")
+        XCTAssertFalse(next.isEnabled)
+
+        let invalidValue = (url.value as? String) ?? ""
+        url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: invalidValue.count))
+        url.typeText("https://127.0.0.1/pronote/")
+        XCTAssertFalse(next.isEnabled)
+
+        let localValue = (url.value as? String) ?? ""
+        url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: localValue.count))
+        url.typeText("https://school-example.index-education.net/pronote/eleve.html")
+        XCTAssertTrue(next.isEnabled)
+        tap(next, in: app)
+        XCTAssertTrue(app.buttons["school.login.ent"].exists)
+        let connect = app.buttons["school.login.connect"]
+        XCTAssertFalse(connect.isEnabled)
         let username = app.textFields["school.login.username"]
         tap(username, in: app)
         username.typeText("compte-fictif-test-ui")
@@ -24,17 +41,6 @@ final class CadenceUITests: XCTestCase {
         tap(password, in: app)
         password.typeText("MotDePasseFictif42\n")
         XCTAssertTrue(reveal(connect, in: app))
-        XCTAssertFalse(connect.isEnabled)
-
-        tap(url, in: app)
-        let invalidValue = (url.value as? String) ?? ""
-        url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: invalidValue.count))
-        url.typeText("https://127.0.0.1/pronote/")
-        XCTAssertFalse(connect.isEnabled)
-
-        let localValue = (url.value as? String) ?? ""
-        url.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: localValue.count))
-        url.typeText("https://school-example.index-education.net/pronote/")
         XCTAssertTrue(connect.isEnabled)
         capture(app, name: "pronote-connexion-directe-formulaire")
         // No network authentication and no real credentials are used by this test.
@@ -70,8 +76,15 @@ final class CadenceUITests: XCTestCase {
         app.launch()
         app.tabBars.buttons["Notes"].tap()
         XCTAssertTrue(app.navigationBars["Notes"].waitForExistence(timeout: 4))
-        XCTAssertTrue(reveal(app.staticTexts["Évaluation fictive — équations"], in: app))
+        XCTAssertTrue(reveal(app.staticTexts["Français"], in: app))
+        XCTAssertTrue(reveal(app.buttons["pronote.grade.fixture-commentaire"], in: app))
+        XCTAssertTrue(reveal(app.staticTexts["Mathématiques"], in: app))
+        let note = app.buttons["pronote.grade.fixture-equations"]
+        XCTAssertTrue(reveal(note, in: app))
         capture(app, name: "pronote-notes")
+        note.tap()
+        XCTAssertTrue(reveal(app.staticTexts["Coefficient 1"], in: app))
+        capture(app, name: "pronote-note-detail")
         app.tabBars.buttons["Accueil"].tap()
 
         tap(app.buttons["pronote.quick.contents"], in: app)
@@ -200,6 +213,18 @@ final class CadenceUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Français"].exists)
         previous.tap()
         XCTAssertTrue(app.staticTexts["Français"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testHomeStudyActionsOpenStats() throws {
+        let app = XCUIApplication()
+        app.launchArguments = testArguments([])
+        app.launch()
+        XCTAssertTrue(app.buttons["home.revision"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["home.statistics"].isHittable)
+        capture(app, name: "accueil-revision-statistiques")
+        app.buttons["home.statistics"].tap()
+        XCTAssertTrue(app.navigationBars["Statistiques"].waitForExistence(timeout: 4))
     }
 
     @MainActor
@@ -443,7 +468,7 @@ final class CadenceUITests: XCTestCase {
         tabs.buttons["Devoirs"].tap()
         XCTAssertTrue(app.navigationBars["Devoirs"].exists)
         XCTAssertTrue(reveal(app.buttons["homework.quick.start." + mathID], in: app))
-        XCTAssertTrue(app.buttons["homework.quick.start." + mathID].label.contains("Séance en cours"))
+        XCTAssertTrue(app.buttons["homework.quick.start." + mathID].label.contains("Ouvrir la séance"))
         capture(app, name: "devoirs-actions-directes")
     }
 
@@ -454,12 +479,22 @@ final class CadenceUITests: XCTestCase {
         app.launch()
         let homeworkTab = app.tabBars.buttons["Devoirs"]
         XCTAssertTrue(homeworkTab.waitForExistence(timeout: 8))
+        app.tabBars.buttons["Révision"].tap()
+        tap(app.buttons["revision.history"], in: app)
+        XCTAssertTrue(app.navigationBars["Historique"].waitForExistence(timeout: 3))
         homeworkTab.tap()
         tap(app.buttons["homework.quick.start.fixture-homework-math-today"], in: app)
         XCTAssertTrue(app.buttons["session.pause"].waitForExistence(timeout: 4))
+        let clock = app.staticTexts["session.elapsed"]
+        XCTAssertTrue(clock.waitForExistence(timeout: 3))
+        assertClockAdvances(clock)
         tap(app.buttons["session.pause"], in: app)
         XCTAssertTrue(app.buttons["session.resume"].waitForExistence(timeout: 3))
         scrollToTop(app)
+        let pausedAt = clock.label
+        let changesWhilePaused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", pausedAt), object: clock)
+        changesWhilePaused.isInverted = true
+        XCTAssertEqual(XCTWaiter.wait(for: [changesWhilePaused], timeout: 1.5), .completed)
         capture(app, name: "devoir-seance-liee")
         homeworkTab.tap()
         let completion = app.buttons["homework.quick.complete.fixture-homework-math-today"]
@@ -468,10 +503,15 @@ final class CadenceUITests: XCTestCase {
         tap(app.segmentedControls.buttons["Terminés"], in: app)
         XCTAssertTrue(reveal(completion, in: app))
         XCTAssertTrue(completion.label.contains("Remettre"))
-        app.tabBars.buttons["Révision"].tap()
+        tap(app.buttons["session.banner"], in: app)
         XCTAssertTrue(app.buttons["session.resume"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["session.start"].exists)
         tap(app.buttons["session.resume"], in: app)
+        assertClockAdvances(clock)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(clock.waitForExistence(timeout: 5))
+        assertClockAdvances(clock)
         tap(app.buttons["session.finish"], in: app)
         let finish = app.alerts.buttons["Terminer et enregistrer"]
         XCTAssertTrue(finish.waitForExistence(timeout: 3))
@@ -500,7 +540,7 @@ final class CadenceUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Mathématiques"].firstMatch.waitForExistence(timeout: 3))
         homeworkTab.tap()
         XCTAssertTrue(reveal(assign, in: app))
-        XCTAssertTrue(assign.label.contains("Séance en cours"))
+        XCTAssertTrue(assign.label.contains("Ouvrir la séance"))
         tap(assign, in: app)
         tap(app.buttons["session.homework.choose"], in: app)
         tap(app.buttons["homework.picker.detach"], in: app)
@@ -546,6 +586,15 @@ final class CadenceUITests: XCTestCase {
 
     private func testArguments(_ extra: [String] = []) -> [String] {
         ["--uitesting", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"] + extra
+    }
+
+    @MainActor
+    private func assertClockAdvances(_ clock: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let previous = clock.label
+        XCTAssertTrue(previous.hasPrefix("Temps suivi"), file: file, line: line)
+        let advances = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", previous), object: clock)
+        XCTAssertEqual(XCTWaiter.wait(for: [advances], timeout: 5), .completed,
+                       "Le temps affiché doit avancer sans interaction.", file: file, line: line)
     }
 
     @MainActor

@@ -3,6 +3,7 @@ import CadenceCore
 
 struct CoursesView: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var mode = "Jour"
     @State private var date = Date()
     @State private var search = ""
@@ -53,17 +54,19 @@ struct CoursesView: View {
                             }.accessibilityLabel(mode == "Semaine" ? "Semaine suivante" : "Jour suivant")
                                 .accessibilityIdentifier("courses.next")
                         }
-                        if mode == "Jour" { dayStrip }
-                    }.padding(4).cadenceSurface(radius: 22)
+                        if mode == "Jour" && !dynamicTypeSize.isAccessibilitySize { dayStrip }
+                    }.padding(4).cadenceReadingSurface()
                 }
+                if hasCourseContents { PronoteShortcutRow(section: .contents) }
                 if groups.isEmpty {
                     EmptyCard(title: search.isEmpty ? "Aucun cours prévu" : "Aucun cours trouvé", symbol: "calendar",
                               description: search.isEmpty ? "Consultez une autre date ou ajoutez un cours." : "Essayez une autre matière.")
                 }
                 ForEach(groups) { group in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text(CourseDisplay.dayTitle(group.date, calendar: calendar).capitalized)
-                            .font(.headline).foregroundStyle(CadenceColors.ink).padding(.leading, 3)
+                            .font(.title3.weight(.semibold)).foregroundStyle(CadenceColors.ink)
+                            .accessibilityAddTraits(.isHeader)
                         ForEach(group.entries) { entry in
                             switch entry {
                             case .scheduled(let course):
@@ -71,13 +74,12 @@ struct CoursesView: View {
                                     .buttonStyle(.plain)
                             case .manual(let session):
                                 NavigationLink { SessionEditorView(session: session) } label: {
-                                    SessionRow(session: session).padding(9).cadenceSurface(radius: 12)
+                                    SessionRow(session: session).padding(12).cadenceReadingSurface()
                                 }.buttonStyle(.plain)
                             }
                         }
                     }
                 }
-                if hasCourseContents { PronoteShortcutRow(section: .contents) }
                 NavigationLink { SchoolConnectionView() } label: {
                     HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "calendar.badge.clock").font(.title2).foregroundStyle(Atelier.blue)
@@ -125,7 +127,7 @@ struct CoursesView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .foregroundStyle(selected ? Color.white : CadenceColors.ink)
-                    .background(selected ? Atelier.blue : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .background(selected ? CadenceColors.actionBlue : Color.clear, in: RoundedRectangle(cornerRadius: 12))
                 }.buttonStyle(.plain)
                     .accessibilityLabel(CourseDisplay.dayTitle(day, calendar: calendar))
                     .accessibilityAddTraits(selected ? .isSelected : [])
@@ -243,31 +245,65 @@ private struct CourseContentsSections: View {
 
 struct CourseRow: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .subheadline) private var timeColumnWidth: CGFloat = 48
     let occurrence: CourseOccurrence
+    private var subject: Subject? { Atelier.subject(occurrence.subjectID, in: store.state) }
+    private var cancelled: Bool { occurrence.school?.canceled == true || occurrence.status == .cancelled }
+    private var tint: Color { cancelled ? CadenceColors.secondary : Color(cadenceHex: subject?.colorHex ?? "#2776F8") }
     var body: some View {
-        let tint = Color(cadenceHex: Atelier.subject(occurrence.subjectID, in: store.state)?.colorHex ?? "#2776F8")
-        let cancelled = occurrence.school?.canceled == true || occurrence.status == .cancelled
-        let room = occurrence.school?.classrooms.joined(separator: ", ") ?? ""
-        let teacher = occurrence.school?.teacherNames.joined(separator: ", ") ?? ""
-        let detail = [room, teacher].filter { !$0.isEmpty }.joined(separator: " · ")
-        HStack(spacing: 9) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(CourseDisplay.time(occurrence.start, course: occurrence)).font(.subheadline.weight(.semibold))
-                Text(CourseDisplay.time(occurrence.end, course: occurrence)).font(.caption).foregroundStyle(.secondary)
-            }.monospacedDigit().fixedSize(horizontal: true, vertical: false)
-            RoundedRectangle(cornerRadius: 2).fill(cancelled ? Color.secondary : tint).frame(width: 4)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(occurrence.displayTitle(in: store.state.subjects)).font(.headline).strikethrough(cancelled)
-                if !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary) }
-                if let status = sourceStatus {
-                    Text(status).font(.caption.weight(.semibold)).foregroundStyle(cancelled ? Color.secondary : Color.orange)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(CourseDisplay.timeRange(occurrence)).font(.subheadline.monospacedDigit())
+                    courseBlock
                 }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(CourseDisplay.time(occurrence.start, course: occurrence)).font(.subheadline.weight(.semibold))
+                        Text(CourseDisplay.time(occurrence.end, course: occurrence)).font(.caption).foregroundStyle(CadenceColors.secondary)
+                    }.monospacedDigit().frame(width: timeColumnWidth, alignment: .trailing).padding(.top, 15)
+                        .accessibilityElement(children: .ignore).accessibilityLabel(CourseDisplay.timeRange(occurrence))
+                    courseBlock
+                }
+            }
         }
         .foregroundStyle(CadenceColors.ink)
-        .padding(.horizontal, 11).padding(.vertical, 6).frame(minHeight: 48)
-        .cadenceSurface(radius: 13)
+    }
+
+    private var courseBlock: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .firstTextBaseline, spacing: 9) {
+                Image(systemName: subject?.symbol ?? "book.closed").foregroundStyle(tint).accessibilityHidden(true)
+                Text(occurrence.displayTitle(in: store.state.subjects))
+                    .font(.headline).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            if let school = occurrence.school {
+                let room = school.classrooms.joined(separator: ", ")
+                let teacher = school.teacherNames.joined(separator: ", ")
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 13) { courseMetadata(room: room, teacher: teacher, singleLine: true) }
+                    VStack(alignment: .leading, spacing: 5) { courseMetadata(room: room, teacher: teacher, singleLine: false) }
+                }
+                .font(.subheadline).foregroundStyle(CadenceColors.secondary)
+            }
+            if let status = sourceStatus {
+                Label(status, systemImage: cancelled ? "calendar.badge.minus" : "info.circle")
+                    .font(.caption.weight(.semibold)).foregroundStyle(cancelled ? CadenceColors.secondary : Atelier.blue)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(tint.opacity(0.12), in: Capsule())
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(13).frame(minHeight: 60)
+        .cadenceReadingSurface(radius: 15, tint: tint)
+    }
+
+    @ViewBuilder private func courseMetadata(room: String, teacher: String, singleLine: Bool) -> some View {
+        if !room.isEmpty { Label(room, systemImage: "mappin").fixedSize(horizontal: singleLine, vertical: true).accessibilityLabel("Salle " + room) }
+        if !teacher.isEmpty { Label(teacher, systemImage: "person").fixedSize(horizontal: singleLine, vertical: true) }
     }
 
     private var sourceStatus: String? {

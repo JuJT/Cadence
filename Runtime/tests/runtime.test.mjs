@@ -127,6 +127,54 @@ test('security challenge exposes flags but no protocol context',async()=>{
   await f.runtime.command('security',{pin:'0000',source:'Cadenza fictif'});
   assert.deepEqual(f.trace.find(x=>Array.isArray(x)&&x[0]==='securitySave')[1],{pin:'0000',deviceName:'Cadenza fictif'});
 });
+test('QR pairing calls the pupil login once and stores no pairing material',async()=>{
+  const f=fixture();
+  const qr={url:'https://school.example/pronote/mobile.eleve.html',jeton:'temporary-pairing-token',login:'encrypted-user'};
+  const {url,deviceUUID,kind}=credential;
+  let count=0;
+  f.api.loginQrCode=async(_session,args)=>{
+    count++;
+    assert.deepEqual(args,{qr,pin:'0042',deviceUUID});
+    return {...credential,token:'new-device-token'};
+  };
+  await assert.rejects(f.runtime.command('pair',{url,deviceUUID,kind,qr,pin:'0042\n'}),/InvalidPairingCode/);
+  assert.equal(count,0);
+  const profile=await f.runtime.command('pair',{url,deviceUUID,kind,qr,pin:'0042'});
+  assert.equal(count,1);
+  assert.equal(profile.displayName,'Élève fictif');
+  assert.ok(f.writes.every(write=>write.token==='new-device-token'&& !('qr' in write)&& !('pin' in write)));
+});
+
+test('ENT exchanges a transient token for a durable device token without writing the input',async()=>{
+  const f=fixture();
+  f.api.loginToken=async(_session,args,hooks)=>{
+    assert.equal(args.token,'one-time-ent-token');
+    assert.equal(args.deviceUUID,credential.deviceUUID);
+    assert.equal(hooks.onAuthenticationSent,undefined);
+    const rotated={...credential,token:'rotated-device-token'};
+    hooks.onTokenIssued(rotated);
+    return rotated;
+  };
+  await assert.rejects(f.runtime.command('loginENT',{...credential,token:''}),/InvalidENTResult/);
+  assert.equal(f.writes.length,0);
+  await f.runtime.command('loginENT',{...credential,token:'one-time-ent-token'});
+  assert.ok(f.writes.every(write=>write.token==='rotated-device-token'&&write.tokenState==='ready'));
+});
+
+test('pairing continues through the same PRONOTE challenge without exposing the QR',async()=>{
+  const f=fixture();
+  f.api.loginQrCode=async()=>{throw new f.api.SecurityError({shouldEnterPIN:true,context:{authentication:{},identity:{}}});};
+  const {url,deviceUUID}=credential;
+  const qr={url:url+'/mobile.eleve.html',jeton:'pair-token',login:'encrypted-user'};
+  let error;
+  try{await f.runtime.command('pair',{url,deviceUUID,qr,pin:'1234'});}catch(caught){error=caught;}
+  const envelope=f.runtime.classify(error);
+  assert.equal(envelope.name,'SecurityChallenge');
+  assert.equal(envelope.challenge.shouldEnterPIN,true);
+  assert.equal(f.writes.length,0);
+  await f.runtime.command('security',{pin:'5678',source:'Cadenza'});
+  assert.ok(f.writes.every(write=>write.token==='security-fixture-token'&& !('qr' in write)&& !('pin' in write)));
+});
 test('security mode must be one offered by the server',async()=>{
   const f=fixture();const handle={shouldCustomDoubleAuth:true,availableSecurityModes:[2,3],context:{authentication:{},identity:{}}};
   f.api.loginCredentials=async()=>{throw new f.api.SecurityError(handle);};

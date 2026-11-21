@@ -4,7 +4,7 @@ final class IntroductionUITests: XCTestCase {
     @MainActor
     func testSetupKeepsItsPlaceWhenPronoteConnectionIsCancelled() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--uitesting-onboarding", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+        app.launchArguments = ["--uitesting", "--uitesting-onboarding", "--uitesting-notifications-intro", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
         app.launch()
         XCTAssertTrue(app.buttons["intro.continue"].waitForExistence(timeout: 5))
         capture("installation-bienvenue")
@@ -21,6 +21,7 @@ final class IntroductionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["intro.finish"].waitForExistence(timeout: 3))
         capture("installation-prete")
         app.buttons["intro.finish"].tap()
+        skipNotifications(in: app)
         XCTAssertTrue(app.tabBars.buttons["Révision"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["intro.finish"].exists)
     }
@@ -28,7 +29,7 @@ final class IntroductionUITests: XCTestCase {
     @MainActor
     func testUpdateShowsItsPagesWithoutRequiringAConnection() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitesting", "--uitesting-whats-new", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
+        app.launchArguments = ["--uitesting", "--uitesting-whats-new", "--uitesting-notifications-intro", "-AppleLanguages", "(fr)", "-AppleLocale", "fr_FR"]
         app.launch()
         XCTAssertTrue(app.buttons["intro.continue"].waitForExistence(timeout: 5))
         capture("nouveautes-scolarite")
@@ -42,8 +43,17 @@ final class IntroductionUITests: XCTestCase {
         XCTAssertFalse(app.buttons["intro.connect"].exists)
         capture("nouveautes-experience")
         app.buttons["intro.finish"].tap()
+        skipNotifications(in: app)
         XCTAssertTrue(app.tabBars.buttons["Devoirs"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["intro.finish"].exists)
+    }
+
+    @MainActor
+    private func skipNotifications(in app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["intro.notifications.allow"].waitForExistence(timeout: 3))
+        XCTAssertEqual(app.alerts.count, 0)
+        capture("introduction-notifications")
+        app.buttons["intro.notifications.skip"].tap()
     }
 
     @MainActor
