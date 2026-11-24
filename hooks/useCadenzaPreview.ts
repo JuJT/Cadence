@@ -19,11 +19,13 @@ async function preparePreview() {
   const screen = await getCadenzaPreviewRoute();
   if (!screen || !Object.hasOwn(routes, screen)) return;
 
+  // Account creation clears the welcome flag synchronously before loading services.
+  const profile = createMockProfile(false);
   useSettingsStore.getState().mutateProperty("personalization", {
     welcomeModalSeen: true,
     calendarViewMode: "week",
   });
-  await createMockProfile(false);
+  await profile;
 
   if (screen === "study") {
     await initializeStudy();
