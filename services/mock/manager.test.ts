@@ -15,7 +15,15 @@ jest.mock("@/database/useTimetable", () => ({}));
 jest.mock("@/stores/account", () => ({
   useAccountStore: { getState: jest.fn() },
 }));
+jest.mock("@/stores/global", () => ({
+  createEncryptedMMKVStorage: () => ({
+    getItem: () => null,
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  }),
+}));
 jest.mock("@/utils/logger/logger", () => ({
+  debug: jest.fn(),
   error: jest.fn((message: string) => {
     throw new Error(message);
   }),

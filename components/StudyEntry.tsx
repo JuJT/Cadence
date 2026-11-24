@@ -2,7 +2,7 @@ import { useIsFocused } from "expo-router/react-navigation";
 import { router } from "expo-router";
 import { BarChart3, ChevronRight, Timer } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { AppState, Pressable, Text, View, type AppStateStatus, type TextStyle } from "react-native";
+import { AppState, Pressable, Text, View, type TextStyle } from "react-native";
 
 import { useStudyColors } from "@/hooks/useStudyColors";
 import { useStudyStore } from "@/stores/study";
@@ -21,7 +21,7 @@ export function StudyClock({ session, style }: { session: StudySession; style?: 
       if (tick !== undefined) clearInterval(tick);
       tick = undefined;
     };
-    const sync = (phase: AppStateStatus | null | undefined) => {
+    const sync = (phase: string | null | undefined) => {
       stop();
       if (phase == null || phase === "active") {
         setNow(Date.now());

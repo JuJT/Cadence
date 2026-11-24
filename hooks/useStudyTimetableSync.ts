@@ -42,7 +42,7 @@ export function useStudyTimetableSync() {
       .filter(course => course.type === CourseType.LESSON &&
         (services.has(course.createdByAccount) || course.createdByAccount.startsWith("ical_")))
       .map(course => {
-        const customName = activeProfile.customisation?.subjects[cleanSubjectName(course.subject)]?.name;
+        const customName = activeProfile.customisation?.subjects?.[cleanSubjectName(course.subject)]?.name;
         return {
           id: getCourseRouteId(course),
           subjectName: customName || getSubjectFormat(course.subject)?.pretty || course.subject,

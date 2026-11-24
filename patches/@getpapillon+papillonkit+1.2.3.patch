@@ -1,0 +1,78 @@
+diff --git a/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/CourseEntity.swift b/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/CourseEntity.swift
+--- a/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/CourseEntity.swift
++++ b/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/CourseEntity.swift
+@@ -36,7 +36,7 @@
+     public static let defaultQuery = CourseQuery()
+ 
+     public static var urlRepresentation: URLRepresentation {
+-        "papillon:///course/\(.id)"
++        "cadence:///course/\(.id)"
+     }
+ 
+     public var displayRepresentation: DisplayRepresentation {
+diff --git a/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/HomeworkEntity.swift b/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/HomeworkEntity.swift
+--- a/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/HomeworkEntity.swift
++++ b/node_modules/@getpapillon/papillonkit/ios/Siri/Entities/HomeworkEntity.swift
+@@ -32,7 +32,7 @@
+     public static let defaultQuery = HomeworkQuery()
+ 
+     public static var urlRepresentation: URLRepresentation {
+-        "papillon:///tasks/\(.id)"
++        "cadence:///tasks/\(.id)"
+     }
+ 
+     public var displayRepresentation: DisplayRepresentation {
+diff --git a/node_modules/@getpapillon/papillonkit/ios/Widgets/Calendar/CalendarWidgetView.swift b/node_modules/@getpapillon/papillonkit/ios/Widgets/Calendar/CalendarWidgetView.swift
+--- a/node_modules/@getpapillon/papillonkit/ios/Widgets/Calendar/CalendarWidgetView.swift
++++ b/node_modules/@getpapillon/papillonkit/ios/Widgets/Calendar/CalendarWidgetView.swift
+@@ -41,7 +41,7 @@
+                 .frame(height: listHeight, alignment: .topLeading)
+             }
+             .padding(-5)
+-            .widgetURL(URL(string: "papillon:///calendar"))
++            .widgetURL(URL(string: "cadence:///calendar"))
+             .containerBackground(Color(widgetHex: palette.surface), for: .widget)
+         } else {
+             VStack(alignment: .leading, spacing: compact ? 10 : 12) {
+@@ -59,7 +59,7 @@
+                 Spacer()
+             }
+             .padding(compact ? EdgeInsets(top: 20, leading: 0, bottom: 0, trailing: 0) : EdgeInsets(top: -5, leading: -5, bottom: -5, trailing: -5))
+-            .widgetURL(URL(string: "papillon:///calendar"))
++            .widgetURL(URL(string: "cadence:///calendar"))
+             .containerBackground(Color(widgetHex: palette.surface), for: .widget)
+             .padding(compact ? 0 : 6)
+         }
+diff --git a/node_modules/@getpapillon/papillonkit/ios/Widgets/LiveActivity/CourseLiveActivityWidget.swift b/node_modules/@getpapillon/papillonkit/ios/Widgets/LiveActivity/CourseLiveActivityWidget.swift
+--- a/node_modules/@getpapillon/papillonkit/ios/Widgets/LiveActivity/CourseLiveActivityWidget.swift
++++ b/node_modules/@getpapillon/papillonkit/ios/Widgets/LiveActivity/CourseLiveActivityWidget.swift
+@@ -144,7 +144,7 @@
+         surface = Color(widgetHex: HexColor.adjust(color, -0.86))
+     }
+ 
+-    var url: URL? { URL(string: "papillon:///course/\(courseId)") }
++    var url: URL? { URL(string: "cadence:///course/\(courseId)") }
+ 
+     var ongoing: Bool { now >= state.startsAt }
+     var ended: Bool { now >= state.endsAt }
+diff --git a/node_modules/@getpapillon/papillonkit/ios/Widgets/Tasks/TasksWidgetView.swift b/node_modules/@getpapillon/papillonkit/ios/Widgets/Tasks/TasksWidgetView.swift
+--- a/node_modules/@getpapillon/papillonkit/ios/Widgets/Tasks/TasksWidgetView.swift
++++ b/node_modules/@getpapillon/papillonkit/ios/Widgets/Tasks/TasksWidgetView.swift
+@@ -22,7 +22,7 @@
+             VStack(alignment: .leading) {
+                 summary
+             }
+-            .widgetURL(URL(string: "papillon:///tasks"))
++            .widgetURL(URL(string: "cadence:///tasks"))
+             .containerBackground(Color(widgetHex: palette.surface), for: .widget)
+             .padding(EdgeInsets(top: -2, leading: -4, bottom: -2, trailing: -4))
+         } else {
+@@ -47,7 +47,7 @@
+                     .frame(height: listHeight, alignment: .topLeading)
+                 }
+             }
+-            .widgetURL(URL(string: "papillon:///tasks"))
++            .widgetURL(URL(string: "cadence:///tasks"))
+             .containerBackground(Color(widgetHex: palette.surface), for: .widget)
+         }
+     }

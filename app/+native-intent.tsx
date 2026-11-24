@@ -1,7 +1,7 @@
-const ALLOWED_DEEPLINKS_SCHEME = new Set<string>([])
-
 export function redirectSystemPath({ path }: { path: string }) {
-    if (path === "cadence://study" || path === "cadence://study/") return "/study"
-    const scheme = path.split(":")[0].toLowerCase()
-    return ALLOWED_DEEPLINKS_SCHEME.has(scheme) ? path : "/"
+  const link = path.match(/^cadence:\/\/\/?(study|calendar|tasks)\/?$/);
+  if (link) return `/${link[1]}`;
+
+  const detail = path.match(/^cadence:\/\/\/?(course|tasks)\/([\w.,:@+\-]+)$/);
+  return detail ? `/${detail[1]}/${encodeURIComponent(detail[2])}` : "/";
 }

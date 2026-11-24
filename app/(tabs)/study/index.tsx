@@ -314,7 +314,7 @@ function Stats({ data }: { data: StudyState }) {
 }
 
 function History({ data, edit, exportData }: { data: StudyState; edit: (session: StudySession) => void; exportData: () => void }) {
-  const { colors } = useTheme();
+  const colors = useStudyColors();
   const [filter, setFilter] = useState<StudyKind>();
   const [limit, setLimit] = useState(35);
   const sessions = data.sessions.filter(session => session.endedAt !== undefined && (!filter || session.kind === filter))
