@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-mmkv/ios/HybridMMKVPlatformContext.swift b/node_modules/react-native-mmkv/ios/HybridMMKVPlatformContext.swift
+--- a/node_modules/react-native-mmkv/ios/HybridMMKVPlatformContext.swift
++++ b/node_modules/react-native-mmkv/ios/HybridMMKVPlatformContext.swift
+@@ -37,7 +37,8 @@ class HybridMMKVPlatformContext: HybridMMKVPlatformContextSpec {
+     }
+     // Get the URL for the AppGroup
+     guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else {
+-      throw RuntimeError.error(withMessage: "Container for AppGroup \"\(appGroupID)\" not accessible")
++      // A personal sideload signature may omit App Groups. Let MMKV use Documents/mmkv.
++      return nil
+     }
+     return url.path
+   }

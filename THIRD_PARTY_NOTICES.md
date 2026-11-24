@@ -1,0 +1,7 @@
+# Provenance et licences
+
+Cadenza 0.8.0 est une version modifiée et indépendante de Papillon par JuJT. La base correspond à [PapillonApp/Papillon au commit 3d983b338b8218286099db300f2cb4d61482c2e0](https://github.com/PapillonApp/Papillon/commit/3d983b338b8218286099db300f2cb4d61482c2e0), distribuée sous licence [GNU GPL version 3](LICENSE). Les crédits d’origine sont conservés ci-dessous dans le README et dans Réglages → À propos.
+
+Les modifications de novembre 2026 portent sur l’identité visuelle Cadenza, les révisions et leur historique, le parcours d’autorisation des alertes, la distribution iPhone et le diagnostic du stockage partagé. Les écrans scolaires et leurs intégrations sont issus de Papillon. Cadenza n’utilise pas le compte PostHog ni les clés, l’identifiant d’équipe de signature ou les services de diffusion de Papillon.
+
+Le [code source de la version Cadenza](https://github.com/JuJT/Cadence/tree/papillon-cadenza/0.8.0), la liste verrouillée des dépendances, les correctifs et les scripts nécessaires à la construction accompagnent la distribution. Les dépendances restent soumises à leurs licences respectives. Parmi elles, [Papicons](https://github.com/PapillonApp/Papicons) et [react-native-mmkv](https://github.com/mrousavy/react-native-mmkv/blob/v4.3.2/LICENSE) sont distribués sous licence MIT. Le correctif MMKV permet au stockage privé de fonctionner lorsque la signature iOS donne uniquement accès au conteneur de l’application.
