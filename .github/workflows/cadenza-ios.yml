@@ -53,6 +53,9 @@ jobs:
           exit "$jest_status"
       - name: Générer et compiler le projet iOS
         shell: bash
+        env:
+          CADENZA_SIMULATOR_DRAFT: ${{ github.ref_name == 'papillon-cadenza/simulator-retake' && 'papillon-ci-7-1-simulator' || '' }}
+          GH_TOKEN: ${{ github.ref_name == 'papillon-cadenza/simulator-retake' && github.token || '' }}
         run: bash scripts/build-cadenza-ios.sh
       - name: Vérifier le résultat des tests
         if: steps.jest.outcome != 'success'
