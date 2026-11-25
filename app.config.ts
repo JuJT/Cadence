@@ -19,7 +19,7 @@ export default {
     userInterfaceStyle: "automatic",
     ios: {
       bundleIdentifier: CADENZA_BUNDLE_IDENTIFIER,
-      buildNumber: "9",
+      buildNumber: "10",
       icon: "./assets/app.icon",
       minimumOSVersion: "17.6",
       deploymentTarget: "17.6",

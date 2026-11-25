@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        destination: [device, simulator]
+        destination: ${{ fromJSON(startsWith(github.ref_name, 'papillon-cadenza/simulator') && '["simulator"]' || '["device", "simulator"]') }}
     permissions:
       contents: write
     env:
@@ -76,7 +76,8 @@ jobs:
           } > dist/ios-reports/release-notes.md
           (cd dist && zip -qry Cadenza-iOS-verification.zip ios-reports)
           shopt -s nullglob
-          files=(dist/Cadenza-iOS-verification.zip dist/*.ipa dist/SHA256SUMS.txt)
+          files=(dist/Cadenza-iOS-verification.zip dist/*.ipa dist/*-simulator.app.zip)
+          if [[ -f dist/SHA256SUMS.txt ]]; then files+=(dist/SHA256SUMS.txt); fi
           gh release create "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --draft --title "Cadenza Papillon · CI #$GITHUB_RUN_NUMBER ($CADENZA_BUILD_DESTINATION, $BUILD_RESULT)" \
             --notes-file dist/ios-reports/release-notes.md
