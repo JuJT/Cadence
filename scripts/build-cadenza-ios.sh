@@ -30,6 +30,8 @@ settings=(
   -configuration Release
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM=
 )
+destination="${CADENZA_BUILD_DESTINATION:-both}"
+if [[ "$destination" != simulator ]]; then
 xcodebuild "${settings[@]}" -sdk iphoneos -destination 'generic/platform=iOS' \
   -derivedDataPath "$temporary/cadenza-device" build 2>&1 | tee "$reports/device-build.log"
 
@@ -80,10 +82,12 @@ ditto "$app" "$payload/Payload/$(basename "$app")"
 (cd "$payload" && zip -qry "$ipa_path" Payload)
 (cd dist && shasum -a 256 "$ipa" > SHA256SUMS.txt)
 unzip -t "dist/$ipa" > "$reports/ipa-zip.log"
+fi
 
-if [[ "${BOOTSTRAP:-false}" == true ]]; then exit 0; fi
+if [[ "$destination" == device || "${BOOTSTRAP:-false}" == true ]]; then exit 0; fi
 
 xcodebuild "${settings[@]}" -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
   -derivedDataPath "$temporary/cadenza-simulator" build 2>&1 | tee "$reports/simulator-build.log"
 device="$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
@@ -96,6 +100,7 @@ xcrun simctl bootstatus "$device" -b
 sim_apps=("$temporary"/cadenza-simulator/Build/Products/Release-iphonesimulator/*.app)
 test "${#sim_apps[@]}" -eq 1
 xcrun simctl install "$device" "${sim_apps[0]}"
+bundle=com.cadence.study
 xcrun simctl status_bar "$device" override --time '9:41' --batteryState charged --batteryLevel 100
 
 preview() {

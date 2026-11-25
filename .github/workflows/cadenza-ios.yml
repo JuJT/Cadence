@@ -16,12 +16,17 @@ jobs:
   ipa:
     if: github.event.repository.private == false
     runs-on: xcode-27
-    timeout-minutes: 65
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        destination: [device, simulator]
     permissions:
       contents: write
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
+      CADENZA_BUILD_DESTINATION: ${{ matrix.destination }}
       BOOTSTRAP: ${{ startsWith(github.ref_name, 'papillon-cadenza/bootstrap') }}
     steps:
       - name: Récupérer la révision
@@ -62,9 +67,10 @@ jobs:
           set -euo pipefail
           mkdir -p dist/ios-reports
           tag="papillon-ci-$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT"
+          if [[ "$CADENZA_BUILD_DESTINATION" == simulator ]]; then tag="$tag-simulator"; fi
           {
             printf 'Révision : %s\n' "$GITHUB_SHA"
-            printf 'Résultat : %s\n' "$BUILD_RESULT"
+            printf 'Résultat : %s (%s)\n' "$BUILD_RESULT" "$CADENZA_BUILD_DESTINATION"
             printf 'Run : %s\n\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             printf 'Sorties de vérification. Une IPA éventuellement présente doit être signée avant son installation sur iPhone.\n'
           } > dist/ios-reports/release-notes.md
@@ -72,6 +78,6 @@ jobs:
           shopt -s nullglob
           files=(dist/Cadenza-iOS-verification.zip dist/*.ipa dist/SHA256SUMS.txt)
           gh release create "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --draft --title "Cadenza Papillon · CI #$GITHUB_RUN_NUMBER ($BUILD_RESULT)" \
+            --draft --title "Cadenza Papillon · CI #$GITHUB_RUN_NUMBER ($CADENZA_BUILD_DESTINATION, $BUILD_RESULT)" \
             --notes-file dist/ios-reports/release-notes.md
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
