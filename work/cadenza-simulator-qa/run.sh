@@ -103,6 +103,8 @@ status=0
 selection=()
 if [[ "${CADENZA_QA_ONLY_HOME:-}" == session ]]; then
   selection=(-only-testing:CadenzaTapTests/CadenzaTapTests/test05HomeControlsInOneLaunch)
+elif [[ "${CADENZA_QA_ONLY_HOME:-}" == settings ]]; then
+  selection=(-only-testing:CadenzaTapTests/CadenzaTapTests/test01SettingsFromHome)
 elif [[ "${CADENZA_QA_ONLY_HOME:-}" == 1 ]]; then
   selection=(
     -only-testing:CadenzaTapTests/CadenzaTapTests/test00HomeCardsAreAlignedAndSeparated

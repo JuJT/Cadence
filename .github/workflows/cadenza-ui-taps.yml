@@ -15,7 +15,7 @@ jobs:
     env:
       SIMULATOR_DRAFT: "papillon-ci-15-1-simulator"
       SIMULATOR_SHA: "345afa9f6823538ab68f5868359fef42e10b84e3"
-      CADENZA_QA_ONLY_HOME: 'session'
+      CADENZA_QA_ONLY_HOME: 'settings'
       CADENZA_QA_OUTPUT: "cadenza-tap-reports"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
