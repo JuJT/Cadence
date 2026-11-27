@@ -100,11 +100,19 @@ xcrun simctl install "$device" "$app"
 xcrun simctl privacy "$device" grant location "$bundle"
 result="$temporary/CadenzaTapQA.xcresult"
 status=0
+selection=()
+if [[ "${CADENZA_QA_ONLY_HOME:-}" == 1 ]]; then
+  selection=(
+    -only-testing:CadenzaTapTests/CadenzaTapTests/test00HomeCardsAreAlignedAndSeparated
+    -only-testing:CadenzaTapTests/CadenzaTapTests/test01SettingsFromHome
+    -only-testing:CadenzaTapTests/CadenzaTapTests/test02PaletteFromHome
+  )
+fi
 xcodebuild test -project "$temporary/qa/CadenzaTapQA.xcodeproj" -scheme CadenzaTapQA \
   -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
   -derivedDataPath "$temporary/derived" -resultBundlePath "$result" \
   -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
-  CODE_SIGN_IDENTITY=- 2>&1 | tee "$out/xctest.log" || status=$?
+  ${selection[@]+"${selection[@]}"} CODE_SIGN_IDENTITY=- 2>&1 | tee "$out/xctest.log" || status=$?
 if [[ -d "$result" ]]; then
   xcrun xcresulttool get test-results summary --path "$result" > "$out/tests.json" || true
   xcrun xcresulttool export attachments --path "$result" --output-path "$out/attachments" || true

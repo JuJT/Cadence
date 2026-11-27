@@ -30,13 +30,23 @@ final class CadenzaTapTests: XCTestCase {
         }
     }
 
+    func test00HomeCardsAreAlignedAndSeparated() throws {
+        let screen = try waitFor("quatre cartes visibles sur l’accueil") {
+            self.homeCardLabel($0, ["Cartes"]) != nil && self.homeCardLabel($0, ["Menu"]) != nil &&
+                self.homeCardLabel($0, ["Absences"]) != nil && self.homeCardLabel($0, ["Informations", "Infos"]) != nil
+        }
+        attach(screen, "home-card-grid")
+        try assertHomeCardRow(screen, left: "Cartes", right: ["Menu"])
+        try assertHomeCardRow(screen, left: "Absences", right: ["Informations", "Infos"])
+    }
+
     func test01SettingsFromHome() throws {
         attach(try capture(), "home-before-settings")
-        try openHomeControl(x: 0.93, expected: "Personnalisation")
+        try openHomeControl(buttonIndexFromRight: 0, expected: "Personnalisation")
     }
 
     func test02PaletteFromHome() throws {
-        try openHomeControl(x: 0.84, expected: "Personnaliser le fond")
+        try openHomeControl(buttonIndexFromRight: 1, expected: "Personnaliser le fond")
     }
 
     func test03CourseStartsAndReducesClock() throws {
@@ -76,14 +86,18 @@ final class CadenzaTapTests: XCTestCase {
         attach(reduced, "homework-returned")
     }
 
-    private func openHomeControl(x: CGFloat, expected: String) throws {
+    private func openHomeControl(buttonIndexFromRight: Int, expected: String) throws {
         var before = try capture()
         if let tip = line(before, "Change de fond") {
             point(x: 0.90, y: 1 - tip.bounds.midY).tap()
             before = try capture()
         }
         let account = try XCTUnwrap(line(before, "Camille Martin"))
-        let attempts: [CGFloat] = x < 0.9 ? [x, x + 0.023, x - 0.02] : [x]
+        // The toolbar uses 16 pt outside padding and 44 pt buttons with a 7 pt gap.
+        let width = app.frame.width
+        XCTAssertGreaterThan(width, 0, "La fenêtre iPhone doit être visible.")
+        let x = 1 - (38 + 51 * CGFloat(buttonIndexFromRight)) / width
+        let attempts = [x, x + 0.02, x - 0.02]
         for candidate in attempts {
             point(x: candidate, y: 1 - account.bounds.midY).tap()
             Thread.sleep(forTimeInterval: 1.4)
@@ -145,6 +159,29 @@ final class CadenzaTapTests: XCTestCase {
             let text = normalize(line.text)
             return bottom ? line.bounds.midY <= 0.14 && text == expected : text.contains(expected)
         }
+    }
+
+    private func homeCardLabel(_ screen: Screen, _ alternatives: [String]) -> Line? {
+        let labels = alternatives.map(normalize)
+        return screen.lines.first { line in
+            let text = normalize(line.text).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard (0.50...0.88).contains(line.bounds.midY) else { return false }
+            if labels.contains(text) { return true }
+            // The information title can occupy two lines. Its first line anchors its card.
+            return labels.contains { label in
+                (label == "informations" || label == "infos") && text.hasPrefix(label + " ")
+            }
+        }
+    }
+
+    private func assertHomeCardRow(_ screen: Screen, left: String, right: [String]) throws {
+        let first = try XCTUnwrap(homeCardLabel(screen, [left]), "Carte \(left) introuvable.")
+        let second = try XCTUnwrap(homeCardLabel(screen, right), "Deuxième carte introuvable sur la ligne \(left).")
+        let separation = second.bounds.minX - first.bounds.minX
+        let alignment = abs(second.bounds.midY - first.bounds.midY)
+        print(String(format: "CADENZA_HOME_CARD_GEOMETRY %@ x=%.3f y=%.3f", left, Double(separation), Double(alignment)))
+        XCTAssertGreaterThanOrEqual(separation, 0.35, "Les cartes \(left) et \(second.text) doivent occuper deux colonnes distinctes.")
+        XCTAssertLessThanOrEqual(alignment, 0.035, "Les titres \(left) et \(second.text) doivent être alignés.")
     }
 
     private func courseLine(_ screen: Screen) -> Line? {
