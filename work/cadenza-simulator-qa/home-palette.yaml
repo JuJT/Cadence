@@ -1,0 +1,16 @@
+appId: com.cadence.study
+name: Accueil ouvre la palette du fond d’écran
+---
+- extendedWaitUntil:
+    visible: "Fond d[’']écran"
+    timeout: 35000
+- tapOn: "Fond d[’']écran"
+- runFlow:
+    when:
+      visible: "Fond d[’']écran"
+    commands:
+      - tapOn: "Fond d[’']écran"
+- extendedWaitUntil:
+    visible: "Personnaliser le fond d[’']écran"
+    timeout: 10000
+- takeScreenshot: home-palette-open

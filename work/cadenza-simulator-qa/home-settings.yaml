@@ -1,0 +1,17 @@
+appId: com.cadence.study
+name: Accueil ouvre les réglages
+---
+- extendedWaitUntil:
+    visible: "Réglages"
+    timeout: 35000
+- tapOn: "Réglages"
+- runFlow:
+    when:
+      visible: "Réglages"
+    commands:
+      - tapOn: "Réglages"
+- extendedWaitUntil:
+    visible: "Personnalisation"
+    timeout: 10000
+- assertVisible: "Paramètres"
+- takeScreenshot: home-settings-open

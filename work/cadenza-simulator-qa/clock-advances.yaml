@@ -1,0 +1,25 @@
+appId: com.cadence.study
+---
+- extendedWaitUntil:
+    visible:
+      id: "cadenza-study-fullscreen-clock"
+    timeout: 15000
+- copyTextFrom:
+    id: "cadenza-study-fullscreen-clock"
+- evalScript: ${output.start = (String(maestro.copiedText).match(/\d{2,}:\d{2}:\d{2}/) || [])[0]}
+- assertTrue:
+    condition: ${Boolean(output.start)}
+    label: Lire la première valeur du chronomètre
+- takeScreenshot: clock-start
+- extendedWaitUntil:
+    visible:
+      id: "cadenza-study-fullscreen-clock"
+      text: "${'^(?:Temps écoulé )?(?!' + output.start + ')[0-9]{2,}:[0-9]{2}:[0-9]{2}$'}"
+    timeout: 12000
+- copyTextFrom:
+    id: "cadenza-study-fullscreen-clock"
+- evalScript: ${output.end = (String(maestro.copiedText).match(/\d{2,}:\d{2}:\d{2}/) || [])[0]}
+- assertTrue:
+    condition: ${Boolean(output.end) && output.end.split(":").reduce((n, p) => n * 60 + Number(p), 0) > output.start.split(":").reduce((n, p) => n * 60 + Number(p), 0)}
+    label: Vérifier que le temps affiché a réellement augmenté
+- takeScreenshot: clock-advanced

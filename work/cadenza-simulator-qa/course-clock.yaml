@@ -1,0 +1,23 @@
+appId: com.cadence.study
+name: Un cours démarre un chronomètre actif puis Réduire revient aux cours
+---
+- extendedWaitUntil:
+    visible: "Réglages"
+    timeout: 35000
+- tapOn: "Cours"
+- extendedWaitUntil:
+    visible: "(?i)^(Mathématiques|Français|Histoire[-– ]Géographie|Anglais|Physique[-– ]Chimie|SVT|SES|EPS|Sciences.*|Éducation.*)$"
+    timeout: 20000
+- tapOn:
+    text: "(?i)^(Mathématiques|Français|Histoire[-– ]Géographie|Anglais|Physique[-– ]Chimie|SVT|SES|EPS|Sciences.*|Éducation.*)$"
+    index: 0
+- tapOn:
+    id: "cadenza-course-start-timer"
+- assertVisible: "Cours en cours"
+- runFlow: clock-advances.yaml
+- tapOn:
+    id: "cadenza-study-reduce"
+- assertNotVisible:
+    id: "cadenza-study-fullscreen-clock"
+- assertVisible: "(?i)^(Mathématiques|Français|Histoire[-– ]Géographie|Anglais|Physique[-– ]Chimie|SVT|SES|EPS|Sciences.*|Éducation.*)$"
+- takeScreenshot: course-clock-reduced

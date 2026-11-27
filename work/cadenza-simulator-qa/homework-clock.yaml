@@ -1,0 +1,24 @@
+appId: com.cadence.study
+name: Un vrai devoir démarre le chronomètre et Réduire revient aux tâches
+---
+- extendedWaitUntil:
+    visible: "Réglages"
+    timeout: 35000
+- tapOn: "Tâches"
+- extendedWaitUntil:
+    visible:
+      id: "cadenza-homework-start-timer"
+    timeout: 20000
+- tapOn:
+    id: "cadenza-homework-start-timer"
+    index: 0
+- assertVisible: "Révision en cours"
+- assertVisible: "Devoir associé"
+- runFlow: clock-advances.yaml
+- tapOn:
+    id: "cadenza-study-reduce"
+- assertNotVisible:
+    id: "cadenza-study-fullscreen-clock"
+- assertVisible:
+    id: "cadenza-homework-start-timer"
+- takeScreenshot: homework-clock-reduced
