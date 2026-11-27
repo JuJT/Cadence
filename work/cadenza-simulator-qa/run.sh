@@ -60,19 +60,19 @@ if not re.search(r"\bplatform IOSSIMULATOR\b", platform):
 print(*actual)
 PY
 
-maestro_version=2.12.1
-maestro_zip_sha=54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7
-maestro_archive="$temporary/maestro.zip"
-curl --fail --silent --show-error --location --retry 3 \
-  "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-$maestro_version/maestro.zip" -o "$maestro_archive"
-printf '%s  %s\n' "$maestro_zip_sha" "$maestro_archive" | shasum -a 256 -c -
-ditto -x -k "$maestro_archive" "$temporary/maestro-cli"
-maestro_bin="$(find "$temporary/maestro-cli" -path '*/bin/maestro' -type f -print -quit)"
-test -n "$maestro_bin"
-chmod +x "$maestro_bin"
-export MAESTRO_CLI_NO_ANALYTICS=1 CI=true
-java -version 2>&1 | tee "$out/java-version.txt"
-"$maestro_bin" --version | tee "$out/maestro-version.txt"
+xcodegen_version=2.49.0
+xcodegen_sha=ae5598b33a19ad1e23e775d6648f97375c3529c970905f489358a21055b65e53
+xcodegen_archive="$temporary/xcodegen.zip"
+curl --fail --silent --show-error --location --connect-timeout 20 --max-time 120 --retry 2 \
+  "https://github.com/yonaskolb/XcodeGen/releases/download/$xcodegen_version/xcodegen.zip" -o "$xcodegen_archive"
+printf '%s  %s\n' "$xcodegen_sha" "$xcodegen_archive" | shasum -a 256 -c -
+ditto -x -k "$xcodegen_archive" "$temporary/xcodegen"
+xcodegen_bin="$(find "$temporary/xcodegen" -path '*/bin/xcodegen' -type f -print -quit)"
+test -n "$xcodegen_bin"
+chmod +x "$xcodegen_bin"
+mkdir -p "$temporary/qa"
+cp -R "$suite/Fixture" "$suite/Tests" "$suite/project.yml" "$temporary/qa"
+(cd "$temporary/qa" && "$xcodegen_bin" generate)
 
 device_config="$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
@@ -96,20 +96,18 @@ xcrun simctl spawn "$device" defaults write NSGlobalDomain AppleLanguages -array
 xcrun simctl spawn "$device" defaults write NSGlobalDomain AppleLocale -string fr_FR
 xcrun simctl status_bar "$device" override --time '9:41' --batteryState charged --batteryLevel 100
 
-failed=0
-for flow in home-settings home-palette course-clock homework-clock; do
-  mkdir -p "$out/$flow"
-  if [[ "$flow" != home-settings ]]; then xcrun simctl uninstall "$device" "$bundle"; fi
-  xcrun simctl install "$device" "$app"
-  xcrun simctl privacy "$device" grant location "$bundle"
-  xcrun simctl launch --terminate-running-process "$device" "$bundle" --cadenza-preview home | tee "$out/$flow/launch.log"
-  # Keep the app in the foreground so the two-token preview argument is handled by the shipped build.
-  if ! "$maestro_bin" --device "$device" test "$suite/$flow.yaml" \
-    --format junit --output "$out/$flow/report.xml" --test-output-dir "$out/$flow" \
-    --debug-output "$out/$flow/debug" 2>&1 | tee "$out/$flow/maestro.log"; then
-    failed=1
-    "$maestro_bin" --device "$device" hierarchy > "$out/$flow/hierarchy.json" 2> "$out/$flow/hierarchy.log" || true
-  fi
-  xcrun simctl io "$device" screenshot "$out/$flow/final.png" || true
-done
-exit "$failed"
+xcrun simctl install "$device" "$app"
+xcrun simctl privacy "$device" grant location "$bundle"
+result="$temporary/CadenzaTapQA.xcresult"
+status=0
+xcodebuild test -project "$temporary/qa/CadenzaTapQA.xcodeproj" -scheme CadenzaTapQA \
+  -destination "platform=iOS Simulator,id=$device" -parallel-testing-enabled NO \
+  -derivedDataPath "$temporary/derived" -resultBundlePath "$result" \
+  -test-timeouts-enabled YES -default-test-execution-time-allowance 100 \
+  CODE_SIGN_IDENTITY=- 2>&1 | tee "$out/xctest.log" || status=$?
+if [[ -d "$result" ]]; then
+  xcrun xcresulttool get test-results summary --path "$result" > "$out/tests.json" || true
+  xcrun xcresulttool export attachments --path "$result" --output-path "$out/attachments" || true
+fi
+xcrun simctl io "$device" screenshot "$out/final.png" || true
+exit "$status"
