@@ -5,6 +5,7 @@ import { AuthStep } from "@/services/auth/types";
 import { fetchPronoteAttendance, fetchPronoteAttendancePeriods } from "@/services/pronote/attendance";
 import { fetchPronoteCanteenMenu } from "@/services/pronote/canteen";
 import {
+  canReplyToPronoteChat,
   createPronoteMail,
   fetchPronoteChatMessages,
   fetchPronoteChatRecipients,
@@ -14,19 +15,47 @@ import {
 import { classifyPronoteError } from "@/services/pronote/errors";
 import { fetchPronoteGradePeriods, fetchPronoteGrades } from "@/services/pronote/grades";
 import { fetchPronoteHomeworks, setPronoteHomeworkAsDone } from "@/services/pronote/homework";
-import { fetchPronoteNews, setPronoteNewsAsAcknowledged } from "@/services/pronote/news";
+import { fetchPronoteNews, fetchPronoteNewsDetail, setPronoteNewsAsAcknowledged, submitPronoteSurvey } from "@/services/pronote/news";
 import { refreshPronoteAccount } from "@/services/pronote/refresh";
-import { fetchPronoteCourseResources, fetchPronoteWeekTimetable } from "@/services/pronote/timetable";
+import { fetchPronoteCourseResources, fetchPronoteLesson, fetchPronoteLessons, fetchPronoteWeekTimetable } from "@/services/pronote/timetable";
 import { Attendance } from "@/services/shared/attendance";
 import { CanteenMenu } from "@/services/shared/canteen";
 import { Chat, Message, Recipient } from "@/services/shared/chat";
 import { Period, PeriodGrades } from "@/services/shared/grade";
 import { Homework } from "@/services/shared/homework";
-import { News } from "@/services/shared/news";
-import { Course, CourseDay, CourseResource } from "@/services/shared/timetable";
+import { News, SurveyAnswer } from "@/services/shared/news";
+import { Course, CourseDay, CourseResource, LessonSummary } from "@/services/shared/timetable";
 import { Capabilities, SchoolServicePlugin } from "@/services/shared/types";
 import { Auth, Services } from "@/stores/account/types";
 import { error } from "@/utils/logger/logger";
+
+export function pronoteCapabilities(session: SessionHandle): Capabilities[] {
+  const capabilities = [Capabilities.REFRESH];
+  const tabs = session.userResource?.tabs;
+  const permissions = session.user?.authorizations;
+  const byTab: Partial<Record<TabLocation, Capabilities[]>> = {
+    [TabLocation.Assignments]: [Capabilities.HOMEWORK],
+    [TabLocation.Grades]: [Capabilities.GRADES],
+    [TabLocation.Notebook]: [Capabilities.ATTENDANCE, Capabilities.ATTENDANCE_PERIODS],
+    [TabLocation.News]: [Capabilities.NEWS],
+    [TabLocation.Menus]: [Capabilities.CANTEEN_MENU],
+    [TabLocation.Resources]: [Capabilities.COURSE_RESOURCES],
+    [TabLocation.Timetable]: [Capabilities.TIMETABLE],
+  };
+  for (const tab of tabs?.keys() ?? []) {
+    capabilities.push(...(byTab[tab] ?? []));
+  }
+  if (tabs?.has(TabLocation.Discussions) && permissions?.canReadDiscussions) {
+    capabilities.push(Capabilities.CHAT_READ);
+    if (permissions.canDiscuss) {
+      capabilities.push(Capabilities.CHAT_REPLY);
+      if (permissions.canDiscussWithTeachers || permissions.canDiscussWithStaff) {
+        capabilities.push(Capabilities.CHAT_CREATE);
+      }
+    }
+  }
+  return capabilities;
+}
 
 const PRONOTE_TOKEN_TTL_MS = 5 * 60 * 1000;
 
@@ -55,25 +84,8 @@ export class Pronote implements SchoolServicePlugin {
     this.authData = refresh.auth;
     this.session = refresh.session;
     this.tokenExpiration = Date.now() + PRONOTE_TOKEN_TTL_MS;
-    this.capabilities = [Capabilities.REFRESH];
+    this.capabilities = pronoteCapabilities(refresh.session);
 
-    const tabCapabilities: Partial<Record<TabLocation, Capabilities | Capabilities[]>> = {
-      [TabLocation.Assignments]: Capabilities.HOMEWORK,
-      [TabLocation.Discussions]: [Capabilities.CHAT_READ, Capabilities.CHAT_REPLY, Capabilities.CHAT_CREATE],
-      [TabLocation.Grades]: Capabilities.GRADES,
-      [TabLocation.Notebook]: [Capabilities.ATTENDANCE, Capabilities.ATTENDANCE_PERIODS],
-      [TabLocation.News]: Capabilities.NEWS,
-      [TabLocation.Menus]: Capabilities.CANTEEN_MENU,
-      [TabLocation.Timetable]: Capabilities.TIMETABLE,
-    };
-
-    for (const tab of this.session.user?.authorizations?.tabs ?? []) {
-      const capability = tabCapabilities[tab];
-      if (capability) {
-        this.capabilities.push(...(Array.isArray(capability) ? capability : [capability]));
-      }
-    }
-		
     return this;
   }
 
@@ -82,7 +94,10 @@ export class Pronote implements SchoolServicePlugin {
    * renewed and the request replayed once; an IP suspension is recorded so no
    * request goes out until it ends.
    */
-  private async withSession<T>(request: (session: SessionHandle) => Promise<T>): Promise<T> {
+  private async withSession<T>(
+    request: (session: SessionHandle) => Promise<T>,
+    { retryOnExpired = true }: { retryOnExpired?: boolean } = {},
+  ): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       assertSessionUsable(this.accountId);
       if (!this.isTokenValid()) {
@@ -102,8 +117,9 @@ export class Pronote implements SchoolServicePlugin {
         if ((reason === "session_expired" || reason === "suspended") && session === this.session) {
           reportSessionError(this.accountId, reason, e);
         }
-        // The server refused the request, so nothing was written: replaying is safe.
-        if (reason === "session_expired" && attempt === 0) {
+        // An SDK write can include follow-up reads after committing. Only replay
+        // operations whose callers have allowed it.
+        if (retryOnExpired && reason === "session_expired" && attempt === 0) {
           continue;
         }
         throw e;
@@ -117,6 +133,14 @@ export class Pronote implements SchoolServicePlugin {
 
   getNews(): Promise<News[]> {
     return this.withSession(session => fetchPronoteNews(session, this.accountId));
+  }
+
+  getNewsDetail(news: News): Promise<News> {
+    return this.withSession(session => fetchPronoteNewsDetail(session, this.accountId, news.id));
+  }
+
+  submitNewsSurvey(news: News, answers: SurveyAnswer[]): Promise<News> {
+    return this.withSession(session => submitPronoteSurvey(session, this.accountId, news.id, answers), { retryOnExpired: false });
   }
 
   getGradesForPeriod(period: Period): Promise<PeriodGrades> {
@@ -144,7 +168,19 @@ export class Pronote implements SchoolServicePlugin {
   }
 
   getCourseResources(course: Course): Promise<CourseResource[]> {
-    return this.withSession(session => fetchPronoteCourseResources(session, course));
+    return this.withSession(session => fetchPronoteCourseResources(session, this.accountId, course));
+  }
+
+  getLessons(): Promise<LessonSummary[]> {
+    return this.withSession(session => fetchPronoteLessons(session, this.accountId));
+  }
+
+  getLesson(id: string): Promise<CourseResource[]> {
+    return this.withSession(session => fetchPronoteLesson(session, this.accountId, id));
+  }
+
+  canReplyToChat(chat: Chat): Promise<boolean> {
+    return this.withSession(session => canReplyToPronoteChat(session, chat));
   }
 
   getChats(): Promise<Chat[]> {
@@ -164,7 +200,7 @@ export class Pronote implements SchoolServicePlugin {
   }
 
   sendMessageInChat(chat: Chat, content: string): Promise<void> {
-    return this.withSession(session => sendPronoteMessageInChat(session, chat, content));
+    return this.withSession(session => sendPronoteMessageInChat(session, chat, content), { retryOnExpired: false });
   }
 
   setNewsAsAcknowledged(news: News): Promise<News> {
@@ -176,6 +212,6 @@ export class Pronote implements SchoolServicePlugin {
   }
 
   createMail(subject: string, content: string, recipients: Recipient[]): Promise<Chat> {
-    return this.withSession(session => createPronoteMail(session, this.accountId, subject, content, recipients));
+    return this.withSession(session => createPronoteMail(session, this.accountId, subject, content, recipients), { retryOnExpired: false });
   }
 }

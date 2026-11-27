@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
 import { readLegacyStudyState, syncStudySurface } from "@/modules/cadenza-study";
+import { useAccountStore } from "@/stores/account";
 import uuid from "@/utils/uuid/uuid";
 
 import {
@@ -13,7 +14,7 @@ import {
   isPaused,
   newStudyState,
   parseStudyBackup,
-  reconcileScheduledStudyCourses,
+  reconcileScheduledStudyWeek,
   setSessionTask,
   studyRange,
   studyTotals,
@@ -40,10 +41,11 @@ let surfaceUpdates: Promise<void> = Promise.resolve();
 
 function publishSurface(state: StudyState) {
   const now = Date.now();
+  const profileId = useAccountStore.getState().lastUsedAccount ?? undefined;
   const active = getActiveSession(state);
   const elapsed = active ? Math.floor(elapsedSeconds(active, now)) : 0;
-  const today = studyTotals(state, studyRange("day", now), now);
-  const week = studyTotals(state, studyRange("week", now), now);
+  const today = studyTotals(state, studyRange("day", now), now, profileId);
+  const week = studyTotals(state, studyRange("week", now), now, profileId);
   const top = [...week.bySubject].sort(([, first], [, second]) => second - first)[0]?.[0];
   const snapshot = {
     activeSession: active ? {
@@ -57,11 +59,20 @@ function publishSurface(state: StudyState) {
     } : null,
     todaySeconds: Math.floor(today.courseSeconds + today.revisionSeconds),
     weekSeconds: Math.floor(week.courseSeconds + week.revisionSeconds),
+    todayRevisionSeconds: Math.floor(today.revisionSeconds),
+    todayMeasuredCourseSeconds: Math.floor(today.measuredCourseSeconds),
+    todayScheduledCourseSeconds: Math.floor(today.scheduledCourseSeconds),
+    weekRevisionSeconds: Math.floor(week.revisionSeconds),
+    weekMeasuredCourseSeconds: Math.floor(week.measuredCourseSeconds),
+    weekScheduledCourseSeconds: Math.floor(week.scheduledCourseSeconds),
     sessionCount: week.sessionCount,
     topSubject: state.subjects.find(subject => subject.id === top)?.name,
     weekDays: getWeekDays(now).map(day => {
-      const totals = studyTotals(state, day, now);
-      return { date: day.start, courseSeconds: Math.floor(totals.courseSeconds), revisionSeconds: Math.floor(totals.revisionSeconds) };
+      const totals = studyTotals(state, day, now, profileId);
+      return {
+        date: day.start, courseSeconds: Math.floor(totals.courseSeconds), revisionSeconds: Math.floor(totals.revisionSeconds),
+        measuredCourseSeconds: Math.floor(totals.measuredCourseSeconds), scheduledCourseSeconds: Math.floor(totals.scheduledCourseSeconds),
+      };
     }),
   };
   surfaceUpdates = surfaceUpdates.then(() => syncStudySurface(snapshot)).catch(() => {});
@@ -114,7 +125,13 @@ function mutate(edit: (state: StudyState) => StudyState, allowRecovery = false) 
   return operation;
 }
 
-type SessionInput = { subjectName: string; kind: StudyKind; title?: string; notes?: string; task?: StudyTask; courseId?: string };
+export type SessionInput = { subjectName: string; kind: StudyKind; title?: string; notes?: string; task?: StudyTask; courseId?: string };
+
+export class StudySessionConflict extends Error {
+  constructor(readonly sessionId: string) {
+    super("Une séance est déjà en cours.");
+  }
+}
 
 function cleanSubjectName(input: string) {
   const trimmed = input.trim();
@@ -147,15 +164,16 @@ function createSession(state: StudyState, request: SessionInput, start: number, 
   };
 }
 
-export function startStudy(request: SessionInput) {
+export function startStudy(request: SessionInput, attachTo?: string) {
   return mutate(state => {
     const active = getActiveSession(state);
+    if (attachTo && active?.id !== attachTo) {
+      throw new Error("La séance a changé. Ouvrez à nouveau le devoir pour l’associer.");
+    }
     if (!active) return createSession(state, request, Date.now());
     const task = request.task;
-    if (!task) {
-      if (request.courseId && request.courseId === active.courseId) return state;
-      throw new Error("Terminez d’abord la séance en cours.");
-    }
+    if ((request.courseId && request.courseId === active.courseId) || (task && task.id === active.task?.id)) return state;
+    if (!task || attachTo !== active.id) throw new StudySessionConflict(active.id);
     return {
       ...state,
       sessions: state.sessions.map(session => session.id === active.id ? setSessionTask(session, task) : session),
@@ -231,6 +249,6 @@ export function restoreStudyBackup(raw: string) {
   }, true);
 }
 
-export function syncScheduledStudyCourses(timetable: ScheduledStudyCourse[]) {
-  return mutate(state => reconcileScheduledStudyCourses(state, timetable, uuid));
+export function syncScheduledStudyWeek(profileId: string, weekStart: number, timetable: ScheduledStudyCourse[]) {
+  return mutate(state => reconcileScheduledStudyWeek(state, profileId, weekStart, timetable, uuid));
 }

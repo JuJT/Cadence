@@ -15,6 +15,7 @@ export interface ICalEvent {
   dtend?: Date;
   location?: string;
   allday?: boolean;
+  canceled?: boolean;
   organizer?: string;
 }
 
@@ -67,7 +68,7 @@ async function processIcalData(ical: any): Promise<{ parsedData: ParsedICalData;
   return { parsedData, shouldUpdateIcal };
 }
 
-export async function getICalEventsForWeek(weekStart: Date, weekEnd: Date): Promise<SharedCourse[]> {
+export async function getICalEventsForWeek(weekStart: Date, weekEnd: Date, requireComplete = false): Promise<SharedCourse[]> {
   const icals = await getAllIcals();
   const allEvents: SharedCourse[] = [];
 
@@ -80,6 +81,7 @@ export async function getICalEventsForWeek(weekStart: Date, weekEnd: Date): Prom
         icalTitle: ical.title,
         isADE: parsedData.isADE,
         isHyperplanning: parsedData.isHyperplanning,
+        provider: parsedData.provider,
         intelligentParsing: (ical as any).intelligentParsing || false,
         isSchool: parsedData.isSchool ?? false,
         schoolName: parsedData.schoolName
@@ -87,6 +89,7 @@ export async function getICalEventsForWeek(weekStart: Date, weekEnd: Date): Prom
 
       allEvents.push(...convertedEvents);
     } catch (error) {
+      if (requireComplete) throw error;
       console.error(`Error processing iCal ${ical.title}:`, error);
     }
   }
@@ -107,6 +110,7 @@ export async function getICalCourseById(id: string): Promise<SharedCourse | unde
           icalTitle: ical.title,
           isADE: parsedData.isADE,
           isHyperplanning: parsedData.isHyperplanning,
+          provider: parsedData.provider,
           intelligentParsing: (ical as any).intelligentParsing || false,
           isSchool: parsedData.isSchool ?? false,
           schoolName: parsedData.schoolName,

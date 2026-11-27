@@ -4,16 +4,22 @@ import { Chat as SharedChat, Message as SharedMessage,Recipient as SharedRecipie
 import { Chat, Message, Recipient } from "../models/Chat";
 import { parseJsonArray } from "../useHomework";
 
+export const pronoteChatPrefix = "pronote:";
+
 export function mapChatsToShared(data: Chat[]): SharedChat[] {
-  return data.map(chat => ({
+  return data.map(chat => {
+    const isPronote = chat.chatId.startsWith(pronoteChatPrefix);
+    return {
     fromCache: true,
     createdByAccount: chat.createdByAccount,
-    id: chat.chatId,
+    id: isPronote ? decodeURIComponent(chat.chatId.slice(pronoteChatPrefix.length).split(":")[1] ?? "") : chat.chatId,
+    provider: isPronote ? "pronote" : undefined,
     subject: chat.subject,
     recipient: chat.recipient,
     creator: chat.creator,
     date: new Date(chat.date)
-  }))
+    };
+  });
 }
 
 export function mapRecipientsToShared(data: Recipient[]): SharedRecipient[] {

@@ -1,18 +1,17 @@
-import Constants from "expo-constants";
 import { File, Paths } from "expo-file-system";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useTheme } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
 import { Linking, Platform, Share } from "react-native";
 
 import { verifyUpdateFile } from "@/modules/cadenza-study";
 import { fetchCadenzaRelease, type CadenzaRelease } from "@/services/cadenza/app-release";
+import { installedCadenzaVersion as installed, installedCadenzaVersionLabel } from "@/services/cadenza/installed-version";
 import List from "@/ui/new/List";
 import Typography from "@/ui/new/Typography";
 
 export default function CadenzaUpdates() {
   const { colors } = useTheme();
-  const installed = Constants.expoConfig?.version ?? "0.8.0";
   const [release, setRelease] = useState<CadenzaRelease | null>();
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
@@ -65,7 +64,7 @@ export default function CadenzaUpdates() {
     <List contentInsetAdjustmentBehavior="automatic" safeHorizontalPadding={16} style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack.Screen options={{ title: "Mises à jour Cadenza", headerShown: true }} />
       <List.Section>
-        <List.Item><Typography variant="title">Version {installed}</Typography></List.Item>
+        <List.Item><Typography variant="title">{installedCadenzaVersionLabel}</Typography></List.Item>
         <List.Item onPress={checking || saving ? undefined : () => { void check(); }}>
           <Typography>{checking ? "Vérification…" : "Rechercher une mise à jour"}</Typography>
         </List.Item>
@@ -85,6 +84,11 @@ export default function CadenzaUpdates() {
         </>}
         <List.Item onPress={() => { void Linking.openURL(release.page); }}><Typography>Voir cette version sur GitHub</Typography></List.Item>
       </List.Section>}
+      <List.Section>
+        <List.Item onPress={() => router.push("/changelog")}>
+          <Typography>Nouveautés de cette version</Typography>
+        </List.Item>
+      </List.Section>
       <List.Section>
         <List.Item>
           <Typography variant="title">Installer avec Sideloadly</Typography>

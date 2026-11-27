@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { isLoaded } from "expo-font";
+import { Platform } from "react-native";
 
 import { useSettingsStore } from "@/stores/settings";
 
@@ -124,7 +126,8 @@ export const f = (font: FontAlias | string, selectedFontFamily?: AppFontFamily) 
   const family = selectedFontFamily ?? useSettingsStore.getState().personalization.fontFamily ?? "sn-pro";
   const familyMap = FONT_ALIAS_MAP[family];
 
-  return familyMap[font];
+  const fontName = familyMap[font];
+  return isLoaded(fontName) ? fontName : Platform.OS === "android" ? "sans-serif" : "System";
 };
 
 export const useFont = () => {

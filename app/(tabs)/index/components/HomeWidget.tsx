@@ -4,12 +4,11 @@ import Icon from '@/ui/components/Icon';
 import { t } from 'i18next';
 import Typography from '@/ui/components/Typography';
 import { Papicons } from '@getpapillon/papicons';
-import { Link } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { useTheme } from "expo-router/react-navigation";
-import { Platform } from "react-native";
+import { Platform, Pressable } from "react-native";
 import { LinearTransition } from "react-native-reanimated";
 import { ErrorBoundary } from '@/ui/components/ErrorBoundary';
-import { ListTouchable } from '@/ui/new/List';
 import { Animation } from '@/ui/utils/Animation';
 import { PapillonAppearIn, PapillonAppearOut } from '@/ui/utils/Transition';
 
@@ -31,6 +30,7 @@ interface HomeWidgetProps {
 
 const HomeWidgetContent: React.FC<HomeWidgetProps> = ({ item }) => {
   const theme = useTheme();
+  const router = useRouter();
 
   if (!item || (item.dev && !__DEV__) || item.hidden) {
     return null;
@@ -47,9 +47,9 @@ const HomeWidgetContent: React.FC<HomeWidgetProps> = ({ item }) => {
       style={{ elevation: 2, flex: 1 }}
       backgroundColor={
         Platform.OS === "ios"
-          ? theme.colors.card
+          ? String(theme.colors.card)
           : theme.dark
-            ? theme.colors.card
+            ? String(theme.colors.card)
             : "#fff"
       }
     >
@@ -73,11 +73,11 @@ const HomeWidgetContent: React.FC<HomeWidgetProps> = ({ item }) => {
           {item.title}
         </Typography>
         {item.onDismiss && (
-          <ListTouchable hitSlop={10} onPress={item.onDismiss}>
+          <Pressable hitSlop={10} onPress={item.onDismiss}>
             <Stack
               hAlign="center"
               vAlign="center"
-              backgroundColor={theme.colors.text + "11"}
+              backgroundColor={String(theme.colors.text) + "11"}
               radius={16}
               style={{ width: 32, height: 32 }}
             >
@@ -85,23 +85,23 @@ const HomeWidgetContent: React.FC<HomeWidgetProps> = ({ item }) => {
                 <Papicons name="Cross" />
               </Icon>
             </Stack>
-          </ListTouchable>
+          </Pressable>
         )}
         {(item.redirect || item.onPress) && (
           <Stack
             bordered={Platform.OS === "ios"}
             backgroundColor={
               Platform.OS === "ios"
-                ? theme.colors.card
-                : theme.colors.text + "11"
+                ? String(theme.colors.card)
+                : String(theme.colors.text) + "11"
             }
             radius={20}
             style={{
               overflow: Platform.OS === "android" ? "hidden" : "visible",
             }}
           >
-            <Link asChild href={item.redirect ?? "/(features)/soon"}>
-                <ListTouchable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${item.title} · ${t("Home_Display_More")}`}
+                  onPress={item.onPress ?? (() => { if (item.redirect) router.navigate(item.redirect as Href); })}>
                   <Stack
                     direction="horizontal"
                     hAlign="center"
@@ -109,14 +109,13 @@ const HomeWidgetContent: React.FC<HomeWidgetProps> = ({ item }) => {
                     gap={6}
                   >
                     <Typography variant="body2" color="secondary" inline>
-                      {t("Home_Display_More")}
+                      {item.buttonLabel ?? t("Home_Display_More")}
                     </Typography>
                     <Icon size={20} papicon opacity={0.5}>
                       <Papicons name={"ArrowRightUp"} />
                     </Icon>
                   </Stack>
-                </ListTouchable>
-            </Link>
+                </Pressable>
           </Stack>
         )}
       </Stack>

@@ -5,13 +5,12 @@ import { useTheme } from "expo-router/react-navigation";
 import Typography from "@/ui/components/Typography";
 import { CompactGrade } from "@/ui/components/CompactGrade";
 import {
-  Dimensions,
   ScrollView,
+  TextInput,
   View,
   Platform,
   Modal,
 } from "react-native";
-import OnboardingInput from "@/components/onboarding/OnboardingInput";
 import { Colors } from "@/utils/subjects/colors";
 import { memo, ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
@@ -30,7 +29,6 @@ import { ListTouchable } from "@/ui/new/List";
 import { LegendList, LegendListRef } from "@legendapp/list";
 import { FlashList } from "@shopify/flash-list";
 import { trackAdvancedEvent } from "@/utils/logger/analytics";
-import { useSafeHorizontalPadding } from "@/ui/hooks/useSafeHorizontalPadding";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
 
@@ -270,11 +268,11 @@ export default function EditSubject() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ id: string; name?: string; color?: string; emoji?: string }>();
 
-  const [selectedName, setSelectedName] = useState<string>(String(params.name));
-  const [selectedColor, setSelectedColor] = useState<string>(Colors.find(c => c === String(params.color)) || Colors[0]);
-  const [selectedEmoji, setSelectedEmoji] = useState<string>(String(params.emoji));
+  const [selectedName, setSelectedName] = useState(params.name ?? "");
+  const [selectedColor, setSelectedColor] = useState<string>(Colors.find(c => c === params.color) || Colors[0]);
+  const [selectedEmoji, setSelectedEmoji] = useState(params.emoji || "📖");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const AvailableEmojis = [
@@ -293,7 +291,8 @@ export default function EditSubject() {
     <View
       style={{
         flex: 1,
-        paddingTop: Platform.OS === "android" ? insets.top : 0,
+        paddingTop: Platform.OS === "android" ? insets.top : 12,
+        backgroundColor: colors.background,
       }}
     >
       <SafeHorizontalView base={15}>
@@ -303,6 +302,8 @@ export default function EditSubject() {
           direction={"horizontal"}
         >
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Annuler"
             style={{
               padding: 10,
               backgroundColor: colors.text + "10",
@@ -316,6 +317,8 @@ export default function EditSubject() {
           </AnimatedPressable>
           <Typography variant={"title"}>Modifier la matière</Typography>
           <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Enregistrer la matière"
             style={{
               padding: 10,
               backgroundColor: colors.primary,
@@ -323,17 +326,15 @@ export default function EditSubject() {
             }}
             onPress={() => {
               const store = useAccountStore.getState();
-              const originalName = String(params.name);
-              const originalColor = String(params.color);
-              const originalEmoji = String(params.emoji);
-
-              store.setSubjectName(String(params.id), selectedName);
-              store.setSubjectEmoji(String(params.id), selectedEmoji);
-              store.setSubjectColor(String(params.id), selectedColor);
+              const name = selectedName.trim() || params.name || "";
+              if (!params.id || !name) return;
+              store.setSubjectName(params.id, name);
+              store.setSubjectEmoji(params.id, selectedEmoji);
+              store.setSubjectColor(params.id, selectedColor);
               trackAdvancedEvent("subject_info_changed", {
-                name_changed: selectedName !== originalName,
-                emoji_changed: selectedEmoji !== originalEmoji,
-                color_changed: selectedColor !== originalColor,
+                name_changed: name !== params.name,
+                emoji_changed: selectedEmoji !== params.emoji,
+                color_changed: selectedColor !== params.color,
               });
 
               router.back();
@@ -343,14 +344,19 @@ export default function EditSubject() {
           </AnimatedPressable>
         </Stack>
       </SafeHorizontalView>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: Math.max(insets.bottom, 16) }}
+      >
       <Stack hAlign={"center"} pointerEvents={"none"}>
         <CompactGrade
           date={new Date()}
           score={12.6}
           outOf={20}
+          skillLevel={[]}
           description={"Exemple d’une note avec la matière"}
           emoji={selectedEmoji}
-          title={selectedName}
+          title={selectedName || "Matière"}
           color={selectedColor}
         />
       </Stack>
@@ -368,15 +374,28 @@ export default function EditSubject() {
           </Stack>
         </SafeHorizontalView>
         <SafeHorizontalView base={16}>
-          <Stack>
-            <OnboardingInput
-              placeholder={"Nom de la matière"}
-              text={selectedName}
-              setText={setSelectedName}
-              icon={"Font"}
-              inputProps={{}}
-            />
-          </Stack>
+          <TextInput
+            accessibilityLabel="Nom de la matière"
+            placeholder="Nom de la matière"
+            placeholderTextColor={`${String(colors.text)}80`}
+            selectionColor={colors.primary}
+            value={selectedName}
+            onChangeText={setSelectedName}
+            returnKeyType="done"
+            style={{
+              alignSelf: "stretch",
+              width: "100%",
+              minHeight: 52,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+              color: colors.text,
+              fontSize: 17,
+            }}
+          />
         </SafeHorizontalView>
         <SafeHorizontalView base={16}>
           <Stack
@@ -437,7 +456,6 @@ export default function EditSubject() {
         </SafeHorizontalView>
         <ScrollView
           horizontal
-          style={{ width: Dimensions.get("window").width }}
           contentContainerStyle={{
             height: 60,
             alignItems: "center",
@@ -507,6 +525,7 @@ export default function EditSubject() {
           </SafeHorizontalView>
         </ScrollView>
       </Stack>
+      </ScrollView>
       <Modal
         presentationStyle={"formSheet"}
         animationType={"slide"}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { LiquidGlassView } from '@sbaiahmed1/react-native-blur';
 import Icon from '@/ui/components/Icon';
 import { Papicons } from '@getpapillon/papicons';
@@ -12,32 +12,23 @@ interface HomeTopBarButtonProps {
 
 const HomeTopBarButton: React.FC<HomeTopBarButtonProps> = ({ icon, route }) => {
   return (
-    <LiquidGlassView
-      glassType="clear"
-      isInteractive={true}
-      glassOpacity={0}
-      style={{
-        width: 42,
-        height: 42,
-        borderRadius: 30,
-      }}
-    >
-      <Link asChild href={route ?? "/(features)/soon"}>
-      <Pressable
-        style={{
-          width: '100%',
-          height: '100%',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+    <Link asChild href={route ?? "/(features)/soon"}>
+      <Pressable accessibilityRole="button" accessibilityLabel={icon === 'palette' ? 'Fond d’écran' : 'Réglages'}
+        style={({ pressed }) => [styles.button, pressed && { opacity: 0.75 }]}>
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <LiquidGlassView glassType="clear" glassOpacity={0} style={styles.glass} />
+        </View>
         <Icon size={26} fill='white'>
           <Papicons name={icon} />
         </Icon>
       </Pressable>
-      </Link>
-    </LiquidGlassView>
+    </Link>
   );
 };
 
 export default HomeTopBarButton;
+
+const styles = StyleSheet.create({
+  button: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  glass: { flex: 1, borderRadius: 22 },
+});

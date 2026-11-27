@@ -19,7 +19,7 @@ import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
 import { useSettingsStore } from '@/stores/settings';
 import { formatScoreForDisplay, getGradeDisplayScale } from '@/utils/grades/scale';
 import { getSubjectAverage } from "@/utils/grades/algorithms/subject";
-import { getCurrentPeriod } from "@/utils/grades/helper/period";
+import { findGradePeriod, getCurrentPeriod } from "@/utils/grades/helper/period";
 import adjust from '@/utils/adjustColor';
 import { getSubjectColor } from "@/utils/subjects/colors";
 import { getSubjectEmoji } from "@/utils/subjects/emoji";
@@ -37,6 +37,8 @@ export default function SubjectModal() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setSubject(undefined);
 
     (async () => {
       try {
@@ -44,11 +46,11 @@ export default function SubjectModal() {
         if (!manager || !id) return;
 
         const periods = await manager.getGradesPeriods();
-        const period = periods.find(candidate => candidate.id === periodId) ?? getCurrentPeriod(periods);
+        const period = periodId ? findGradePeriod(periods, periodId) : getCurrentPeriod(periods);
         if (!period) return;
 
         const periodGrades = await manager.getGradesForPeriod(period, period.createdByAccount);
-        const match = [...(periodGrades.subjects ?? []), ...(periodGrades.modules ?? [])]
+        const match = [...(periodGrades?.subjects ?? []), ...(periodGrades?.modules ?? [])]
           .find(candidate => candidate.id === id);
         if (!cancelled) setSubject(match);
       } catch (error) {

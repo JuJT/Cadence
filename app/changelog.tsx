@@ -1,80 +1,84 @@
-import Typography from "@/ui/components/Typography";
-import React from "react";
-import { View, ScrollView, Image } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Papicons } from "@getpapillon/papicons";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useTheme } from "expo-router/react-navigation";
+import { useState } from "react";
+import { Image, ScrollView, View } from "react-native";
+
+import { CADENZA_BLUE, CADENZA_RELEASE_KEY } from "@/constants/Cadenza";
+import { installedCadenzaVersionLabel } from "@/services/cadenza/installed-version";
+import Button from "@/ui/new/Button";
+import Typography from "@/ui/new/Typography";
+
+const changes = [
+  {
+    icon: "Calendar",
+    title: "Tes notes de la période en cours",
+    description: "Cadenza ouvre les notes du trimestre ou du semestre en cours. Tu peux consulter une autre période depuis le calendrier des notes.",
+  },
+  {
+    icon: "Palette",
+    title: "Des matières plus faciles à personnaliser",
+    description: "Le nom de la matière, les couleurs et les emojis sont accessibles depuis le même écran.",
+  },
+  {
+    icon: "Check",
+    title: "Un démarrage plus régulier",
+    description: "Le nouveau logo d’ouverture laisse place à l’accueil dès que l’écran est prêt.",
+  },
+] as const;
 
 export default function ChangelogScreen() {
-  const theme = useTheme();
-  const { colors } = theme;
+  const { colors } = useTheme();
+  const { automatic } = useLocalSearchParams<{ automatic?: string }>();
+  const [closing, setClosing] = useState(false);
+
+  const close = async () => {
+    if (closing) return;
+    setClosing(true);
+    try {
+      if (automatic === "1") await AsyncStorage.setItem(CADENZA_RELEASE_KEY, "1");
+    } finally {
+      if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)");
+    }
+  };
 
   return (
     <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{
-        padding: 20,
-        gap: 12,
-        justifyContent: "center",
-      }}
-      showsVerticalScrollIndicator={false}
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ flexGrow: 1, padding: 22, gap: 22 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Image
-        source={require("../assets/images/icon.png")}
-        style={{ width: 72, height: 72, alignSelf: "center", borderRadius: 20, marginBottom: 8 }}
+      <Stack.Screen options={{ title: "Nouveautés", gestureEnabled: automatic !== "1", headerBackVisible: automatic !== "1" }} />
+      <View style={{ alignItems: "center", gap: 8, paddingVertical: 10 }}>
+        <Image
+          source={require("../assets/images/splash-mark.png")}
+          style={{ width: 82, height: 82 }}
+          accessibilityIgnoresInvertColors
+        />
+        <Typography variant="h2" align="center">Du nouveau dans Cadenza</Typography>
+        <Typography color="textSecondary" align="center">{installedCadenzaVersionLabel}</Typography>
+      </View>
+      <View style={{ gap: 16 }}>
+        {changes.map(change => (
+          <View key={change.title} style={{ flexDirection: "row", alignItems: "flex-start", gap: 14 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#2776F820" }}>
+              <Papicons name={change.icon} size={22} color={CADENZA_BLUE} />
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Typography variant="title">{change.title}</Typography>
+              <Typography color="textSecondary">{change.description}</Typography>
+            </View>
+          </View>
+        ))}
+      </View>
+      <Button
+        label={automatic === "1" ? "Continuer" : "Fermer"}
+        fullWidth
+        disabled={closing}
+        onPress={() => { void close().catch(() => {}); }}
       />
-      <Typography variant="h3" align="center">
-        Bienvenue sur Papillon v8
-      </Typography>
-      <Typography variant="body1" color="secondary" align="center">
-        Cette mise à jour a été repensée de fond en comble pour améliorer votre expérience. Mais cela prend du temps, nous faisons de notre mieux pour faire de cette version la meilleure possible.
-      </Typography>
-
-      <View style={{ height: 16 }} />
-
-      <Papicons name="clock" size={32} color={colors.text} style={{ alignSelf: "center" }} />
-      <Typography variant="h4" align="center">
-        Pourquoi tout changer ?
-      </Typography>
-      <Typography variant="body1" color="secondary" align="center">
-        Vous évoluez, nous aussi ! Papillon n'a jamais cessé de grandir depuis des années, et nous nous devons d'utiliser une application modernisée afin d'offrir la meilleure expérience et de garantir le futur de l'application.
-      </Typography>
-      <Typography variant="body1" color="primary" align="center">
-        Ce processus prend énormément de temps, et en tant qu'étudiants et lycéens, on doit aussi aller en cours, donc on fait ce qu'on peut avec ce qu'on à !
-      </Typography>
-      <Typography variant="caption" color="secondary" align="center">
-        (Si vous aimez ce qu'on fait, n'hésitez pas à nous soutenir depuis les paramètres !)
-      </Typography>
-
-      <View style={{ height: 16 }} />
-
-      <Papicons name="ghost" size={32} color={colors.text} style={{ alignSelf: "center" }} />
-      <Typography variant="h4" align="center">
-        Il manque (telle ou telle) fonctionnalité ?
-      </Typography>
-      <Typography variant="body1" color="secondary" align="center">
-        Pour vous permettre d'utiliser Papillon dès la rentrée, l'application est sortie plus lègere en fonctionnalités que prévu. Nous travaillons d'arrache-pied pour réintégrer les fonctionnalités manquantes au plus vite.
-      </Typography>
-
-      <View style={{ height: 16 }} />
-
-      <Papicons name="unlock" size={32} color={colors.text} style={{ alignSelf: "center" }} />
-      <Typography variant="h4" align="center">
-        J'ai un bug avec (quelque chose) !
-      </Typography>
-      <Typography variant="body1" color="secondary" align="center">
-        Il est possible que certaines choses ne fonctionnent pas. Si la télémétrie est activée, vos bugs nous seront automatiquement parvenus, sinon, n'hésitez pas à nous contacter (Paramètres {">"} À propos)
-      </Typography>
-
-      <View style={{ height: 16 }} />
-
-      <Papicons name="heart" size={32} color={colors.text} style={{ alignSelf: "center" }} />
-      <Typography variant="h4" align="center">
-        Merci d'être là depuis le début !
-      </Typography>
-      <Typography variant="body1" color="secondary" align="center">
-        Nous apprécions votre soutien et vos retours. N'hésitez pas à nous faire part de vos suggestions ou de vos problèmes sur les réseaux sociaux ou par email.
-      </Typography>
     </ScrollView>
   );
-};
+}

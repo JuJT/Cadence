@@ -1,7 +1,7 @@
 {
   "name": "cadenza",
   "main": "index.js",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -13,7 +13,7 @@
     "lint": "eslint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "postinstall": "patch-package && node -e \"require('node:fs').rmSync('node_modules/expo-modules-core/android/.cxx', { recursive: true, force: true })\""
+    "postinstall": "patch-package && node scripts/pronote-news-compatibility.mjs && node -e \"require('node:fs').rmSync('node_modules/expo-modules-core/android/.cxx', { recursive: true, force: true })\""
   },
   "jest": {
     "preset": "jest-expo"
@@ -23,7 +23,7 @@
     "@blockshub/blockscho": "^0.1.0",
     "@blockshub/blocksdirecte": "^0.0.10-alpha",
     "@blockshub/blocksrd": "^0.1.0",
-    "@blockshub/pawnote-lts": "^1.6.4",
+    "@blockshub/pawnote-lts": "1.6.4",
     "@eslint/js": "^9.39.1",
     "@expo/ui": "~58.0.8",
     "@getpapillon/papicons": "^0.2.3",
@@ -44,6 +44,7 @@
     "esup-multi.js": "^1.0.4",
     "expo": "~58.0.19",
     "expo-asset": "~58.0.18",
+    "expo-application": "~58.1.2",
     "expo-audio": "~58.0.10",
     "expo-battery": "~58.0.1",
     "expo-blur": "~58.0.5",

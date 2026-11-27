@@ -1,6 +1,6 @@
-import { Course as SharedCourse, CourseType } from '@/services/shared/timetable';
+import { Course as SharedCourse, CourseStatus, CourseType } from '@/services/shared/timetable';
 
-import { ICalEvent } from './ical';
+import type { ICalEvent } from './ical';
 import { parseADEDescription } from './parsers/ade-parser';
 import { isHyperplanningDescription,parseHyperplanningDescription } from './parsers/hyperplanning-parser';
 import { parseUR1Ical } from './parsers/schools/univrennes1_parser';
@@ -13,6 +13,7 @@ interface ConversionContext {
   intelligentParsing: boolean;
   isSchool: boolean;
   schoolName?: string;
+  provider?: string;
 }
 
 export interface ParsedEventData {
@@ -29,7 +30,7 @@ const DEFAULT_EVENT_DATA: ParsedEventData = {
   group: 'Inconnu'
 };
 
-const SCHOOL_PARSERS = {
+const SCHOOL_PARSERS: Partial<Record<string, (event: ICalEvent) => ParsedEventData | null>> = {
   "UNIVRENNES1": parseUR1Ical
 }
 
@@ -88,6 +89,16 @@ function calculateEventEndTime(event: ICalEvent): Date {
   return new Date(startTime.getTime() + 60 * 60 * 1000);
 }
 
+function isStudyCandidate(event: ICalEvent, context: ConversionContext): boolean {
+  const provider = context.provider ?? "";
+  const pronote = !/^https?:\/\//i.test(provider) && /\b(?:pronote|index[- ]education)\b/i.test(provider);
+  if (!(context.isSchool || context.isADE || context.isHyperplanning || pronote) || event.allday) return false;
+
+  const start = event.dtstart?.getTime() ?? NaN;
+  const end = event.dtend?.getTime() ?? NaN;
+  return Number.isFinite(start) && Number.isFinite(end) && end > start;
+}
+
 export function convertICalEventToSharedCourse(
   event: ICalEvent,
   context: ConversionContext
@@ -101,8 +112,6 @@ export function convertICalEventToSharedCourse(
     context.schoolName
   );
 
-  console.log(summary)
-
   return {
     id: event.uid,
     subject: summary || event.summary || 'Événement',
@@ -114,10 +123,11 @@ export function convertICalEventToSharedCourse(
     teacher,
     group,
     backgroundColor: '#4CAF50',
-    status: undefined,
+    status: event.canceled ? CourseStatus.CANCELED : undefined,
     customStatus: courseType || context.icalTitle,
     url: '',
-    createdByAccount: `ical_${context.icalId}`
+    createdByAccount: `ical_${context.icalId}`,
+    studyCandidate: isStudyCandidate(event, context),
   };
 }
 

@@ -1,6 +1,7 @@
 import {
   parseTimetable,
   resource,
+  resourcesFromIntervals,
   SessionHandle,
   TabLocation,
   TimetableClassActivity,
@@ -10,8 +11,7 @@ import {
   translateToWeekNumber,
 } from "@blockshub/pawnote-lts";
 
-import { Course, CourseDay, CourseResource, CourseStatus, CourseType } from "@/services/shared/timetable";
-import { observePronoteWeek } from "@/services/cadenza/timetable-alerts";
+import { Course, CourseDay, CourseResource, CourseStatus, CourseType, LessonSummary } from "@/services/shared/timetable";
 import { error } from "@/utils/logger/logger";
 
 export async function fetchPronoteWeekTimetable(
@@ -34,10 +34,12 @@ export async function fetchPronoteWeekTimetable(
   });
 
   const mappedCourses = mapCourses(accountId, timetable.classes);
-  const dayMap: Record<string, Course[]> = {};
+  const dayMap: Record<number, Course[]> = {};
 
   for (const course of mappedCourses) {
-    const dayKey = course.from.toISOString().split("T")[0];
+    const localDay = new Date(course.from);
+    localDay.setHours(0, 0, 0, 0);
+    const dayKey = localDay.getTime();
     dayMap[dayKey] = dayMap[dayKey] || [];
     dayMap[dayKey].push(course);
   }
@@ -47,10 +49,9 @@ export async function fetchPronoteWeekTimetable(
   }
 
   const result = Object.entries(dayMap).map(([day, courses]) => ({
-    date: new Date(day),
+    date: new Date(Number(day)),
     courses
   }));
-  observePronoteWeek(accountId, date, result);
   return result;
 }
 
@@ -106,38 +107,71 @@ const mapCourses = (
   return courseList;
 };
 
+export async function fetchPronoteLessons(session: SessionHandle, accountId: string): Promise<LessonSummary[]> {
+  if (!session.userResource?.tabs.has(TabLocation.Resources)) {
+    throw new Error("Le cahier de textes est indisponible pour ce compte.");
+  }
+
+  const first = session.instance.firstDate ?? session.instance.firstMonday;
+  const from = new Date(first);
+  from.setHours(0, 0, 0, 0);
+  const today = new Date();
+  const last = session.instance.lastDate;
+  const through = new Date(last instanceof Date && last < today ? last : today);
+  through.setHours(23, 59, 59, 999);
+  if (!Number.isFinite(from.getTime()) || through.getTime() - from.getTime() > 370 * 86400000) {
+    throw new Error("Le calendrier scolaire fourni par PRONOTE est invalide.");
+  }
+
+  const lessons = new Map<string, LessonSummary>();
+  while (from <= through) {
+    const next = new Date(from);
+    next.setDate(next.getDate() + 28);
+    const end = new Date(Math.min(next.getTime() - 1, through.getTime()));
+    for (const item of await resourcesFromIntervals(session, from, end)) {
+      if (!item.id || !item.subject?.name) continue;
+      lessons.set(item.id, {
+        id: item.id,
+        subject: item.subject.name,
+        date: item.startDate,
+        title: item.contents?.find(content => content.title)?.title,
+        teachers: item.teachers ?? [],
+        hasHomework: item.haveAssignment,
+        createdByAccount: accountId,
+      });
+    }
+    from.setTime(next.getTime());
+  }
+
+  return [...lessons.values()].sort((left, right) => right.date.getTime() - left.date.getTime());
+}
+
 export async function fetchPronoteCourseResources(
-  session: SessionHandle,
-  course: Course
+  session: SessionHandle, accountId: string, course: Course
 ): Promise<CourseResource[]> {
-  if (!session) {
-    error("Session is undefined", "fetchPronoteCourseResources");
+  if (!course.resourceId) return [];
+  return fetchPronoteLesson(session, accountId, course.resourceId);
+}
+
+export async function fetchPronoteLesson(
+  session: SessionHandle, accountId: string, id: string,
+): Promise<CourseResource[]> {
+  const tabs = session.userResource?.tabs;
+  if (!id || (!tabs?.has(TabLocation.Resources) && !tabs?.has(TabLocation.Timetable))) {
+    throw new Error("Cette leçon est indisponible pour ce compte.");
   }
-
-  const timetableTab = session.user.resources[0].tabs.get(
-    TabLocation.Timetable
-  );
-  if (!timetableTab) {
-    error("Timetable tab not found in session", "fetchPronoteCourseResources");
-  }
-
-  if (!course.resourceId) {
-    error("Course resource ID is undefined", "fetchPronoteCourseResources");
-  }
-
-  const resources = (await resource(session, course.resourceId!)).contents;
-
-  return resources.map(r => ({
-    title: r.title,
-    description: r.description,
-    category: r.category,
-    attachments: r.files.map(a => ({
-      type: a.kind,
-      name: a.name,
-      url: a.url,
-      createdByAccount: session.user.resources[0].id
-    }))
-  }))
+  const { contents } = await resource(session, id);
+  return contents.map(content => ({
+    title: content.title,
+    description: content.description,
+    category: content.category,
+    attachments: content.files.map(file => ({
+      type: file.kind,
+      name: file.name,
+      url: file.url,
+      createdByAccount: accountId,
+    })),
+  }));
 }
 
 const mapCourseStatus = (course: TimetableClassLesson): CourseStatus | undefined => {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { compareHomeworkDeadlines } from "../app/(tabs)/tasks/utils/homeworkOrder.ts";
 
 import {
   changeSessionTimer,
@@ -8,7 +9,7 @@ import {
   isPaused,
   newStudyState,
   parseStudyBackup,
-  reconcileScheduledStudyCourses,
+  reconcileScheduledStudyWeek,
   setSessionTask,
   studyTotals,
 } from "../stores/study/model.ts";
@@ -64,18 +65,21 @@ test("imports old schema 3 homework, notes, pauses and course credits without do
   assert.equal(isPaused(getActiveSession(imported)), true);
   assert.equal(imported.sessions[0].notes, "À relire");
   assert.deepEqual(imported.sessions[0].task, { id: "homework-id", title: "Exercices", completed: true });
-  const synced = reconcileScheduledStudyCourses(imported, [{
+  const synced = reconcileScheduledStudyWeek(imported, "student", start, [{
     id: "papillon-course", subjectName: "MATHS", start: start - 3600000, end: start, canceled: false,
   }], () => "unexpected");
-  assert.equal(synced.courses.length, 1);
-  const totals = studyTotals(synced, { start: start - 3600000, end: start + 10000 }, start + 6500);
+  assert.equal(synced.courses.length, 2);
+  const totals = studyTotals(synced, { start: start - 3600000, end: start + 10000 }, start + 6500, "student");
   assert.equal(totals.courseSeconds, 1200);
   assert.equal(totals.revisionSeconds, 5);
   const measured = { ...synced, sessions: [...synced.sessions, {
     id: "course-new", subjectId: "math", kind: "course", title: "", notes: "", startedAt: start - 600000,
     endedAt: start, segments: [{ start: start - 600000, end: start }], taskSegments: [], courseId: "papillon-course",
   }] };
-  assert.equal(studyTotals(measured, { start: start - 3600000, end: start + 10000 }, start + 6500).courseSeconds, 600);
+  const measuredTotals = studyTotals(measured, { start: start - 3600000, end: start + 10000 }, start + 6500, "student");
+  assert.equal(measuredTotals.courseSeconds, 600);
+  assert.equal(measuredTotals.scheduledCourseSeconds, 0);
+  assert.equal(measuredTotals.measuredCourseSeconds, 600);
 });
 
 test("imports schema 1 active session with an open segment", () => {
@@ -102,11 +106,62 @@ test("scheduled lessons earn credit after completion and canceled lessons earn n
   const timetable = [{
     id: "math-plan", subjectName: "Maths", start, end: start + 3600000, canceled: false,
   }];
-  const data = reconcileScheduledStudyCourses(newStudyState(), timetable, () => "unneeded");
-  assert.equal(reconcileScheduledStudyCourses(data, timetable, () => "unneeded"), data);
+  const data = reconcileScheduledStudyWeek(newStudyState(), "student", start, timetable, () => "unneeded");
+  assert.equal(reconcileScheduledStudyWeek(data, "student", start, timetable, () => "unneeded"), data);
   const range = { start, end: start + 100000000 };
-  assert.equal(studyTotals(data, range, start + 35).courseSeconds, 0);
-  assert.equal(studyTotals(data, range, start + 4000000).courseSeconds, 3600);
-  const canceled = reconcileScheduledStudyCourses(data, [{ ...timetable[0], canceled: true }], () => "unneeded");
-  assert.equal(studyTotals(canceled, range, start + 4000000).courseSeconds, 0);
+  assert.equal(studyTotals(data, range, start + 35, "student").courseSeconds, 0);
+  assert.equal(studyTotals(data, range, start + 4000000, "student").courseSeconds, 3600);
+  const canceled = reconcileScheduledStudyWeek(data, "student", start, [{ ...timetable[0], canceled: true }], () => "unneeded");
+  assert.equal(studyTotals(canceled, range, start + 4000000, "student").courseSeconds, 0);
+});
+
+test("complete weekly snapshots remove old slots and keep other profiles and manual sessions", () => {
+  const original = { id: "school-slot", subjectName: "Maths", start, end: start + 3600000, canceled: false, source: "school" };
+  const moved = { ...original, id: "rescheduled-slot", start: start + 7200000, end: start + 10800000 };
+  const manual = { ...revision, endedAt: start + 1800000, segments: [{ start, end: start + 1800000 }] };
+  const initial = { ...newStudyState(), sessions: [manual] };
+  const first = reconcileScheduledStudyWeek(initial, "parent-profile", start, [original], () => "unneeded");
+  const second = reconcileScheduledStudyWeek(first, "student-profile", start, [original], () => "unneeded");
+  const changed = reconcileScheduledStudyWeek(second, "student-profile", start, [moved], () => "unneeded");
+  assert.deepEqual(changed.courses.map(row => row.id), ["school-slot", "rescheduled-slot"]);
+  const cleared = reconcileScheduledStudyWeek(changed, "student-profile", start, [], () => "unneeded");
+  const range = { start, end: start + 12000000 };
+  assert.equal(studyTotals(cleared, range, range.end, "student-profile").scheduledCourseSeconds, 0);
+  assert.equal(studyTotals(cleared, range, range.end, "parent-profile").scheduledCourseSeconds, 3600);
+  assert.equal(studyTotals(cleared, range, range.end, "student-profile").revisionSeconds, 1800);
+});
+
+test("school slot and iCal copy count once; school cancellation overrides both", () => {
+  const first = { id: "school-slot", subjectName: "Mathématiques", start, end: start + 3600000, canceled: false, source: "school" };
+  const second = { ...first, id: "ical-slot", subjectName: "Maths", source: "ical" };
+  const data = reconcileScheduledStudyWeek(newStudyState(), "student", start, [second, first], () => "unneeded");
+  assert.equal(data.courses.length, 1);
+  const range = { start, end: start + 4000000 };
+  assert.equal(studyTotals(data, range, range.end, "student").scheduledCourseSeconds, 3600);
+  const measured = {
+    ...revision, id: "course", kind: "course", courseId: "ical-slot",
+    endedAt: start + 123000, segments: [{ start, end: start + 123000 }],
+  };
+  assert.equal(studyTotals({ ...data, sessions: [measured] }, range, range.end, "student").courseSeconds, 123);
+  const canceled = reconcileScheduledStudyWeek(data, "student", start, [second, { ...first, canceled: true }], () => "unneeded");
+  assert.equal(studyTotals(canceled, range, range.end, "student").scheduledCourseSeconds, 0);
+});
+
+test("fork update discards only unscoped timer estimates from build 10", () => {
+  const legacySlot = { id: "legacy", subjectId: "math", start, end: start + 3600000, seconds: 3600 };
+  const forkSlot = { ...legacySlot, id: "old-fork", source: "papillon" };
+  const parsed = parseStudyBackup(JSON.stringify({ ...newStudyState(), courses: [legacySlot, forkSlot], sessions: [revision] }));
+  assert.deepEqual(parsed.sessions, [revision]);
+  assert.deepEqual(parsed.courses, [legacySlot]);
+});
+
+test("homework date order shows today's work, upcoming work, overdue work, then completed", () => {
+  const today = new Date(2026, 10, 26).getTime();
+  const due = (name, day, isDone = false) => ({ name, dueDate: new Date(2026, 10, day, 8), isDone });
+  const homework = [
+    due("ancien retard", 22), due("terminé", 26, true), due("vendredi", 27),
+    due("retard récent", 25), due("samedi", 28), due("aujourd’hui", 26),
+  ];
+  assert.deepEqual(homework.sort((a, b) => compareHomeworkDeadlines(a, b, today)).map(item => item.name),
+    ["aujourd’hui", "vendredi", "samedi", "retard récent", "ancien retard", "terminé"]);
 });

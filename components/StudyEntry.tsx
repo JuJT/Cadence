@@ -1,15 +1,16 @@
 import { useIsFocused } from "expo-router/react-navigation";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { BarChart3, ChevronRight, Timer } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { AppState, Pressable, Text, View, type TextStyle } from "react-native";
 
 import { useStudyColors } from "@/hooks/useStudyColors";
+import { studyOrigin, studyTimerHref } from "@/hooks/useStudyLaunch";
 import { useStudyStore } from "@/stores/study";
 import { clockText, elapsedSeconds, getActiveSession, isPaused, type StudySession } from "@/stores/study/model";
 import Typography from "@/ui/new/Typography";
 
-export function StudyClock({ session, style }: { session: StudySession; style?: TextStyle }) {
+export function StudyClock({ session, style, testID = "cadenza-study-clock" }: { session: StudySession; style?: TextStyle; testID?: string }) {
   const colors = useStudyColors();
   const focused = useIsFocused();
   const [now, setNow] = useState(Date.now);
@@ -39,7 +40,9 @@ export function StudyClock({ session, style }: { session: StudySession; style?: 
   return (
     <Text
       accessibilityLabel={"Temps écoulé " + display}
-      testID="cadenza-study-clock"
+      testID={testID}
+      numberOfLines={1}
+      adjustsFontSizeToFit
       style={[{ color: colors.text, fontWeight: "700", fontVariant: ["tabular-nums"] }, style]}
     >
       {display}
@@ -49,6 +52,7 @@ export function StudyClock({ session, style }: { session: StudySession; style?: 
 
 export function StudyEntry({ statistics = false, accessory = false }: { statistics?: boolean; accessory?: boolean }) {
   const colors = useStudyColors();
+  const from = studyOrigin(usePathname());
   const active = useStudyStore(state => getActiveSession(state.data));
   const subject = useStudyStore(state => state.data.subjects.find(item => item.id === active?.subjectId));
   const title = statistics ? "Statistiques" : accessory ? subject?.name ?? "Révision" : active ? "Séance en cours" : "Révision";
@@ -60,7 +64,10 @@ export function StudyEntry({ statistics = false, accessory = false }: { statisti
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title + ", " + subtitle}
-      onPress={() => router.navigate({ pathname: "/(tabs)/study", params: { section: statistics ? "stats" : "timer", open: String(Date.now()) } })}
+      onPress={() => {
+        if (!statistics && active) router.navigate(studyTimerHref(from));
+        else router.navigate({ pathname: "/(tabs)/study", params: { section: statistics ? "stats" : "timer", open: String(Date.now()) } });
+      }}
       style={({ pressed }) => ({
         backgroundColor: accessory ? "transparent" : colors.card,
         borderColor: colors.border, borderWidth: accessory ? 0 : 1, borderRadius: 18,

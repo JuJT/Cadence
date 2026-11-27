@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useManagerSubscription } from "@/hooks/useManagerSubscription";
 import type { AccountManager } from "@/services/shared";
 import { getManager } from "@/services/shared";
-import { Grade, GradeScore, Period, PeriodGrades, Subject } from "@/services/shared/grade";
+import { gradePeriodKey, Grade, GradeScore, Period, PeriodGrades, Subject } from "@/services/shared/grade";
 import type { Kid } from "@/services/shared/kid";
 import { Capabilities, ServiceFailure } from "@/services/shared/types";
 import { ScoreProperty } from "@/utils/grades/algorithms/helpers";
@@ -74,6 +74,8 @@ const isUsableScore = (score?: GradeScore | null): score is GradeScore =>
 
 const sortGradesByDateDesc = (grades: Grade[]): Grade[] =>
   [...grades].sort((a, b) => (b.givenAt?.getTime() ?? 0) - (a.givenAt?.getTime() ?? 0));
+const NO_SUBJECTS: Subject[] = [];
+const NO_AVERAGES = { student: null, class: null };
 
 /**
  * Fetches and exposes everything needed to show a period's grades: subjects (with
@@ -90,17 +92,19 @@ export function useGradesData(
   const { kid } = options;
   const methods = options.methods ?? ALL_METHODS;
 
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [rank, setRank] = useState<GradeScore | null>(null);
-  const [features, setFeatures] = useState<Record<string, any> | undefined>(undefined);
-  const [serviceAverages, setServiceAverages] = useState<{ student: GradeScore | null; class: GradeScore | null }>({
-    student: null,
-    class: null,
-  });
+  const [loadedSubjects, setSubjects] = useState<Subject[]>([]);
+  const [loadedRank, setRank] = useState<GradeScore | null>(null);
+  const [loadedFeatures, setFeatures] = useState<Record<string, any> | undefined>(undefined);
+  const [loadedAverages, setServiceAverages] = useState<{ student: GradeScore | null; class: GradeScore | null }>(NO_AVERAGES);
+  const [settledKey, setSettledKey] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [failures, setFailures] = useState<ServiceFailure[]>([]);
+  const periodKey = period ? gradePeriodKey(period, kid?.id) : undefined;
+  const isCurrent = periodKey === settledKey;
+  const subjects = isCurrent ? loadedSubjects : NO_SUBJECTS;
+  const serviceAverages = isCurrent ? loadedAverages : NO_AVERAGES;
 
   // Avoids re-fetching a period that's already been loaded once.
   const cacheRef = useRef<Map<string, PeriodGrades>>(new Map());
@@ -128,12 +132,14 @@ export function useGradesData(
 
   const fetchGrades = useCallback(
     async (managerToUse: AccountManager, targetPeriod: Period, isRefresh = false) => {
-      const cacheKey = `${targetPeriod.id ?? targetPeriod.name}:${kid?.id ?? ""}`;
+      const cacheKey = gradePeriodKey(targetPeriod, kid?.id);
       const requestId = ++requestIdRef.current;
 
       if (!isRefresh && cacheRef.current.has(cacheKey)) {
         applyResult(cacheRef.current.get(cacheKey));
+        setSettledKey(cacheKey);
         setLoading(false);
+        setRefreshing(false);
         setError(null);
         setFailures([]);
         return;
@@ -153,15 +159,17 @@ export function useGradesData(
         if (requestId !== requestIdRef.current) { return; } // A newer request has taken over.
 
         setFailures(managerToUse.getFailures(Capabilities.GRADES));
-        cacheRef.current.set(cacheKey, result);
+        if (result) cacheRef.current.set(cacheKey, result);
         applyResult(result);
       } catch (e) {
         if (requestId !== requestIdRef.current) { return; }
         warn(String(e), "useGradesData");
         setFailures(managerToUse.getFailures(Capabilities.GRADES));
         setError(e instanceof Error ? e : new Error(String(e)));
+        applyResult(cacheRef.current.get(cacheKey));
       } finally {
         if (requestId === requestIdRef.current) {
+          setSettledKey(cacheKey);
           setLoading(false);
           setRefreshing(false);
         }
@@ -174,6 +182,7 @@ export function useGradesData(
     if (period) { return; }
     requestIdRef.current++;
     applyResult(undefined);
+    setSettledKey(undefined);
     setFailures([]);
     setLoading(false);
   }, [period, applyResult]);
@@ -188,11 +197,14 @@ export function useGradesData(
   // Nothing else ever ends the load if no manager turns up, so the spinner
   // would stay on screen indefinitely.
   const handleManagerUnavailable = useCallback(() => {
-    if (!period) { return; }
+    if (!periodKey) { return; }
+    requestIdRef.current++;
+    applyResult(cacheRef.current.get(periodKey));
+    setSettledKey(periodKey);
     setLoading(false);
     setRefreshing(false);
     setError(new Error("Account manager unavailable"));
-  }, [period]);
+  }, [applyResult, periodKey]);
 
   useManagerSubscription(handleManager, handleManagerUnavailable);
 
@@ -267,14 +279,14 @@ export function useGradesData(
     grades,
     averages,
     isAverageServiceProvided: serviceAverages.student !== null || serviceAverages.class !== null,
-    rank,
-    features,
+    rank: isCurrent ? loadedRank : null,
+    features: isCurrent ? loadedFeatures : undefined,
     history,
     getSubjectById,
-    loading,
-    refreshing,
-    error,
-    failures,
+    loading: Boolean(periodKey && (!isCurrent || loading)),
+    refreshing: isCurrent && refreshing,
+    error: isCurrent ? error : null,
+    failures: isCurrent ? failures : [],
     refresh,
   };
 }

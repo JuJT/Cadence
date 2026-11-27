@@ -4,6 +4,11 @@ on:
   push:
     branches: ["papillon-cadenza/**"]
   workflow_dispatch:
+    inputs:
+      simulator_draft:
+        description: "Brouillon du simulateur à réutiliser sur une branche simulator*"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -50,9 +55,13 @@ jobs:
           jest_status=0
           npx --no-install jest --ci --runInBand '--testPathIgnorePatterns=/node_modules/|/scripts/cadenza-study\.test\.mjs$' 2>&1 | tee dist/ios-reports/jest.log || jest_status=$?
           node --test --test-reporter=spec scripts/cadenza-study.test.mjs 2>&1 | tee dist/ios-reports/study-tests.log
+          node --test --test-reporter=spec scripts/pronote-news-tests.mjs 2>&1 | tee dist/ios-reports/pronote-tests.log
           exit "$jest_status"
       - name: Générer et compiler le projet iOS
         shell: bash
+        env:
+          CADENZA_SIMULATOR_DRAFT: ${{ matrix.destination == 'simulator' && startsWith(github.ref_name, 'papillon-cadenza/simulator') && inputs.simulator_draft || '' }}
+          GH_TOKEN: ${{ matrix.destination == 'simulator' && startsWith(github.ref_name, 'papillon-cadenza/simulator') && inputs.simulator_draft && github.token || '' }}
         run: bash scripts/build-cadenza-ios.sh
       - name: Vérifier le résultat des tests
         if: steps.jest.outcome != 'success'

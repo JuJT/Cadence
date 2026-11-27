@@ -12,6 +12,12 @@ jest.mock("@/database/useHomework", () => ({}));
 jest.mock("@/database/useKids", () => ({}));
 jest.mock("@/database/useNews", () => ({}));
 jest.mock("@/database/useTimetable", () => ({}));
+jest.mock("@/services/cadenza/timetable-alerts", () => ({
+  observePronoteWeek: jest.fn(),
+}));
+jest.mock("@/services/local/ical", () => ({
+  getICalEventsForWeek: jest.fn(async () => []),
+}));
 jest.mock("@/stores/account", () => ({
   useAccountStore: { getState: jest.fn() },
 }));

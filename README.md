@@ -1,10 +1,12 @@
-# Cadenza 0.8.0
+# Cadenza 0.9.0
 
 Cadenza est un dérivé iPhone de [Papillon](https://github.com/PapillonApp/Papillon). Il reprend les écrans et parcours scolaires de Papillon avec l’icône et la palette bleu et blanc de Cadenza, ainsi que le suivi des révisions et du temps de travail.
 
 - [Installer Cadenza sur iPhone](https://github.com/JuJT/Cadence/releases) et conserver le même compte de signature pour remplacer une installation Cadenza existante.
 - Le code de cette version et sa méthode de construction sont fournis sous [GPL-3.0](LICENSE). La base est le commit [`3d983b338b8218286099db300f2cb4d61482c2e0`](https://github.com/PapillonApp/Papillon/commit/3d983b338b8218286099db300f2cb4d61482c2e0) de Papillon, avec les modifications recensées dans [la notice](THIRD_PARTY_NOTICES.md).
 - Pour compiler la version iPhone, utiliser [le workflow iOS](.github/workflows/cadenza-ios.yml) ou les mêmes commandes Expo et Xcode sur macOS. La signature de l’IPA s’effectue avec le compte choisi pour l’installation.
+
+Les trajets utilisent le catalogue du [Point d’accès national](https://transport.data.gouv.fr/) et les itinéraires et horaires [Transitous](https://transitous.org/sources/). La couverture et le temps réel dépendent des flux publiés par les réseaux. Les domiciles, leurs jours d’alternance et les photos de cartes restent dans l’app.
 
 ## Projet d’origine
 

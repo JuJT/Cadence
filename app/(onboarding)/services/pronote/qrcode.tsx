@@ -1,38 +1,24 @@
 import { Papicons } from "@getpapillon/papicons";
-import MaskedView from "@react-native-masked-view/masked-view";
 import { useTheme } from "expo-router/react-navigation";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import {
-  AuthenticateError,
-  createSessionHandle,
-  DoubleAuthMode,
-  finishLoginManually,
-  loginQrCode,
-  RefreshInformation,
-  SecurityError,
-  securitySave,
-  securitySource,
-} from "@blockshub/pawnote-lts";
-import React, { useEffect, useState } from "react";
+import { createSessionHandle, loginQrCode, SecurityError } from "@blockshub/pawnote-lts";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Modal, StyleSheet, TextInput, View } from "react-native";
 import Reanimated, { FadeInUp, FadeOutUp, LinearTransition } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAccountStore } from "@/stores/account";
-import { Services } from "@/stores/account/types";
 import Button from "@/ui/components/Button";
 import Icon from "@/ui/components/Icon";
 import Typography from "@/ui/components/Typography";
-import { URLToBase64 } from "@/utils/attachments/helper";
+import { isPronotePairingCode, parsePronoteQrCode } from "@/utils/pronote/address";
+import { storePronoteLogin } from "@/utils/pronote/sign-in";
 import { setPendingPronoteChallenge } from "@/utils/pronote/challenge";
 import { customFetcher } from "@/utils/pronote/fetcher";
-import { GetIdentityFromPronoteUsername } from "@/utils/pronote/name";
 import uuid from "@/utils/uuid/uuid";
 import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
-import * as Device from "expo-device";
 
 export default function PronoteLoginWithQR() {
   const theme = useTheme();
@@ -49,135 +35,74 @@ export default function PronoteLoginWithQR() {
 
   const [loadingModalVisible, setLoadingModalVisible] = useState(false);
 
-  const codeInput = React.createRef<TextInput>();
-  const [QRData, setQRData] = useState<string | null>(null);
+  const scanning = useRef(false);
+  const busy = useRef(false);
+  const alive = useRef(true);
+  const [QRData, setQRData] = useState<ReturnType<typeof parsePronoteQrCode>>();
 
-  const deviceName: string = Device.deviceName ?? "Pronote" 
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
+
+  function resetScan() {
+    scanning.current = false;
+    setScanned(false);
+    setQRData(undefined);
+    setQRValidationCode("");
+  }
 
   async function loginQR() {
-    setScanned(false);
+    if (!QRData || !isPronotePairingCode(QRValidationCode) || busy.current) return;
+    busy.current = true;
+    setPinModalVisible(false);
     setLoadingModalVisible(true);
-
-    if (QRValidationCode === "" || QRValidationCode.length !== 4) {
-      // Handle error
-      return;
-    }
-
     const accountID = uuid();
-
+    const session = createSessionHandle(customFetcher);
     try {
-      const decodedJSON = JSON.parse(QRData!);
-
-      const data = {
-        jeton: decodedJSON.jeton,
-        login: decodedJSON.login,
-        url: decodedJSON.url,
-      };
-
-      const session = createSessionHandle(customFetcher);
-      let refresh: RefreshInformation | undefined;
-      try {
-        refresh = await loginQrCode(session, {
-          qr: data,
-          pin: QRValidationCode,
-          deviceUUID: accountID
-        })
-      } catch(error) {
-        if (error instanceof SecurityError && !error.handle.shouldCustomPassword && !error.handle.shouldCustomDoubleAuth) {
-          if (error.handle.shouldEnterSource && !error.handle.shouldEnterPIN) {
-            const mode: DoubleAuthMode = DoubleAuthMode.MGDA_NotificationSeulement;
-            const source = deviceName.length > 30 ? "Pronote" : deviceName;
-            await securitySource(session, source);
-            await securitySave(session, error.handle, { mode, deviceName: source });
-
-            const context = error.handle.context;
-            refresh = await finishLoginManually(
-              session,
-              context.authentication,
-              context.identity,
-              context.initialUsername,
-            );
-          } else {
-            setPendingPronoteChallenge({ session, error, deviceUUID: accountID });
-            router.push("/(onboarding)/services/pronote/challenge");
-          }
-        }
-      }
-
-      if (!refresh) { throw AuthenticateError; }
-
-      const user = session.user.resources[0];
-      const schoolName = user.establishmentName;
-      const className = user.className;
-      const { firstName, lastName } = GetIdentityFromPronoteUsername(session.user.name)
-      let pp = "";
-      if (session.user.resources[0].profilePicture?.url) {
-        pp = await URLToBase64(session.user.resources[0].profilePicture?.url)
-      }
-
-      useAccountStore.getState().addAccount({
-        id: accountID,
-        firstName,
-        lastName,
-        schoolName,
-        className,
-        customisation: {
-          profilePicture: pp,
-          subjects: {}
-        },
-        services: [{
-          id: accountID,
-          auth: {
-            accessToken: refresh.token,
-            refreshToken: refresh.token,
-            additionals: {
-              ...refresh,
-              instanceURL: refresh.url,
-              kind: refresh.kind,
-              username: refresh.username,
-              deviceUUID: accountID
-            }
-          },
-          serviceId: Services.PRONOTE,
-          createdAt: (new Date()).toISOString(),
-          updatedAt: (new Date()).toISOString()
-        }],
-        createdAt: (new Date()).toISOString(),
-        updatedAt: (new Date()).toISOString()
-      });
-      useAccountStore.getState().setLastUsedAccount(accountID)
-      setTimeout(() => {
-        setLoadingModalVisible(false);
-        return router.dismissTo("/");
-      }, 1000);
+      const refresh = await loginQrCode(session, { qr: QRData, pin: QRValidationCode, deviceUUID: accountID });
+      if (!alive.current) return;
+      storePronoteLogin(session, refresh, accountID);
+      router.dismissTo("/");
     } catch (error) {
-      console.error(error);
-      // Handle error
+      if (!alive.current) return;
+      if (error instanceof SecurityError) {
+        setPendingPronoteChallenge({ session, error, deviceUUID: accountID });
+        router.push("/(onboarding)/services/pronote/challenge");
+      } else {
+        Alert.alert("Connexion impossible", "Vérifiez le code temporaire et générez un nouveau QR code dans l’espace Élèves de PRONOTE.");
+      }
+    } finally {
+      busy.current = false;
+      if (alive.current) {
+        setLoadingModalVisible(false);
+        resetScan();
+      }
     }
   }
 
   useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
+    if (permission && !permission.granted && permission.canAskAgain && permission.status === "undetermined") {
+      void requestPermission();
     }
-  }, [permission?.granted, requestPermission]);
+  }, [permission, requestPermission]);
 
-  const handleBarCodeScanned = ({ data }: {
-    type: string;
-    data: string;
-  }) => {
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    if (scanning.current || busy.current) return;
+    scanning.current = true;
     setScanned(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setQRData(data);
+    const qr = parsePronoteQrCode(data);
+    if (!qr) {
+      Alert.alert("QR code PRONOTE requis", "Affichez le QR code de connexion depuis l’espace Élèves de votre établissement.", [
+        { text: "Réessayer", onPress: resetScan },
+      ], { cancelable: true, onDismiss: resetScan });
+      return;
+    }
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setQRValidationCode("");
+    setQRData(qr);
     setPinModalVisible(true);
   };
-
-  useEffect(() => {
-    if (!pinModalVisible) {
-      setScanned(false);
-      setQRData(null);
-    }
-  }, [pinModalVisible]);
 
   const keyboardDidShow = () => setKeyboardOpen(true);
   const keyboardDidHide = () => setKeyboardOpen(false);
@@ -230,7 +155,7 @@ export default function PronoteLoginWithQR() {
             style={{
               fontSize: 16,
               fontWeight: "400",
-              color: colors.text + "80",
+              color: colors.text,
               marginTop: 4,
             }}
           >
@@ -263,7 +188,8 @@ export default function PronoteLoginWithQR() {
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => {
-          setPinModalVisible(!pinModalVisible);
+          setPinModalVisible(false);
+          resetScan();
         }}
       >
         <KeyboardAvoidingView
@@ -341,14 +267,13 @@ export default function PronoteLoginWithQR() {
                 borderWidth: 2,
                 fontWeight: "500",
               }}
-              placeholderTextColor={colors.text + "80"}
+              placeholderTextColor={colors.text}
               placeholder="••••"
               keyboardType="number-pad"
               maxLength={4}
               secureTextEntry
               value={QRValidationCode}
-              onChangeText={(text) => setQRValidationCode(text)}
-              ref={codeInput}
+              onChangeText={(text) => setQRValidationCode(text.replace(/[^0-9]/g, ""))}
               autoFocus
             />
           </View>
@@ -363,16 +288,15 @@ export default function PronoteLoginWithQR() {
           >
             <Button
               title={t("CONFIRM_BTN")}
-              onPress={() => {
-                setPinModalVisible(false);
-                loginQR();
-              }}
+              disabled={!isPronotePairingCode(QRValidationCode)}
+              onPress={() => void loginQR()}
             />
             <Button
               title={t("CANCEL_BTN")}
               variant="outline"
               onPress={() => {
                 setPinModalVisible(false);
+                resetScan();
               }}
             />
           </SafeHorizontalView>
@@ -391,33 +315,26 @@ export default function PronoteLoginWithQR() {
         <Typography style={styles.text}>
           {t("ONBOARDING_SCAN_QRCODE")}
         </Typography>
+        {permission && !permission.granted && (
+          <>
+            <Typography style={styles.text}>Autorisez la caméra dans les réglages de Cadenza pour scanner le QR code.</Typography>
+            {permission.canAskAgain && <Button title="Autoriser la caméra" onPress={() => void requestPermission()} />}
+            <Button title="Choisir une autre méthode" onPress={() => router.back()} />
+          </>
+        )}
       </View>
 
-      <MaskedView
-        style={StyleSheet.absoluteFillObject}
-        maskElement={
-          <View style={styles.maskContainer}>
-            <View style={styles.transparentSquare} />
-          </View>
-        }
-      >
-        <View
-          style={styles.maskContainer}
-        />
-        {permission?.granted && (
+      {permission?.granted && (
+        <>
           <CameraView
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-            onBarcodeScanned={
-              scanned ? undefined : handleBarCodeScanned
-            }
-            style={StyleSheet.absoluteFillObject}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+            style={StyleSheet.absoluteFill}
           />
-        )}
-        {permission?.granted && (
-          <View style={styles.transparentSquareBorder} />
-        )}
-      </MaskedView>
+          <View pointerEvents="none" style={styles.transparentSquareBorder} />
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -428,32 +345,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "black",
-  },
-  maskContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-  },
-  transparentSquare: {
-    position: "absolute",
-    width: 300,
-    height: 300,
-    backgroundColor: "black",
-    borderWidth: 2,
-    borderColor: "#fff",
-    borderRadius: 30,
-    borderCurve: "continuous",
-    alignSelf: "center",
-    top: "35%",
-  },
-  backButton: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 200,
-    backgroundColor: '#ffffff42',
-    padding: 10,
-    borderRadius: 100,
   },
   transparentSquareBorder: {
     position: "absolute",

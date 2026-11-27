@@ -1,310 +1,107 @@
-import { Papicons } from "@getpapillon/papicons";
-import { useTheme } from "expo-router/react-navigation";
-import * as Device from "expo-device"
+import { DoubleAuthMode, SecurityError, SessionHandle } from "@blockshub/pawnote-lts";
+import * as Device from "expo-device";
 import { router } from "expo-router";
-import {
-  finishLoginManually,
-  SecurityError,
-  securitySave,
-  securitySource,
-  SessionHandle,
-} from "@blockshub/pawnote-lts";
-import React, { useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { FlatList, View } from "react-native";
-import { ScrollView } from "react-native-gesture-handler";
-import Reanimated from "react-native-reanimated"
+import { useHeaderHeight, useTheme } from "expo-router/react-navigation";
+import { useRef, useState } from "react";
+import { Alert, ScrollView, StyleSheet, TextInput } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAccountStore } from "@/stores/account";
-import { Services } from "@/stores/account/types";
-import { useAlert } from "@/ui/components/AlertProvider";
-import Icon from "@/ui/components/Icon";
-import Stack from "@/ui/components/Stack";
-import Typography from "@/ui/components/Typography";
-import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
-import { GetIdentityFromPronoteUsername } from "@/utils/pronote/name";
+import Button from "@/ui/new/Button";
+import Typography from "@/ui/new/Typography";
+import { resolvePronoteChallenge, storePronoteLogin } from "@/utils/pronote/sign-in";
 
-import { PlatformPressable } from "@/app/(onboarding)/services/ed/credentials";
+const descriptions: Partial<Record<DoubleAuthMode, string>> = {
+  [DoubleAuthMode.MGDA_Inactive]: "Désactivée",
+  [DoubleAuthMode.MGDA_NotificationSeulement]: "Notification à la connexion",
+  [DoubleAuthMode.MGDA_SaisieCodePIN]: "Saisie d’un code PIN",
+};
 
-export function Pronote2FAModal({ doubleAuthSession, doubleAuthError, setChallengeModalVisible, deviceId, relinkAccountId, relinkServiceId }: { doubleAuthSession: SessionHandle | null, doubleAuthError: SecurityError | null, setChallengeModalVisible: (visible: boolean) => void, deviceId: string, relinkAccountId?: string, relinkServiceId?: string }) {
-  const { t } = useTranslation();
-  const { colors, dark } = useTheme();
-  const alert = useAlert();
+type Props = {
+  doubleAuthSession: SessionHandle | null;
+  doubleAuthError: SecurityError | null;
+  setChallengeModalVisible: (visible: boolean) => void;
+  deviceId: string;
+  relinkAccountId?: string;
+  relinkServiceId?: string;
+};
 
-  const [pinCode, setPinCode] = useState<string>("");
+export function Pronote2FAModal(props: Props) {
+  const { colors } = useTheme();
+  const header = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+  const handle = props.doubleAuthError?.handle;
+  const modes = (handle?.availableSecurityModes ?? []).filter(value => descriptions[value]);
+  const [mode, setMode] = useState<DoubleAuthMode | undefined>(() =>
+    handle && modes.includes(handle.defaultSecurityMode) ? handle.defaultSecurityMode : modes[0]);
+  const [pin, setPin] = useState("");
+  const [password, setPassword] = useState("");
+  const [deviceName, setDeviceName] = useState(() => (Device.deviceName || "Cadenza").slice(0, 30));
+  const [loading, setLoading] = useState(false);
+  const busy = useRef(false);
+  if (!handle) return null;
 
-  const solveDoubleAuth = async (pinCode: string) => {
+  const createsPin = !handle.shouldEnterPIN && handle.shouldCustomDoubleAuth && mode === DoubleAuthMode.MGDA_SaisieCodePIN;
+  const showPin = handle.shouldEnterPIN || createsPin;
+  const field = [styles.field, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }];
+  const valid = (!showPin || /^\d{4}$/.test(pin)) && (!handle.shouldCustomPassword || Boolean(password)) &&
+    (!handle.shouldCustomDoubleAuth || mode !== undefined);
+
+  async function continueSignIn() {
+    const { doubleAuthSession: session, doubleAuthError: error, deviceId, relinkAccountId, relinkServiceId } = props;
+    if (!valid || !session || !error || busy.current) return;
+    busy.current = true;
+    setLoading(true);
     try {
-      if (!doubleAuthSession || !doubleAuthError) { return; }
-
-      const error = doubleAuthError
-      const session = doubleAuthSession
-      const deviceName = Device.deviceName
-      const source = "Papillon sur " + deviceName
-      await securitySource(session, source.length > 30 ? "Papillon" : "Papillon sur " + deviceName)
-      await securitySave(session, error.handle, {
-        pin: pinCode,
-        deviceName: source.length > 30 ? "Papillon" : "Papillon sur " + deviceName || "Papillon"
-      })
-
-      const context = error.handle.context;
-      const refresh = await finishLoginManually(
-        session,
-        context.authentication,
-        context.identity,
-        context.initialUsername
-      )
-      const { firstName, lastName } = GetIdentityFromPronoteUsername(session.user.name)
-      const schoolName = session.user.resources[0].establishmentName
-      const className = session.user.resources[0].className
-
-      const auth = {
-        accessToken: refresh.token,
-        refreshToken: refresh.token,
-        additionals: {
-          instanceURL: refresh.url,
-          kind: refresh.kind,
-          username: refresh.username,
-          deviceUUID: deviceId
-        }
-      }
-
-      const store = useAccountStore.getState()
-
-      if (relinkServiceId && relinkAccountId) {
-        store.updateServiceAuthData(relinkServiceId, auth)
-        store.setLastUsedAccount(relinkAccountId)
-        setChallengeModalVisible(false)
-        return router.dismissTo("/");
-      }
-
-      const account = {
-        id: deviceId,
-        firstName,
-        lastName,
-        schoolName,
-        className,
-        services: [{
-          id: deviceId,
-          auth,
-          serviceId: Services.PRONOTE,
-          createdAt: (new Date()).toISOString(),
-          updatedAt: (new Date()).toISOString()
-        }],
-        createdAt: (new Date()).toISOString(),
-        updatedAt: (new Date()).toISOString()
-      }
-
-      store.addAccount(account)
-      store.setLastUsedAccount(deviceId)
-
-      router.push({
-        pathname: "../end/color",
-        params: {
-          accountId: deviceId
-        }
+      const refresh = await resolvePronoteChallenge(session, error, {
+        mode: handle?.shouldCustomDoubleAuth ? mode : undefined, pin, password, deviceName,
       });
-    } catch (error) {
-      return alert.showAlert({
-        title: t("Alert_Auth_Error"),
-        description: t("ONBOARDING_ALERT_BAD_CREDENTIALS_PRONOTE"),
-        icon: "AlertTriangle",
-        color: "#D60046",
-        technical: String(error),
-        withoutNavbar: true
-      })
+      storePronoteLogin(session, refresh, deviceId,
+        relinkAccountId && relinkServiceId ? { accountId: relinkAccountId, serviceId: relinkServiceId } : undefined);
+      setPin("");
+      setPassword("");
+      router.dismissTo("/");
+    } catch {
+      Alert.alert("Vérification refusée", "Vérifiez le code et les options demandées par PRONOTE, puis réessayez.");
+    } finally {
+      busy.current = false;
+      setLoading(false);
     }
   }
-
-  function addPinCodeChar(char: string): void {
-    if (pinCode.length < 4) {
-      setPinCode((prev) => prev + char);
-    }
-  }
-
-  const data = [
-    {
-      name: "1",
-      onPress: () => {
-        addPinCodeChar("1")
-      }
-    },
-    {
-      name: "2",
-      onPress: () => {
-        addPinCodeChar("2")
-      }
-    },
-    {
-      name: "3",
-      onPress: () => {
-        addPinCodeChar("3")
-      }
-    },
-    {
-      name: "4",
-      onPress: () => {
-        addPinCodeChar("4")
-      }
-    },
-    {
-      name: "5",
-      onPress: () => {
-        addPinCodeChar("5")
-      }
-    },
-    {
-      name: "6",
-      onPress: () => {
-        addPinCodeChar("6")
-      }
-    },
-    {
-      name: "7",
-      onPress: () => {
-        addPinCodeChar("7")
-      }
-    },
-    {
-      name: "8",
-      onPress: () => {
-        addPinCodeChar("8")
-      }
-    },
-    {
-      name: "9",
-      onPress: () => {
-        addPinCodeChar("9")
-      }
-    },
-    {
-      name: "del",
-      icon: <Papicons name="ArrowLeft" fill={colors.text} />,
-      onPress: () => {
-        setPinCode((prev) => prev.slice(0, -1));
-      }
-    },
-    {
-      name: "0",
-      onPress: () => {
-        addPinCodeChar("0")
-      }
-    },
-    {
-      name: "check",
-      icon: <Papicons name="Check" fill={colors.text} />,
-      onPress: () => {
-        solveDoubleAuth(pinCode);
-
-        if (!doubleAuthSession || !doubleAuthError || pinCode.length < 4) { return; }
-        setChallengeModalVisible(false);
-      }
-    }
-  ]
-
-  const renderItem = useCallback(({ item }: { item: typeof data[0] }) => (
-    <PlatformPressable
-      onPress={item.onPress}
-      style={{
-        width: 80,
-        height: 80,
-        borderWidth: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        borderColor: colors.border,
-        borderRadius: 100
-      }}>
-      {!item.icon ? (<Typography variant="h1">{item.name}</Typography>) : (item.icon)}
-    </PlatformPressable>
-  ), [data]);
 
   return (
-    <View style={{ backgroundColor: colors.background, width: "100%", height: "100%" }}>
-      <SafeHorizontalView
-        base={20}
-        style={{
-          alignItems: "center",
-          justifyContent: "flex-end",
-          borderBottomLeftRadius: 42,
-          borderBottomRightRadius: 42,
-          paddingTop: 20,
-          paddingBottom: 34,
-          backgroundColor: "#E50052",
-        }}
-      >
-        <Reanimated.View
-          style={{
-            marginBottom: 16,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        />
-        <Stack vAlign="start" hAlign="start" width="100%" gap={12}>
-          <Stack direction="horizontal">
-            <Typography variant="h5" style={{ color: "#FFF", fontSize: 18 }}>
-              {t("STEP")} 3
-            </Typography>
-            <Typography variant="h5" style={{ color: "#FFFFFF90", fontSize: 18 }}>
-              {t("STEP_OUTOF")} 3
-            </Typography>
-          </Stack>
-          <Typography variant="h1" style={{ color: "#FFF", fontSize: 32 }}>
-            {t("ONBOARDING_LOGIN_PINCODE")}
-          </Typography>
-        </Stack>
-      </SafeHorizontalView>
-      <ScrollView>
-        <SafeHorizontalView base={50}>
-          <Stack flex direction="horizontal" style={{ paddingVertical: 30 }}>
-            <Stack
-              flex
-              direction="horizontal"
-              hAlign="center"
-              gap={10}
-              style={{
-                flex: 1,
-                padding: 20,
-                backgroundColor: colors.text + (dark ? "15" : "08"),
-                borderRadius: 300,
-                borderWidth: 1,
-                borderColor: colors.border
-              }}
-            >
-              <Icon
-                papicon
-                size={24}
-                fill={colors.text + "AF"}
-              >
-                <Papicons name={"Password"} />
-              </Icon>
-              <Typography variant="h5" color={pinCode.trim() ? colors.text + "AF" : "secondary"}>{pinCode.trim() ? pinCode : t("INPUT_PIN")}</Typography>
-            </Stack>
-          </Stack>
-        </SafeHorizontalView>
-        <SafeHorizontalView base={50}>
-          <FlatList
-            scrollEnabled={false}
-            data={data}
-            numColumns={3}
-            renderItem={renderItem}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              gap: 15
-            }}
-            columnWrapperStyle={{
-              justifyContent: "space-between",
-              alignItems: "center"
-            }}
-            style={{
-              width: "100%",
-              overflow: "hidden"
-            }}
-            removeClippedSubviews
-            maxToRenderPerBatch={6}
-            windowSize={1}
-          />
-        </SafeHorizontalView>
-      </ScrollView>
-    </View>
-  )
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[styles.content, { paddingTop: header + 20, paddingBottom: insets.bottom + 20 }]}>
+      <Typography variant="h2">Vérification PRONOTE</Typography>
+      {handle.shouldCustomDoubleAuth && <Typography>Mode de vérification demandé par PRONOTE</Typography>}
+      {handle.shouldCustomDoubleAuth && modes.map(value => (
+        <Button key={value} label={descriptions[value]!} variant={value === mode ? "primary" : "outlined"}
+          disabled={loading} onPress={() => { setMode(value); setPin(""); }} />
+      ))}
+      {handle.shouldCustomDoubleAuth && modes.length === 0 && <Typography>Ouvrez PRONOTE pour choisir un mode de sécurité.</Typography>}
+      {handle.shouldEnterSource && <TextInput accessibilityLabel="Nom de l’appareil" value={deviceName} onChangeText={setDeviceName}
+        editable={!loading} maxLength={30} style={field} />}
+      {showPin && (
+        <>
+          <Typography>{createsPin ? "Créez un code PIN à 4 chiffres." : "Saisissez le code PIN configuré dans PRONOTE."}</Typography>
+          <TextInput accessibilityLabel="Code PIN PRONOTE" value={pin} onChangeText={text => setPin(text.replace(/[^0-9]/g, ""))}
+            editable={!loading} style={field} keyboardType="number-pad" secureTextEntry maxLength={4} />
+        </>
+      )}
+      {handle.shouldCustomPassword && (
+        <>
+          <Typography>PRONOTE exige un nouveau mot de passe.</Typography>
+          <TextInput accessibilityLabel="Nouveau mot de passe PRONOTE" value={password} onChangeText={setPassword}
+            editable={!loading} style={field} autoCapitalize="none" autoCorrect={false}
+            textContentType="newPassword" autoComplete="new-password" secureTextEntry />
+        </>
+      )}
+      <Button label={loading ? "Vérification…" : "Continuer"} onPress={() => void continueSignIn()} disabled={!valid || loading} />
+      <Button label="Annuler" variant="text" disabled={loading} onPress={() => props.setChallengeModalVisible(false)} />
+    </ScrollView>
+  );
 }
+
+const styles = StyleSheet.create({
+  content: { paddingHorizontal: 20, gap: 14 },
+  field: { minHeight: 48, padding: 12, fontSize: 17, borderWidth: 1, borderRadius: 12 },
+});

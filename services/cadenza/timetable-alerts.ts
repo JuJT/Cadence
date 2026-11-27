@@ -5,11 +5,35 @@ import { Platform } from "react-native";
 
 import { readLegacyNotificationPreference } from "@/modules/cadenza-study";
 import type { CourseDay } from "@/services/shared/timetable";
-import { changeAlerts, futureLessons, type AlertLesson } from "./alert-changes";
+import { changeAlerts, futureLessons, type AlertLesson, type LessonChange } from "./alert-changes";
 
 const choiceKey = "@cadenza/timetable-alerts/choice";
-const historyPrefix = "@cadenza/timetable-alerts/history/";
+const historyPrefix = "@cadenza/timetable-alerts/v2/";
+const changesPrefix = "@cadenza/timetable-alerts/changes/";
 const historyQueue = new Map<string, Promise<void>>();
+
+export type TimetableChangeBatch = { id: string; date: number; changes: LessonChange[] };
+
+function decodeList<T>(raw: string | null): T[] {
+  try {
+    const value: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(value) ? value : [];
+  } catch { return []; }
+}
+
+export async function readTimetableChanges(serviceIds: string[]) {
+  if (!serviceIds.length) return [];
+  const stored = await AsyncStorage.multiGet(serviceIds.map(id => changesPrefix + encodeURIComponent(id)));
+  return stored.flatMap(([, value]) => decodeList<TimetableChangeBatch>(value))
+    .sort((a, b) => b.date - a.date).slice(0, 30);
+}
+
+export function describeTimetableChange(change: LessonChange) {
+  const date = new Date(change.time).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+  const clock = (time: number) => new Date(time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const times = change.before ? `${clock(change.before)} → ${clock(change.time)}` : clock(change.time);
+  return `${date} · ${times} · ${change.text}`;
+}
 
 if (Platform.OS === "ios") {
   Notifications.setNotificationHandler({
@@ -66,20 +90,27 @@ export function observePronoteWeek(accountId: string, date: Date, days: CourseDa
   if (viewedWeek < thisWeek || viewedWeek >= addWeeks(thisWeek, 5)) return;
   const accountPrefix = historyPrefix + encodeURIComponent(accountId) + "/";
   const key = accountPrefix + format(viewedWeek, "yyyy-MM-dd");
+  const logKey = changesPrefix + encodeURIComponent(accountId);
   const pending = (historyQueue.get(accountId) ?? Promise.resolve()).then(async () => {
     const now = Date.now();
     const lessons = futureLessons(days, now);
     const prior = readWeek(await AsyncStorage.getItem(key));
-    if (prior && (await getTimetableAlertSettings()).enabled) {
-      const changes = changeAlerts(prior, lessons, now);
-      if (changes.length) {
-        await Notifications.scheduleNotificationAsync({
-          content: { title: "Emploi du temps modifié", body: changes.slice(0, 3).map(change => change.text).join("\n"), sound: true },
-          trigger: null,
-        });
-      }
+    const changes = prior ? changeAlerts(prior, lessons, now) : [];
+    const writes: [string, string][] = [[key, JSON.stringify(lessons)]];
+    let batch: TimetableChangeBatch | undefined;
+    if (changes.length) {
+      batch = { id: `${accountId}/${key.slice(accountPrefix.length)}/${now}`, date: now, changes };
+      const timeline = decodeList<TimetableChangeBatch>(await AsyncStorage.getItem(logKey));
+      writes.push([logKey, JSON.stringify([batch, ...timeline].slice(0, 30))]);
     }
-    await AsyncStorage.setItem(key, JSON.stringify(lessons));
+    await AsyncStorage.multiSet(writes);
+    if (batch && (await getTimetableAlertSettings()).enabled) {
+      await Notifications.scheduleNotificationAsync({
+        content: { title: "Emploi du temps modifié", body: changes.slice(0, 3).map(describeTimetableChange).join("\n"), sound: true,
+          data: { cadenzaTimetableChange: batch.id } },
+        trigger: null,
+      });
+    }
     const oldest = format(thisWeek, "yyyy-MM-dd");
     const keys = (await AsyncStorage.getAllKeys()).filter(candidate => candidate.startsWith(accountPrefix) && candidate.slice(accountPrefix.length) < oldest);
     if (keys.length) await AsyncStorage.multiRemove(keys);

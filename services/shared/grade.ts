@@ -64,3 +64,15 @@ export interface Period extends GenericInterface {
   start: Date
   end: Date
 }
+
+export function gradePeriodKey(period: Period, kidId?: string): string {
+  return JSON.stringify([
+    period.createdByAccount,
+    kidId ?? null,
+    period.kidName ?? null,
+    period.id ?? null,
+    period.name,
+    period.start.getTime(),
+    period.end.getTime(),
+  ]);
+}

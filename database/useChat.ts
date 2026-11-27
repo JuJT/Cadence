@@ -5,14 +5,20 @@ import { generateId } from "@/utils/generateId";
 import { error } from "@/utils/logger/logger";
 
 import { getDatabaseInstance } from "./DatabaseProvider";
-import { mapChatsToShared, mapMessagesToShared, mapRecipientsToShared } from "./mappers/chats";
+import { pronoteChatPrefix, mapChatsToShared, mapMessagesToShared, mapRecipientsToShared } from "./mappers/chats";
 import { Chat, Message, Recipient } from "./models/Chat";
 import { safeWrite } from "./utils/safeTransaction";
+
+function getChatCacheKey(chat: SharedChat): string {
+  return chat.provider === "pronote"
+    ? pronoteChatPrefix + encodeURIComponent(chat.createdByAccount) + ":" + encodeURIComponent(chat.id)
+    : generateId(chat.createdByAccount + chat.subject + chat.date);
+}
 
 export async function addChatsToDatabase(chats: SharedChat[]) {
   const db = getDatabaseInstance();
   for (const item of chats) {
-    const id = generateId(item.createdByAccount + item.subject + item.date)
+    const id = getChatCacheKey(item)
     const existing = await db.get('chats').query(Q.where('chatId', id)).fetch();
 
     if (existing.length === 0) {
@@ -35,10 +41,10 @@ export async function addChatsToDatabase(chats: SharedChat[]) {
 
 export async function addRecipientsToDatabase(chat: SharedChat, recipients: SharedRecipient[]) {
   const db = getDatabaseInstance();
-  const chatId = generateId(chat.createdByAccount + chat.subject + chat.date)
-  const dbChat = await db.get('chats').find(chatId);
+  const chatId = getChatCacheKey(chat)
+  const [dbChat] = await db.get<Chat>('chats').query(Q.where('chatId', chatId)).fetch();
   if (!dbChat) {
-    error("We're unable to find the chat in cache, please rehydrate chats before...")
+    return; // No cache row for this service; still return the live response to the caller.
   }
 
   for (const item of recipients) {
@@ -65,10 +71,10 @@ export async function addRecipientsToDatabase(chat: SharedChat, recipients: Shar
 
 export async function addMessagesToDatabase(chat: SharedChat, messages: SharedMessage[]) {
   const db = getDatabaseInstance();
-  const chatId = generateId(chat.createdByAccount + chat.subject + chat.date)
-  const dbChat = await db.get('chats').find(chatId);
+  const chatId = getChatCacheKey(chat)
+  const [dbChat] = await db.get<Chat>('chats').query(Q.where('chatId', chatId)).fetch();
   if (!dbChat) {
-    error("We're unable to find the chat in cache, please rehydrate chats before...")
+    return; // No cache row for this service; still return the live response to the caller.
   }
 
   for (const item of messages) {
@@ -101,16 +107,17 @@ export async function getChatsFromCache(): Promise<SharedChat[]> {
     const database = getDatabaseInstance();
     const chats = await database.get<Chat>('chats').query();
 
-    return mapChatsToShared(chats)
+    return mapChatsToShared(chats);
   } catch (e) {
     error(String(e));
+    return [];
   }
 }
 
 export async function getRecipientsFromCache(chat: SharedChat): Promise<SharedRecipient[]> {
   try {
     const database = getDatabaseInstance();
-    const chatId = generateId(chat.createdByAccount + chat.subject + chat.date);
+    const chatId = getChatCacheKey(chat);
     const recipients = await database.get<Recipient>('recipients').query(
       Q.where('chatId', chatId)
     ).fetch();
@@ -118,13 +125,14 @@ export async function getRecipientsFromCache(chat: SharedChat): Promise<SharedRe
     return mapRecipientsToShared(recipients);
   } catch (e) {
     error(String(e));
+    return [];
   }
 }
 
 export async function getMessagesFromCache(chat: SharedChat): Promise<SharedMessage[]> {
   try {
     const database = getDatabaseInstance();
-    const chatId = generateId(chat.createdByAccount + chat.subject + chat.date);
+    const chatId = getChatCacheKey(chat);
     const messages = await database.get<Message>('messages').query(
       Q.where('chatId', chatId)
     ).fetch();
@@ -132,5 +140,6 @@ export async function getMessagesFromCache(chat: SharedChat): Promise<SharedMess
     return mapMessagesToShared(messages);
   } catch (e) {
     error(String(e));
+    return [];
   }
 }

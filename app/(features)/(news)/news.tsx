@@ -1,3 +1,4 @@
+import { Capabilities } from "@/services/shared/types"
 import { useNews } from '@/database/useNews'
 import { allowAllAuthRetries } from '@/services/auth/coordinator'
 import { getManager, subscribeManagerUpdate } from '@/services/shared'
@@ -36,6 +37,7 @@ const NewsView = () => {
   const bottomTabBarHeight = insets.bottom + 16;
 
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(false)
   const [isManuallyLoading, setIsManuallyLoading] = useState(false)
 
   const keyboardHeight = useKeyboardHeight()
@@ -59,7 +61,9 @@ const NewsView = () => {
         return
       }
       await manager.getNews()
+      setError(Boolean(manager.getFailures(Capabilities.NEWS).length))
     } catch (error) {
+      setError(true)
       warn(`Error fetching news: ${String(error)}`)
     } finally {
       setIsLoading(false)
@@ -89,13 +93,13 @@ const NewsView = () => {
         onHeightChanged={setHeaderHeight}
         title={
           <TabHeaderTitle
-            color={colors.primary}
+            color={typeof colors.primary === "string" ? colors.primary : "#276EF1"}
             leading={t('Tab_News')}
             chevron={false}
             loading={isLoading}
           />
         }
-        bottom={<Search placeholder={t('News_Search_Placeholder')} color='#2B7ED6' onTextChange={(text) => setSearchText(text)} />}
+        bottom={<Search placeholder={t('News_Search_Placeholder')} color='#2B7ED6' onTextChange={(text: string) => setSearchText(text)} />}
         trailing={
           Platform.OS === 'ios' ? (
             <ChipButton single icon='cross' onPress={() => router.dismiss()} />
@@ -104,7 +108,7 @@ const NewsView = () => {
       />
 
       <List
-        style={{ flex: 1, backgroundColor: colors.overground }}
+        style={{ flex: 1, backgroundColor: colors.background }}
         safeHorizontalPadding={16}
         contentContainerStyle={{
           paddingTop: headerHeight,
@@ -136,10 +140,10 @@ const NewsView = () => {
                   <Papicons name={searchText ? 'Search' : 'Newspaper'} />
                 </Icon>
                 <Typography variant='h4' color='textPrimary' align='center'>
-                  {searchText ? t('News_Search_NoResults') : t('News_Empty_Title')}
+                  {error ? 'Actualités indisponibles' : searchText ? t('News_Search_NoResults') : t('News_Empty_Title')}
                 </Typography>
                 <Typography variant='body2' color='textSecondary' align='center'>
-                  {searchText ? t('News_Search_NoResults_Description') : t('News_Empty_Description')}
+                  {error ? 'Tirez pour réessayer la synchronisation.' : searchText ? t('News_Search_NoResults_Description') : t('News_Empty_Description')}
                 </Typography>
               </Stack>
             </SafeHorizontalView>
@@ -170,7 +174,7 @@ const NewsView = () => {
                   {item.title}
                 </Typography>
                 <Typography variant='body1' color='textSecondary' numberOfLines={3}>
-                  {item.content ? truncateString(cleanContent(item.content), 100) : ''}
+                  {item.type === 'survey' ? 'Sondage' : item.content ? truncateString(cleanContent(item.content), 100) : item.category}
                 </Typography>
 
                 <Stack

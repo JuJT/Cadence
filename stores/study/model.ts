@@ -35,10 +35,15 @@ export type StudySession = {
 type CourseCredit = StudySegment & {
   id: string; subjectId: string; end: number; seconds: number;
   timetableId?: string; source?: "papillon";
+  timetableIds?: string[];
+  profileId?: string;
+  weekStart?: number;
+  manuallyAdjusted?: boolean;
 };
 
 export type ScheduledStudyCourse = {
   id: string; subjectName: string; start: number; end: number; canceled: boolean;
+  source?: "school" | "ical";
 };
 
 export type StudyState = {
@@ -68,43 +73,53 @@ function normalize(value: string) {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-export function findSubject(subjects: StudySubject[], name: string) {
+export function findSubject(subjects: StudySubject[], name: string, includeArchived = false) {
   const key = normalize(name);
-  return subjects.find(subject => !subject.archived && [subject.name, ...subject.aliases].some(alias => normalize(alias) === key));
+  return subjects.find(subject => (includeArchived || !subject.archived) && [subject.name, ...subject.aliases].some(alias => normalize(alias) === key));
 }
 
 export function getActiveSession(state: StudyState) {
   return state.sessions.find(session => session.endedAt === undefined);
 }
 
-export function reconcileScheduledStudyCourses(state: StudyState, timetable: ScheduledStudyCourse[], newId: () => string): StudyState {
+export function reconcileScheduledStudyWeek(
+  state: StudyState, profileId: string, weekStart: number,
+  timetable: ScheduledStudyCourse[], newId: () => string,
+): StudyState {
+  if (!profileId || !Number.isFinite(weekStart)) return state;
+  const week = studyRange("week", weekStart);
   const subjects = [...state.subjects];
-  const credits = new Map(state.courses.map(credit => [credit.id, credit]));
-  const legacyCredits = new Map(state.courses.filter(credit => !credit.source)
+  const slots = new Map<string, CourseCredit>();
+  const legacySlots = new Map(state.courses.filter(credit => !credit.source)
     .map(credit => [courseKey(credit.subjectId, credit.start, credit.end), credit]));
-  let changed = false;
-  for (const course of timetable) {
+  const ordered = [...timetable].sort((first, second) => Number(first.source === "ical") - Number(second.source === "ical"));
+  for (const course of ordered) {
     if (!course.id || !course.subjectName.trim() || !Number.isFinite(course.start) ||
-        !Number.isFinite(course.end) || course.end <= course.start) continue;
-    const previousSubject = findSubject(subjects, course.subjectName);
+        !Number.isFinite(course.end) || course.end <= course.start ||
+        course.start < week.start || course.start >= week.end) continue;
+    const previousSubject = findSubject(subjects, course.subjectName, true);
     const subject = previousSubject ?? { id: newId(), name: course.subjectName.trim(), color: "#2776F8", aliases: [], archived: false };
     if (!previousSubject) subjects.push(subject);
-    const legacy = legacyCredits.get(courseKey(subject.id, course.start, course.end));
-    if (legacy) {
-      if (legacy.timetableId !== course.id) {
-        credits.set(legacy.id, { ...legacy, timetableId: course.id });
-        changed = true;
-      }
-      if (course.id !== legacy.id && credits.delete(course.id)) changed = true;
+    const key = courseKey(subject.id, course.start, course.end);
+    const sameSlot = slots.get(key);
+    if (sameSlot) {
+      if (!sameSlot.timetableIds?.includes(course.id)) sameSlot.timetableIds?.push(course.id);
       continue;
     }
-    const previous = credits.get(course.id);
-    const seconds = course.canceled ? 0 : (course.end - course.start) / 1000;
-    if (previous?.seconds === seconds && previous.subjectId === subject.id && previous.start === course.start && previous.end === course.end) continue;
-    credits.set(course.id, { id: course.id, subjectId: subject.id, start: course.start, end: course.end, seconds, source: "papillon" });
-    changed = true;
+    const legacy = legacySlots.get(key);
+    const plannedSeconds = (course.end - course.start) / 1000;
+    const hasManualDuration = legacy && (legacy.manuallyAdjusted || (legacy.seconds > 0 && legacy.seconds !== plannedSeconds));
+    slots.set(key, {
+      id: course.id, subjectId: subject.id, start: course.start, end: course.end,
+      seconds: course.canceled ? 0 : hasManualDuration ? legacy.seconds : plannedSeconds,
+      timetableIds: [...new Set([course.id, ...(legacy ? [legacy.id] : [])])], source: "papillon", profileId, weekStart: week.start,
+    });
   }
-  return changed ? { ...state, subjects, courses: [...credits.values()] } : state;
+  const previous = state.courses.filter(course => course.profileId === profileId && course.weekStart === week.start);
+  const replacement = [...slots.values()].sort((first, second) => first.start - second.start || first.id.localeCompare(second.id));
+  if (JSON.stringify(previous) === JSON.stringify(replacement)) return state;
+  const remaining = state.courses.filter(course => course.profileId !== profileId || course.weekStart !== week.start);
+  return { ...state, subjects, courses: [...remaining, ...replacement] };
 }
 
 function courseKey(subjectId: string, start: number, end: number) {
@@ -158,14 +173,16 @@ function overlap({ start, end }: StudySegment, range: Range, now: number) {
   return Math.max(0, Math.min(end ?? now, range.end, now) - Math.max(start, range.start));
 }
 
-export function studyTotals(state: StudyState, range: Range, now = Date.now()) {
-  let courseSeconds = 0;
+export function studyTotals(state: StudyState, range: Range, now = Date.now(), profileId?: string) {
+  let measuredCourseSeconds = 0;
+  let scheduledCourseSeconds = 0;
   let revisionSeconds = 0;
   let sessionCount = 0;
   const bySubject = new Map<string, number>();
-  const track = (subjectId: string, kind: StudyKind, seconds: number) => {
+  const track = (subjectId: string, kind: StudyKind | "scheduled", seconds: number) => {
     if (seconds <= 0) return;
-    if (kind === "course") courseSeconds += seconds;
+    if (kind === "course") measuredCourseSeconds += seconds;
+    else if (kind === "scheduled") scheduledCourseSeconds += seconds;
     else revisionSeconds += seconds;
     bySubject.set(subjectId, (bySubject.get(subjectId) ?? 0) + seconds);
   };
@@ -175,12 +192,18 @@ export function studyTotals(state: StudyState, range: Range, now = Date.now()) {
     track(session.subjectId, session.kind, seconds);
   }
   const measuredCourses = new Set(state.sessions.flatMap(session => session.courseId ? [session.courseId] : []));
+  const currentSlots = new Set(state.courses
+    .filter(credit => credit.profileId !== undefined && credit.profileId === profileId)
+    .map(credit => courseKey(credit.subjectId, credit.start, credit.end)));
   for (const credit of state.courses) {
-    if (credit.end <= now && !measuredCourses.has(credit.id) && !(credit.timetableId && measuredCourses.has(credit.timetableId))) {
-      track(credit.subjectId, "course", credit.seconds * overlap(credit, range, now) / (credit.end - credit.start));
-    }
+    if (credit.end > now || (credit.profileId && credit.profileId !== profileId) ||
+        (!credit.source && currentSlots.has(courseKey(credit.subjectId, credit.start, credit.end))) ||
+        measuredCourses.has(credit.id) || (credit.timetableId && measuredCourses.has(credit.timetableId)) ||
+        credit.timetableIds?.some(id => measuredCourses.has(id))) continue;
+    track(credit.subjectId, "scheduled", credit.seconds * overlap(credit, range, now) / (credit.end - credit.start));
   }
-  return { courseSeconds, revisionSeconds, sessionCount, bySubject };
+  return { courseSeconds: measuredCourseSeconds + scheduledCourseSeconds, measuredCourseSeconds, scheduledCourseSeconds,
+    revisionSeconds, sessionCount, bySubject };
 }
 
 function stopLastSegment<T extends StudySegment>(segments: T[], now: number) {
@@ -294,7 +317,10 @@ export function parseStudyBackup(json: string, now = Date.now()): StudyState {
     throw new Error("Ce fichier ne contient pas de sauvegarde Cadenza.");
   }
   if (input.version === 1 && Array.isArray(input.courses) && input.tasks) {
-    return verifyStudyState(input as StudyState);
+    const state = verifyStudyState(input as StudyState);
+    // Build 10 saved derived timetable rows without a profile. They cannot be
+    // trusted after a profile change and are recomputed from complete weeks.
+    return { ...state, courses: state.courses.filter(credit => !credit.source || (credit.profileId && Number.isFinite(credit.weekStart))) };
   }
   if (input.schemaVersion !== 1 && input.schemaVersion !== 2 && input.schemaVersion !== 3) {
     throw new Error("Cette version de sauvegarde Cadenza est inconnue.");
@@ -365,7 +391,8 @@ export function parseStudyBackup(json: string, now = Date.now()): StudyState {
     const confirmed = course.confirmedSeconds;
     const seconds = status === "confirmed" && typeof confirmed === "number" && Number.isFinite(confirmed)
       ? Math.max(0, confirmed) : (end - start) / 1000;
-    return [{ id: string(course.id), subjectId, start, end, seconds: excluded ? 0 : seconds }];
+    return [{ id: string(course.id), subjectId, start, end, seconds: excluded ? 0 : seconds,
+      manuallyAdjusted: status === "confirmed" && !excluded }];
   });
 
   return verifyStudyState({ version: 1, subjects, sessions, courses, tasks });

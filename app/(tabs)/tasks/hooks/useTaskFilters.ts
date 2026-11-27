@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Homework } from "@/services/shared/homework";
 import { getSubjectName } from "@/utils/subjects/name";
+import { compareHomeworkDeadlines, homeworkDayPriority } from "../utils/homeworkOrder";
 
 export type SortMethod = 'date' | 'subject' | 'done';
 
@@ -36,8 +37,9 @@ export const buildHomeworkSections = (
   const uniqueIds = new Set<string>();
   let data = homeworks.filter(hw => {
     if (hw.id) {
-      if (!uniqueIds.has(hw.id)) {
-        uniqueIds.add(hw.id);
+      const id = JSON.stringify([hw.createdByAccount, hw.id]);
+      if (!uniqueIds.has(id)) {
+        uniqueIds.add(id);
         return true;
       }
       return false;
@@ -64,12 +66,14 @@ export const buildHomeworkSections = (
     });
   }
 
-  if (sortMethod === 'date') {
-    data.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startOfToday = today.getTime();
+  const byDeadline = (a: Homework, b: Homework) => compareHomeworkDeadlines(a, b, startOfToday);
+  if (sortMethod === 'date' || sortMethod === 'done') {
+    data.sort(byDeadline);
   } else if (sortMethod === 'subject') {
-    data.sort((a, b) => a.subject.localeCompare(b.subject));
-  } else if (sortMethod === 'done') {
-    data.sort((a, b) => Number(a.isDone) - Number(b.isDone));
+    data.sort((a, b) => a.subject.localeCompare(b.subject) || byDeadline(a, b));
   }
 
   const isSearching = searchTerm.trim().length > 0;
@@ -79,13 +83,16 @@ export const buildHomeworkSections = (
 
     data.forEach((hw) => {
       const hwDate = new Date(hw.dueDate);
-      const dateKey = hwDate.toDateString();
+      const priority = homeworkDayPriority(hw, startOfToday);
+      const dateKey = priority + "-" + hwDate.toDateString();
       const headerId = `header-${dateKey}`;
 
       if (!sectionMap.has(dateKey)) {
         sectionMap.set(dateKey, {
           id: headerId,
-          title: formatDateHeader(hwDate),
+          title: priority === 2 ? "Terminés · " + formatDateHeader(hwDate)
+            : priority === 1 ? "En retard · " + formatDateHeader(hwDate)
+            : formatDateHeader(hwDate),
           date: hwDate,
           data: []
         });

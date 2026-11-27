@@ -1,5 +1,5 @@
-import { useHeaderHeight, useRoute, useTheme } from "expo-router/react-navigation";
-import { useNavigation } from "expo-router";
+import { useHeaderHeight, useTheme } from "expo-router/react-navigation";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { geolocation } from "@blockshub/pawnote-lts";
 import React, { memo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -63,30 +63,36 @@ export default function PronoteLoginSelectEtab() {
   const navigation = useNavigation();
   const { t } = useTranslation();
 
-  const { params } = useRoute();
-  const { city } = params;
+  const { city, latitude, longitude } = useLocalSearchParams<{ city?: string; latitude?: string; longitude?: string }>();
 
   const [search, setSearch] = useState<string>("");
   const [schools, setSchools] = useState<Array<School>>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if(!city) {return;}
-    navigation.setOptions({ headerTitle: t("ONBOARDING_SCHOOLS_IN_CITY", { city: city.city }) });
-    geolocation({ latitude: city?.latitude ?? 0, longitude: city?.longitude ?? 0 }).then((schoolsFound) => {
-      setSchools(schoolsFound);
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+    if (!city || !Number.isFinite(lat) || !Number.isFinite(lon)) {
       setLoading(false);
-    });
-  }, [city, navigation, t]);
+      return;
+    }
+    let active = true;
+    navigation.setOptions({ headerTitle: t("ONBOARDING_SCHOOLS_IN_CITY", { city }) });
+    geolocation({ latitude: lat, longitude: lon }).then(
+      value => { if (active) setSchools(value); },
+      () => { if (active) setSchools([]); },
+    ).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [city, latitude, longitude, navigation, t]);
 
   const filteredSchools = schools.filter(school => school.name.toLowerCase().includes(search.toLowerCase()));
 
   const selectSchool = (school: School) => {
-    navigation.navigate("browser", { url: school.url, school });
+    router.push({ pathname: "/(onboarding)/services/pronote/url", params: { prefill: school.url, schoolName: school.name } });
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.overground }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.select({ android: 0, default: 20 })}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.select({ android: 0, default: 20 })}>
       <List
         animated
         ListHeaderComponent={<SafeHorizontalView base={16}><PronoteSearchHeader search={search} setSearch={setSearch} loading={loading} t={t} /></SafeHorizontalView>}

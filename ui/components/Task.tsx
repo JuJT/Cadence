@@ -3,8 +3,9 @@ import Stack from './Stack';
 import Typography from './Typography';
 import { formatHTML } from '@/utils/format/html';
 import { useTheme } from "expo-router/react-navigation";
+import { useStudyColors } from "@/hooks/useStudyColors";
 import adjust from '@/utils/adjustColor';
-import { Text } from 'react-native';
+import { Platform, Pressable, Text } from 'react-native';
 
 import { formatDistanceStrict, startOfDay } from 'date-fns';
 import * as DateLocale from 'date-fns/locale';
@@ -15,10 +16,7 @@ import Icon from './Icon';
 import { Dynamic } from './Dynamic';
 import { Animation } from '../utils/Animation';
 import { LinearTransition } from 'react-native-reanimated';
-import { PapillonAppearIn, PapillonAppearOut } from '../utils/Transition';
-import { t } from 'i18next';
-import { Platform } from 'react-native';
-import { ListTouchable } from '../new/List';
+import { useDragSafePress } from "../utils/useDragSafePress";
 
 interface TaskProps {
   subject: string;
@@ -31,6 +29,7 @@ interface TaskProps {
   hasAttachments: boolean;
   isCustom?: boolean;
   magic?: string;
+  studyAction?: React.ReactNode;
   onToggle: () => void;
   onPress?: () => void;
 }
@@ -65,23 +64,27 @@ const Task: React.FC<TaskProps> = React.memo(({
   hasAttachments,
   isCustom = false,
   magic,
+  studyAction,
   onToggle,
   onPress
 }) => {
   const theme = useTheme();
+  const colors = useStudyColors();
+  const openPress = useDragSafePress(onPress);
+  const togglePress = useDragSafePress(onToggle);
   const tintedColor = useMemo(() => adjust(color, theme.dark ? 0.3 : -0.3), [color, theme.dark]);
   const formattedDescription = useMemo(() => formatHTML(description), [description]);
 
   return (
-    <ListTouchable onPress={onPress}>
-      <Stack card radius={20} style={{ borderColor: theme.colors.text + "32", borderWidth: Platform.OS === "android" ? 0 : 1, backgroundColor: (Platform.OS === 'android' && !theme.dark) ? "#FFF" : theme.colors.item, elevation: 2, overflow: "hidden" }}>
+    <Stack card radius={20} style={{ borderColor: colors.text + "32", borderWidth: Platform.OS === "android" ? 0 : 1, backgroundColor: (Platform.OS === 'android' && !theme.dark) ? "#FFF" : colors.item, elevation: 2, overflow: "hidden" }}>
+      <Pressable {...openPress} accessibilityRole={onPress ? "link" : undefined} disabled={!onPress}>
         {/* The card above already clips to its corners: a second rounded clip
             here would cost another offscreen pass per row, on every row the
             week pager moves across the screen. */}
         <Stack padding={[16, 14]} gap={12}>
           {Platform.OS !== "android" && (
             <LinearGradient
-              colors={[color, theme.colors.card]}
+              colors={[color, colors.card]}
               style={{
                 position: "absolute",
                 top: 0,
@@ -130,9 +133,11 @@ const Task: React.FC<TaskProps> = React.memo(({
               {formattedDescription}
             </Typography>
           </Stack>
+        </Stack>
+      </Pressable>
 
+      <Stack padding={[16, 10]} gap={6}>
           {/* Bottom */}
-          <Stack animated layout={Animation(LinearTransition, "list")} direction="horizontal" gap={8} hAlign='center'>
             <Stack inline flex hAlign='start' vAlign='center'>
               {/* Magic */}
               {magic && (
@@ -155,8 +160,12 @@ const Task: React.FC<TaskProps> = React.memo(({
                 </Dynamic>
               )}
             </Stack>
+          <Stack animated layout={Animation(LinearTransition, "list")} direction="horizontal" gap={8} hAlign='center' style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+            {studyAction ?? <Stack flex />}
             <Stack animated layout={Animation(LinearTransition, "list")} radius={300} inline hAlign='end' vAlign='center' style={{ overflow: Platform.OS === "android" ? "hidden" : undefined }}>
-              <ListTouchable scaleTo={0.8} animated layout={Animation(LinearTransition, "list")} onPress={onToggle}>
+              <Pressable {...togglePress}
+                accessibilityRole="button" accessibilityLabel={completed ? "Remettre à faire" : "Valider le devoir"}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, minHeight: 44, justifyContent: "center" })}>
                 <Stack
                   animated
                   layout={Animation(LinearTransition, "list")}
@@ -184,12 +193,11 @@ const Task: React.FC<TaskProps> = React.memo(({
                     }
                   </Stack>
                 </Stack>
-              </ListTouchable>
+              </Pressable>
             </Stack>
           </Stack>
-        </Stack>
       </Stack>
-    </ListTouchable >
+    </Stack>
   );
 });
 

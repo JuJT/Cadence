@@ -1,4 +1,4 @@
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useHeaderHeight, useTheme } from "expo-router/react-navigation";
 import { t } from "i18next";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -6,6 +6,8 @@ import { LayoutChangeEvent, Platform, StyleSheet, useWindowDimensions, View } fr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CourseStatus } from "@/services/shared/timetable";
+import { getManager } from "@/services/shared";
+import { Capabilities } from "@/services/shared/types";
 import { useAccountStore } from "@/stores/account";
 import { useSettingsStore } from "@/stores/settings";
 import type { CalendarViewMode } from "@/stores/settings/types";
@@ -129,6 +131,7 @@ function TitleLayer({ page, pageIndex, labels, slideDistance }: {
 function TabOneScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { focusDate, open } = useLocalSearchParams<{ focusDate?: string; open?: string }>();
   const calendarRef = useRef<CalendarRef>(null);
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -137,6 +140,8 @@ function TabOneScreen() {
   const accounts = useAccountStore(state => state.accounts);
   const lastUsedAccount = useAccountStore(state => state.lastUsedAccount);
   const account = accounts.find(a => a.id === lastUsedAccount);
+  const hasLessonBook = !!getManager(true)?.getAvailableClients(Capabilities.COURSE_RESOURCES).length;
+  const openLessonBook = () => router.push("/(features)/pronote/lessons");
 
   const storedViewMode = useSettingsStore(state => state.personalization.calendarViewMode);
   const mutateProperty = useSettingsStore(state => state.mutateProperty);
@@ -216,6 +221,12 @@ function TabOneScreen() {
     handleDateChange(picked);
     setSettledIndex(pageIndexOfDate(picked));
   }, [handleDateChange, pageIndexOfDate]);
+  const followedChange = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!focusDate || !open || open === followedChange.current || !Number.isFinite(Number(focusDate))) return;
+    followedChange.current = open;
+    handlePickDate(new Date(Number(focusDate)));
+  }, [focusDate, open, handlePickDate]);
 
   const anchorWeekOnPage = useCallback((page: number) => {
     if (weekGeometry.pageContainsDate(page, date)) {
@@ -307,10 +318,15 @@ function TabOneScreen() {
                 state: isWeekMode ? "on" : "off",
               },
               { id: "icals", title: t('Tab_Calendar_Icals'), papicon: "Calendar" },
+              ...(hasLessonBook ? [{ id: "lessons", title: "Cahier de textes", papicon: "List" }] : []),
             ]}
             onPressAction={({ nativeEvent }) => {
               if (nativeEvent.event === "icals") {
                 openIcals();
+                return;
+              }
+              if (nativeEvent.event === "lessons") {
+                openLessonBook();
                 return;
               }
               setViewMode(nativeEvent.event === "mode:week" ? "week" : "list");
@@ -345,6 +361,9 @@ function TabOneScreen() {
             >
               {t('Tab_Calendar_Icals')}
             </Stack.Toolbar.MenuAction>
+            {hasLessonBook && (
+              <Stack.Toolbar.MenuAction icon="book" onPress={openLessonBook}>Cahier de textes</Stack.Toolbar.MenuAction>
+            )}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       )}

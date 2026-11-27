@@ -1,19 +1,22 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { File, Paths } from "expo-file-system";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { ChevronRight, Headphones, Pause, Play, Square } from "lucide-react-native";
-import React, { useEffect, useState, type ReactNode } from "react";
+import { ChevronRight, Headphones, Maximize2, Pause, Play, Square } from "lucide-react-native";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View,
 } from "react-native";
 
 import { StudyClock } from "@/components/StudyEntry";
+import StudyFocusModal from "@/components/StudyFocusModal";
 import { getHomeworkById, updateHomeworkIsDone } from "@/database/useHomework";
 import { useStudyColors } from "@/hooks/useStudyColors";
+import { studyOrigin, studyOriginPath, useStudyLaunch, type StudyOrigin } from "@/hooks/useStudyLaunch";
 import { getManager } from "@/services/shared";
+import { useAccountStore } from "@/stores/account";
 import {
   addPastStudy, closeStudyTask, initializeStudy, removeStudySession, restoreStudyBackup, retryStudyLoad,
-  runTimerAction, saveStudySubject, startStudy, updateStudySession, useStudyStore,
+  runTimerAction, saveStudySubject, updateStudySession, useStudyStore,
 } from "@/stores/study";
 import {
   durationText, elapsedSeconds, getActiveSession, isPaused, studyRange, studyTotals,
@@ -109,6 +112,13 @@ function showFailure(error: unknown) {
   Alert.alert("Révision", error instanceof Error ? error.message : "L’opération n’a pas pu être effectuée.");
 }
 
+function finishStudySession() {
+  Alert.alert("Terminer la séance ?", "Le temps mesuré sera ajouté à votre historique.", [
+    { text: "Annuler", style: "cancel" },
+    { text: "Terminer et enregistrer", onPress: () => { void runTimerAction("finish").catch(showFailure); } },
+  ]);
+}
+
 function openMusic() {
   const open = (url: string) => { void Linking.openURL(url).catch(showFailure); };
   Alert.alert("Musique", "Ouvrez votre lecteur pendant la séance.", [
@@ -120,8 +130,11 @@ function openMusic() {
 
 export default function StudyScreen() {
   const colors = useStudyColors();
-  const { section, open } = useLocalSearchParams<{ section?: Section; open?: string }>();
+  const { section, open, immersive, from } = useLocalSearchParams<{ section?: Section; open?: string; immersive?: string; from?: string }>();
   const [screen, setScreen] = useState<Section>(section ?? "timer");
+  const [focused, setFocused] = useState(false);
+  const [returnTab, setReturnTab] = useState<StudyOrigin>();
+  const handledOpen = useRef<string | undefined>(undefined);
   const [editing, setEditing] = useState<StudySession>();
   const [subjects, setSubjects] = useState(false);
   const [showBackups, setShowBackups] = useState(false);
@@ -129,11 +142,30 @@ export default function StudyScreen() {
   const status = useStudyStore(state => state.status);
   const loadError = useStudyStore(state => state.error);
   const active = getActiveSession(data);
+  const activeSubject = data.subjects.find(subject => subject.id === active?.subjectId);
 
   useEffect(() => { void initializeStudy(); }, []);
   useEffect(() => {
     if (sections.some(item => item.id === section)) setScreen(section!);
   }, [section, open]);
+  useEffect(() => {
+    if (!active || !open || immersive !== "1" || section !== "timer" || handledOpen.current === open) return;
+    handledOpen.current = open;
+    setReturnTab(studyOrigin(from));
+    setFocused(true);
+  }, [active, from, immersive, open, section]);
+  useEffect(() => {
+    if (!active) {
+      setFocused(false);
+      setReturnTab(undefined);
+    }
+  }, [active]);
+
+  const reduce = () => {
+    setFocused(false);
+    if (returnTab) router.navigate(studyOriginPath(returnTab));
+    setReturnTab(undefined);
+  };
 
   return (
     <ScrollView style={{ backgroundColor: colors.overground }}
@@ -152,20 +184,26 @@ export default function StudyScreen() {
         </Card>
       )}
       {status === "ready" && screen === "timer" && (active
-        ? <ActiveTimer session={active} subject={data.subjects.find(subject => subject.id === active.subjectId)}
-          edit={() => setEditing(active)} stats={() => setScreen("stats")} />
-        : <SessionForm data={data} manageSubjects={() => setSubjects(true)} />)}
+        ? <ActiveTimer session={active} subject={activeSubject}
+          edit={() => setEditing(active)} expand={() => setFocused(true)} />
+        : <SessionForm data={data} manageSubjects={() => setSubjects(true)} onOpen={() => {
+          setReturnTab(undefined);
+          setFocused(true);
+        }} />)}
       {status === "ready" && screen === "stats" && <Stats data={data} />}
       {status === "ready" && screen === "history" && <History data={data} edit={setEditing} exportData={() => setShowBackups(true)} />}
       {editing && <EditSession session={editing} close={() => setEditing(undefined)} />}
       {subjects && <Subjects data={data} close={() => setSubjects(false)} />}
       {showBackups && <Backups data={data} close={() => setShowBackups(false)} />}
+      {!!active && <StudyFocusModal session={active} subjectName={activeSubject?.name ?? "Matière archivée"} visible={focused}
+        onReduce={reduce} onFinish={finishStudySession}
+        onTogglePause={() => { void runTimerAction(isPaused(active) ? "resume" : "pause").catch(showFailure); }} />}
     </ScrollView>
   );
 }
 
-function ActiveTimer({ session, subject, edit, stats }: {
-  session: StudySession; subject?: StudySubject; edit: () => void; stats: () => void;
+function ActiveTimer({ session, subject, edit, expand }: {
+  session: StudySession; subject?: StudySubject; edit: () => void; expand: () => void;
 }) {
   const colors = useStudyColors();
   const paused = isPaused(session);
@@ -180,10 +218,6 @@ function ActiveTimer({ session, subject, edit, stats }: {
       await closeStudyTask(true);
     } catch (error) { showFailure(error); }
   };
-  const finish = () => Alert.alert("Terminer la séance ?", "Le temps mesuré sera ajouté à votre historique.", [
-    { text: "Annuler", style: "cancel" },
-    { text: "Terminer et enregistrer", onPress: () => { void runTimerAction("finish").catch(showFailure); } },
-  ]);
   return (
     <>
       <Card>
@@ -195,8 +229,9 @@ function ActiveTimer({ session, subject, edit, stats }: {
           <Action title={paused ? "Reprendre" : "Pause"}
             icon={paused ? <Play size={17} color={colors.tint} /> : <Pause size={17} color={colors.tint} />}
             onPress={() => { void runTimerAction(paused ? "resume" : "pause").catch(showFailure); }} />
-          <Action title="Terminer" primary icon={<Square size={15} color="#fff" />} onPress={finish} />
+          <Action title="Terminer" primary icon={<Square size={15} color="#fff" />} onPress={finishStudySession} />
         </View>
+        <Action title="Plein écran" icon={<Maximize2 size={15} color={colors.tint} />} onPress={expand} />
       </Card>
       {session.task && (
         <Card>
@@ -212,7 +247,6 @@ function ActiveTimer({ session, subject, edit, stats }: {
         </Card>
       )}
       <Card>
-        <Action title="Statistiques" onPress={stats} />
         <Action title="Modifier le chapitre et les notes" onPress={edit} />
         <Action title="Musique" icon={<Headphones size={17} color={colors.tint} />} onPress={openMusic} />
       </Card>
@@ -220,7 +254,7 @@ function ActiveTimer({ session, subject, edit, stats }: {
   );
 }
 
-function SessionForm({ data, manageSubjects }: { data: StudyState; manageSubjects: () => void }) {
+function SessionForm({ data, manageSubjects, onOpen }: { data: StudyState; manageSubjects: () => void; onOpen: () => void }) {
   const suggested = data.subjects.filter(subject => !subject.archived);
   const [kind, setKind] = useState<StudyKind>("revision");
   const [name, setName] = useState(suggested[0]?.name ?? "");
@@ -230,15 +264,15 @@ function SessionForm({ data, manageSubjects }: { data: StudyState; manageSubject
   const [minutes, setMinutes] = useState("30");
   const [date, setDate] = useState(new Date());
   const [busy, setBusy] = useState(false);
+  const { launch, launching } = useStudyLaunch(onOpen);
 
   const save = async () => {
+    const request = { subjectName: name, kind, title, notes };
+    if (!previous) { await launch(request); return; }
     setBusy(true);
     try {
-      const request = { subjectName: name, kind, title, notes };
-      if (previous) {
-        await addPastStudy(request, date.getTime(), Number(minutes.replace(",", ".")));
-        Alert.alert("Séance enregistrée");
-      } else await startStudy(request);
+      await addPastStudy(request, date.getTime(), Number(minutes.replace(",", ".")));
+      Alert.alert("Séance enregistrée");
     } catch (error) { showFailure(error); }
     finally { setBusy(false); }
   };
@@ -267,7 +301,7 @@ function SessionForm({ data, manageSubjects }: { data: StudyState; manageSubject
         </>
       )}
       <Action title={previous ? "Enregistrer" : "Démarrer"} primary icon={<Play size={16} color="#fff" />}
-        onPress={() => { void save(); }} disabled={busy || !name.trim()} />
+        onPress={() => { void save(); }} disabled={busy || launching || !name.trim()} />
       <Action title={previous ? "Utiliser le chronomètre" : "Ajouter une séance passée"} onPress={() => setPrevious(!previous)} />
       <Action title="Gérer les matières" onPress={manageSubjects} />
     </Card>
@@ -276,9 +310,10 @@ function SessionForm({ data, manageSubjects }: { data: StudyState; manageSubject
 
 function Stats({ data }: { data: StudyState }) {
   const colors = useStudyColors();
+  const profileId = useAccountStore(state => state.lastUsedAccount) ?? undefined;
   const [period, setPeriod] = useState<"day" | "week" | "month">("week");
   const range = studyRange(period);
-  const total = studyTotals(data, range);
+  const total = studyTotals(data, range, Date.now(), profileId);
   const bySubject = [...total.bySubject].sort(([, a], [, b]) => b - a);
   const sum = total.courseSeconds + total.revisionSeconds;
   return (
@@ -291,7 +326,8 @@ function Stats({ data }: { data: StudyState }) {
       </View>
       <Typography variant="h1" color="primary">{durationText(sum)}</Typography>
       <Typography>Révisions · {durationText(total.revisionSeconds)}</Typography>
-      <Typography>Cours · {durationText(total.courseSeconds)}</Typography>
+      <Typography>Cours mesurés ou saisis · {durationText(total.measuredCourseSeconds)}</Typography>
+      <Typography>Cours de l’emploi du temps · {durationText(total.scheduledCourseSeconds)}</Typography>
       <Typography color="textSecondary">{total.sessionCount} séance{total.sessionCount === 1 ? "" : "s"} chronométrée{total.sessionCount === 1 ? "" : "s"} ou ajoutée{total.sessionCount === 1 ? "" : "s"}</Typography>
       <Typography variant="title">Par matière</Typography>
       {bySubject.length === 0 && <Typography color="textSecondary">Aucun temps enregistré pour cette période.</Typography>}

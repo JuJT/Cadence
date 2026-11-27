@@ -16,6 +16,7 @@ import { runsIOS26 } from '@/ui/utils/IsLiquidGlass';
 import { screenOptions } from '@/utils/theme/ScreenOptions';
 import { useAndroidHeaderProps } from './AndroidHeaderBackground';
 import MainTabErrorBoundary from '@/ui/components/MainTabErrorBoundary';
+import { useCadenzaNotificationNavigation } from '@/hooks/useCadenzaNotificationNavigation';
 
 const DEVMODE_SUBSCREENS = [
   { name: "(dev)/logs", title: "Journaux" },
@@ -26,6 +27,7 @@ const DEVMODE_SUBSCREENS = [
 ];
 
 function RootNavigatorContent() {
+  useCadenzaNotificationNavigation();
   const theme = useTheme();
   const androidHeaderProps = useAndroidHeaderProps();
 
@@ -68,6 +70,8 @@ function RootNavigatorContent() {
         />
         <Stack.Screen name="demo" options={DEMO_SCREEN_OPTIONS} />
         <Stack.Screen name="changelog" options={CHANGELOG_SCREEN_OPTIONS} />
+        <Stack.Screen name="(modals)/travel" options={{ title: "Transports", presentation: "modal" }} />
+        <Stack.Screen name="(modals)/timetable-changes" options={{ title: "Changements de cours", presentation: "modal" }} />
         <Stack.Screen name="devmode" options={DEVMODE_SCREEN_OPTIONS} />
         <Stack.Screen
           name="(dev)/requests"

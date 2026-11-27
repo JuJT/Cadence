@@ -29,6 +29,7 @@ export function parseICalEvents(comp: ICAL.Component): ICalEvent[] {
       dtend: event.endDate?.toJSDate(),
       location: event.location,
       allday: event.startDate?.isDate || false,
+      canceled: vevent.getFirstPropertyValue("status")?.toString().toUpperCase() === "CANCELLED",
       organizer: event.organizer?.toString()
     });
   }

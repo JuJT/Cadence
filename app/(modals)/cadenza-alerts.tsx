@@ -59,6 +59,7 @@ export default function CadenzaAlerts() {
           </List.Trailing>}
         </List.Item>
         {settings?.blockedByOS && <List.Item onPress={() => { void Linking.openSettings(); }}><Typography>Ouvrir les réglages iOS</Typography></List.Item>}
+        {!isOnboarding && <List.Item href="/(modals)/timetable-changes"><Typography>Changements récents</Typography></List.Item>}
         {isOnboarding && settings && !settings.enabled && !settings.blockedByOS && <List.Item onPress={busy ? undefined : () => { void change(true); }}><Typography color="primary">Autoriser les notifications</Typography></List.Item>}
         {isOnboarding && <List.Item onPress={busy ? undefined : () => {
           if (settings?.enabled) router.back();

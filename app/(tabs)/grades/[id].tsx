@@ -22,7 +22,7 @@ import Typography from '@/ui/new/Typography';
 import { useSettingsStore } from '@/stores/settings';
 import { formatAssumed20ForDisplay, getGradeDisplayScale, getDisplayScaleMax } from '@/utils/grades/scale';
 import { SkillChip } from "@/ui/components/SkillChip";
-import { getCurrentPeriod } from "@/utils/grades/helper/period";
+import { findGradePeriod, getCurrentPeriod } from "@/utils/grades/helper/period";
 import { useGradeInfluence } from "./hooks/useGradeInfluence";
 import { getSubjectColor } from "@/utils/subjects/colors";
 import { getSubjectEmoji } from "@/utils/subjects/emoji";
@@ -84,7 +84,7 @@ const GradeBadge = ({
 };
 
 export default function GradesModal() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, period: periodKey } = useLocalSearchParams<{ id: string; period?: string }>();
   const theme = useTheme();
   const colors = theme.colors;
   const [grade, setGrade] = useState<SharedGrade>();
@@ -114,10 +114,10 @@ export default function GradesModal() {
         if (!manager || !id) return;
 
         const periods = await manager.getGradesPeriods();
-        const currentPeriod = getCurrentPeriod(periods);
-        const orderedPeriods = currentPeriod
-          ? [currentPeriod, ...periods.filter(period => period.id !== currentPeriod.id)]
-          : periods;
+        const selected = periodKey ? findGradePeriod(periods, periodKey) : getCurrentPeriod(periods);
+        const orderedPeriods = periodKey
+          ? selected ? [selected] : []
+          : selected ? [selected, ...periods.filter(period => period !== selected)] : periods;
 
         for (const period of orderedPeriods) {
           try {
@@ -126,8 +126,8 @@ export default function GradesModal() {
               period.createdByAccount
             );
             const periodSubjects = [
-              ...(periodGrades.subjects ?? []),
-              ...(periodGrades.modules ?? []),
+              ...(periodGrades?.subjects ?? []),
+              ...(periodGrades?.modules ?? []),
             ];
             const matchingSubject = periodSubjects.find(candidate =>
               candidate.grades?.some(candidateGrade => candidateGrade.id === id)
@@ -159,7 +159,7 @@ export default function GradesModal() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, periodKey]);
 
   const getSubjectById = useCallback(
     (subjectId: string) => subjects.find(candidate => candidate.id === subjectId),

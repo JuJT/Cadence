@@ -95,6 +95,26 @@ export async function addGradesToDatabase(grades: SharedGrade[], subject: string
 // tables were never filled with subjects or grades, so they could not serve as a cache.
 const periodGradesCache = createMMKV({ id: "period-grades-cache" });
 
+export function cacheGradePeriods(accountId: string, periods: SharedPeriod[]) {
+  periodGradesCache.set(`periods:${accountId}`, JSON.stringify(periods));
+}
+
+export function getCachedGradePeriods(accountId: string): SharedPeriod[] {
+  const key = `periods:${accountId}`;
+  const raw = periodGradesCache.getString(key);
+  if (!raw) return [];
+
+  try {
+    const periods: SharedPeriod[] = JSON.parse(raw, (field, value) =>
+      (field === "start" || field === "end") && typeof value === "string" ? new Date(value) : value
+    );
+    return periods.map(period => ({ ...period, fromCache: true }));
+  } catch {
+    periodGradesCache.remove(key);
+    return [];
+  }
+}
+
 export function cachePeriodGrades(item: SharedPeriodGrades, key: string) {
   periodGradesCache.set(key, JSON.stringify(item));
 }

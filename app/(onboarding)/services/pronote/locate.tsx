@@ -1,6 +1,6 @@
 import { Papicons } from "@getpapillon/papicons";
 import { useHeaderHeight, useTheme } from "expo-router/react-navigation";
-import { useNavigation } from "expo-router";
+import { router } from "expo-router";
 import React, { memo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform } from "react-native";
@@ -14,7 +14,7 @@ import Stack from "@/ui/components/Stack";
 import Divider from "@/ui/new/Divider";
 import List from "@/ui/new/List";
 import Typography from "@/ui/new/Typography";
-import { GeographicSearchCities } from "@/utils/native/georeverse";
+import { GeographicSearchCities, type GeoSearchCityInfo } from "@/utils/native/georeverse";
 import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
 
 const convertPostalCode
@@ -25,23 +25,15 @@ const convertPostalCode
   return postalCode;
 }
 
-export interface School {
-  name: string,
-  distance: number,
-  url: string
-}
-
 const PronoteSearchHeader = memo(({
   city,
   setCity,
   loading,
-  showElse,
   t
 }: {
   city: string,
   setCity: (text: string) => void,
   loading: boolean,
-  showElse: boolean,
   t: (key: string, options?: any) => string
 }) => (
   <Stack padding={[4, 0]}>
@@ -70,12 +62,11 @@ export default function PronoteLoginMethod() {
   const headerHeight = useHeaderHeight();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { t } = useTranslation();
 
   const [city, setCity] = useState<string>("");
   const [debouncedCity, setDebouncedCity] = useState<string>("");
-  const [cities, setCities] = useState<Array<School>>([]);
+  const [cities, setCities] = useState<GeoSearchCityInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -103,6 +94,7 @@ export default function PronoteLoginMethod() {
           }
           setCities(cities.sort((a, b) => b.importance - a.importance).splice(0, 10));
         })
+        .catch(() => { if (!canceled) setCities([]); })
         .finally(() => {
           if(canceled) {
             return;
@@ -116,14 +108,17 @@ export default function PronoteLoginMethod() {
     }
   }, [debouncedCity]);
 
-  const selectCity = (city: School) => {
-    navigation.navigate(`select`, { city: city });
+  const selectCity = (city: GeoSearchCityInfo) => {
+    router.push({
+      pathname: "/(onboarding)/services/pronote/select",
+      params: { city: city.city, latitude: String(city.latitude), longitude: String(city.longitude) },
+    });
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.overground }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.select({ android: 0, default: 20 })}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.select({ android: 0, default: 20 })}>
       <List
-        ListHeaderComponent={<SafeHorizontalView base={16}><PronoteSearchHeader city={city} setCity={setCity} loading={loading && cities.length === 0} showElse={cities.length === 0 && !loading} t={t} /></SafeHorizontalView>}
+        ListHeaderComponent={<SafeHorizontalView base={16}><PronoteSearchHeader city={city} setCity={setCity} loading={loading && cities.length === 0} t={t} /></SafeHorizontalView>}
         safeHorizontalPadding={16}
         contentContainerStyle={{
           flexGrow: 1,
@@ -134,8 +129,7 @@ export default function PronoteLoginMethod() {
         style={{ flex: 1 }}
         animated
       >
-        {cities.length === 0 && !loading && (
-          <List.Item animated onPress={() => navigation.navigate("qrcode")}>
+        <List.Item animated onPress={() => router.push("/(onboarding)/services/pronote/qrcode")}>
             <List.Leading>
               <Icon><Papicons name="qrcode" /></Icon>
             </List.Leading>
@@ -143,19 +137,17 @@ export default function PronoteLoginMethod() {
             <Typography variant='body' color="textSecondary">
               {t("ONBOARDING_PRONOTE_LOGIN_QRCODE_DESCRIPTION")}
             </Typography>
-          </List.Item>
-        )}
+        </List.Item>
 
-        {cities.length === 0 && !loading && (
-          <List.Item animated onPress={() => navigation.navigate("url")}>
+        <List.Item animated onPress={() => router.push("/(onboarding)/services/pronote/url")}>
             <List.Leading>
               <Icon><Papicons name="link" /></Icon>
             </List.Leading>
-            <Typography variant='title'>{t("ONBOARDING_PRONOTE_LOGIN_URL")}</Typography>
-          </List.Item>
-        )}
+            <Typography variant='title'>Adresse PRONOTE</Typography>
+            <Typography variant="body" color="textSecondary">Identifiants directs, ENT ou ÉduConnect</Typography>
+        </List.Item>
 
-        {cities.map((city, i) => (
+        {cities.map(city => (
           <List.Item animated={true} key={city.id} id={city.id} onPress={() => {selectCity(city)}}>
             <List.Leading>
               <Icon><Papicons name="mappin" /></Icon>

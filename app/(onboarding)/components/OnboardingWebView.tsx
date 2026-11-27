@@ -1,5 +1,5 @@
 import { Papicons } from "@getpapillon/papicons";
-import { useTheme, useHeaderHeight } from "expo-router/react-navigation";
+import { useTheme } from "expo-router/react-navigation";
 import React from "react";
 import { Platform, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,11 +9,17 @@ import { Dynamic } from "@/ui/components/Dynamic";
 import Typography from "@/ui/new/Typography";
 import AndroidBackButton from "@/utils/theme/AndroidBackButton";
 
-export default function OnboardingWebView({ webViewRef, ...props }: React.ComponentProps<typeof WebView>) {
+type OnboardingWebViewProps = React.ComponentProps<typeof WebView> & {
+  webViewRef?: React.ComponentPropsWithRef<typeof WebView>["ref"];
+};
+
+export default function OnboardingWebView({ webViewRef, ...props }: OnboardingWebViewProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
-  const [currentUrl, setCurrentUrl] = React.useState<string>(props.source.uri || "");
+  const [currentUrl, setCurrentUrl] = React.useState(
+    props.source && "uri" in props.source ? props.source.uri ?? "" : "",
+  );
   const [loading, setLoading] = React.useState<boolean>(true);
   const [loadingProgress, setLoadingProgress] = React.useState<number>(0);
 

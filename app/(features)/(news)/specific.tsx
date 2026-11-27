@@ -1,240 +1,139 @@
-import { getManager } from "@/services/shared";
-import { News } from "@/services/shared/news";
-import { getNewsById } from "@/database/useNews";
-import { useAccountStore } from "@/stores/account";
-import { Services } from "@/stores/account/types";
-import Stack from "@/ui/components/Stack";
-import TypographyLegacy, { VARIANTS } from "@/ui/components/Typography";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Linking, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { Attachment, News as SkolengoNews } from "skolengojs";
+import { NewsQuestionKind } from "@blockshub/pawnote-lts";
+import { useLocalSearchParams } from "expo-router";
+import { useTheme } from "expo-router/react-navigation";
+import { useEffect, useRef, useState } from "react";
+import { Alert, TextInput } from "react-native";
 
-import HTMLView from "react-native-htmlview";
-import { HeaderBackButton, useTheme } from "expo-router/react-navigation";
-import { NativeHeaderSide } from "@/ui/components/NativeHeader";
-import Icon from "@/ui/components/Icon";
-import { t } from "i18next";
-import ListLegacy from "@/ui/components/List";
-import Item, { Leading } from "@/ui/components/Item";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { cleanHtmlForArticle } from "@/utils/news/cleanUpHTMLNews";
-import Avatar from "@/ui/components/Avatar";
-import { getInitials } from "@/utils/chats/initials";
-import { runsIOS26 } from "@/ui/utils/IsLiquidGlass";
-import { Papicons } from "@getpapillon/papicons";
-import { getAttachmentIcon } from "@/utils/news/getAttachmentIcon";
-import List from "@/ui/new/List";
+import { SchoolAttachments, SchoolCard, SchoolContent, SchoolPage, SchoolRow, useSchoolManager } from "@/components/pronote/SchoolPage";
+import { addNewsToDatabase, getNewsById } from "@/database/useNews";
+import { News, SurveyAnswer } from "@/services/shared/news";
+import Button from "@/ui/new/Button";
 import Typography from "@/ui/new/Typography";
-import { useFont } from "@/utils/theme/fonts";
-import ActivityIndicator from "@/ui/components/ActivityIndicator";
-import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
+import { cleanHtmlForArticle } from "@/utils/news/cleanUpHTMLNews";
 
-const NewsPage = () => {
+export default function NewsPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { manager, accountId, revision } = useSchoolManager();
+  const { colors } = useTheme();
   const [news, setNews] = useState<News>();
   const [loading, setLoading] = useState(true);
-  const insets = useSafeAreaInsets();
-  const router = useRouter()
-  const { colors } = useTheme();
-  const font = useFont();
-  const [HTMLCleanupEnabled, setHTMLCleanupEnabled] = useState(true)
+  const [sending, setSending] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
+  const busy = useRef(false);
+  const activeAccount = useRef(accountId);
+  activeAccount.current = accountId;
 
   useEffect(() => {
-    let cancelled = false;
+    if (!id || !manager) return;
+    let active = true;
     setLoading(true);
-    getNewsById(id)
-      .then(result => {
-        if (!cancelled) setNews(result);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+    setNews(undefined);
+    setAnswers({});
+    getNewsById(id).then(value => {
+      if (active) setNews(value);
+    }).catch(() => {
+      if (active) setNews(undefined);
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [id, manager, revision, reload]);
 
-  useEffect(() => {
-    if (!news) return;
-    const acknowledgeNews = async () => {
-      if (!news.acknowledged) {
-        const manager = getManager();
+  const article = news && manager?.getAccount().services.some(service => service.id === news.createdByAccount) ? news : undefined;
+  function confirmAction(survey: boolean) {
+    if (!article || !manager || busy.current) return;
+    Alert.alert(survey ? "Envoyer les réponses ?" : "Accuser réception ?", survey
+      ? "Vos réponses seront envoyées à l’établissement."
+      : "L’établissement sera informé que vous avez pris connaissance de cette information.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: survey ? "Envoyer" : "Confirmer",
+        onPress: async () => {
+          if (busy.current || activeAccount.current !== accountId) return;
+          busy.current = true;
+          setSending(true);
+          try {
+            const updated = survey
+              ? await manager.submitNewsSurvey(article, Object.values(answers))
+              : await manager.setNewsAsDone(article);
+            if (activeAccount.current !== accountId) return;
+            setNews(updated);
+            if (!survey) await addNewsToDatabase([updated], false).catch(() => undefined);
+          } catch {
+            if (activeAccount.current === accountId) {
+              Alert.alert("Envoi non confirmé", "Vérifiez l’état de cette actualité dans PRONOTE avant de réessayer.");
+            }
+          } finally {
+            busy.current = false;
+            setSending(false);
+          }
+        },
+      },
+    ]);
+  }
 
-        const store = useAccountStore.getState()
-        const account = store.accounts.find(account => account.id === store.lastUsedAccount)
-        const service = account?.services.find(service => service.id === news.createdByAccount)
-
-        if (service?.serviceId === Services.SKOLENGO) {
-          const attachment = new Attachment("", "", "")
-
-          news.ref = new SkolengoNews(
-            news.id,
-            news.createdAt,
-            news.title ?? "",
-            news.content,
-            news.content,
-            {
-              id: "",
-              name: "",
-            },
-            "",
-            attachment
-          );
-        }
-
-        await manager?.setNewsAsDone(news);
-      }
-    };
-
-    acknowledgeNews();
-  }, [news])
-
-  const stylesheet = StyleSheet.create({
-    ...VARIANTS,
-    p: {
-      ...VARIANTS.body1,
-      fontFamily: font("medium"),
-      color: colors.text,
-    },
-    div: {
-      ...VARIANTS.body1,
-      fontFamily: font("medium"),
-      color: colors.text,
-    },
-    a: {
-      color: colors.primary,
-      textDecorationLine: 'underline'
-    },
-    ul: {
-      ...VARIANTS.body1,
-      fontFamily: font("medium"),
-      paddingHorizontal: 4,
-      color: colors.text,
-    },
+  const survey = article?.survey;
+  const ready = survey?.questions.filter(question => question.required).every(question => {
+    const answer = answers[question.id];
+    if (question.kind === NewsQuestionKind.TextInput) return Boolean(answer?.text?.trim());
+    return Boolean(answer?.choices?.length);
   });
 
-  if (loading) {
-    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator /></View>;
-  }
-
-  if (!news) {
-    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Typography variant="title">{t("News_Empty_Title")}</Typography></View>;
-  }
-
-  const cleanedContent = HTMLCleanupEnabled ? cleanHtmlForArticle(news.content) : news.content
-
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      style={{ flex: 1 }}
-      contentContainerStyle={{
-        paddingTop: 20,
-        paddingBottom: 20 + insets.bottom,
-      }}
-    >
-      <NativeHeaderSide side="Left">
-        <HeaderBackButton
-          tintColor={runsIOS26 ? colors.text : colors.primary}
-          onPress={() => router.back()}
-
-          style={{
-            marginLeft: Platform.OS === 'ios' ? (runsIOS26 ? 3 : -32) : 0,
-          }}
-        />
-      </NativeHeaderSide>
-
-      <SafeHorizontalView base={20} style={{ gap: 24 }}>
-        <Stack gap={10}>
-          <Stack padding={[10, 4]} radius={200} backgroundColor={colors.text + "16"}>
-            <TypographyLegacy variant="body2">
-              {news.category}
-            </TypographyLegacy>
-          </Stack>
-
-          <TypographyLegacy variant="h3">
-            {news.title}
-          </TypographyLegacy>
-
-          <Stack direction="horizontal" hAlign="center">
-            <Stack direction="horizontal" gap={8} inline flex hAlign="center">
-              <Avatar initials={getInitials(news.author)} size={28} />
-              <TypographyLegacy nowrap variant="body2">
-                {news.author}
-              </TypographyLegacy>
-            </Stack>
-
-            <TypographyLegacy nowrap variant="body2" color="secondary">
-              {new Date(news.createdAt).toLocaleDateString(undefined, {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-              })}
-            </TypographyLegacy>
-          </Stack>
-        </Stack>
-
-        {news.question && (
-          <List scrollEnabled={false}>
-            <List.Item>
-              <List.Leading>
-                <Icon>
-                  <Papicons name="pie" />
-                </Icon>
-              </List.Leading>
-              <Typography variant="title">
-                Cette actualité contient un sondage
-              </Typography>
-              <Typography variant="body1" color="textSecondary">
-                PRONOTE ne nous permet pas d'afficher les sondages pour le moment.
-              </Typography>
-            </List.Item>
-          </List>
-        )}
-
-        <HTMLView
-          value={cleanedContent}
-          stylesheet={stylesheet}
-          style={{
-            gap: 12
-          }}
-          paragraphBreak=""
-          bullet="  •  "
-        />
-
-        {news.attachments.length > 0 && (
-          <ListLegacy>
-            {news.attachments.map((attachment, index) => (
-              <Item key={index} onPress={() => Linking.openURL(attachment.url)}>
-                <Leading>
-                  <Icon size={28}>
-                    <Papicons name={getAttachmentIcon(attachment)} />
-                  </Icon>
-                </Leading>
-                <TypographyLegacy variant="title">
-                  {attachment.name}
-                </TypographyLegacy>
-                <TypographyLegacy variant="body1" nowrap color="secondary">
-                  {attachment.url}
-                </TypographyLegacy>
-              </Item>
-            ))}
-          </ListLegacy>
-        )}
-
-        <Stack gap={0} style={{ opacity: 0.4 }}>
-          <TypographyLegacy variant="caption">
-            Si cette actualité ne s'affiche pas correctement,
-          </TypographyLegacy>
-          <TypographyLegacy variant="caption" style={{
-            textDecorationLine: 'underline'
-          }} onPress={() => setHTMLCleanupEnabled(!HTMLCleanupEnabled)}>
-            {HTMLCleanupEnabled ? "désactiver" : "activer"} le formattage automatique
-          </TypographyLegacy>
-        </Stack>
-      </SafeHorizontalView>
-    </ScrollView >
+    <SchoolPage title={article?.type === "survey" ? "Sondage" : "Actualité"} loading={loading} refresh={() => setReload(value => value + 1)}>
+      {!loading && !article && <Typography>Cette actualité n’a pas pu être chargée.</Typography>}
+      {article && (
+        <>
+          <Typography variant="caption" color="textSecondary">{article.category}</Typography>
+          <Typography variant="h2">{article.title || (article.type === "survey" ? "Sondage" : "Information")}</Typography>
+          <Typography color="textSecondary">{[
+            article.author,
+            article.createdAt.getTime() > 0 ? article.createdAt.toLocaleDateString("fr-FR", { dateStyle: "long" }) : undefined,
+          ].filter(Boolean).join(" · ")}</Typography>
+          {article.content ? <SchoolContent content={cleanHtmlForArticle(article.content)} /> : null}
+          <SchoolAttachments files={article.attachments} />
+          {article.acknowledged && article.type === "information" && <Typography color="textSecondary">Réception confirmée</Typography>}
+          {article.needsAcknowledgement && !article.acknowledged &&
+            <Button label={sending ? "Confirmation…" : "Accuser réception"} onPress={() => confirmAction(false)} disabled={sending} />}
+          {article.question && !survey && <Typography>Ce sondage n’a pas pu être chargé. Consultez-le dans PRONOTE.</Typography>}
+          {article.fromCache && !article.content && !article.question && <Typography>Le texte sera disponible après synchronisation.</Typography>}
+          {survey && (
+            <>
+              {survey.isAnonymous && <Typography color="textSecondary">Sondage anonyme</Typography>}
+              {survey.questions.map((question, index) => (
+                <SchoolCard key={question.id}>
+                  <Typography variant="title">{question.title || "Question " + (index + 1)}</Typography>
+                  {question.content && <SchoolContent content={question.content} />}
+                  <SchoolAttachments files={question.attachments} />
+                  {question.kind === NewsQuestionKind.TextInput && survey.canSubmit && question.required && (
+                    <TextInput accessibilityLabel={question.title || "Réponse"} placeholder="Votre réponse"
+                      multiline editable={!sending} maxLength={question.maximumLength}
+                      value={answers[question.id]?.text ?? ""}
+                      onChangeText={text => setAnswers(current => ({ ...current, [question.id]: { questionId: question.id, text } }))}
+                      style={{ minHeight: 80, padding: 12, color: colors.text, backgroundColor: colors.background, borderRadius: 12 }} />
+                  )}
+                  {question.choices.map(choice => {
+                    if (!survey.canSubmit || !question.required) return <Typography key={choice.position}>{choice.value}</Typography>;
+                    const chosen = answers[question.id]?.choices ?? [];
+                    const selected = chosen.includes(choice.position);
+                    return <SchoolRow key={choice.position} title={choice.value} selected={selected} onPress={() => {
+                      if (sending) return;
+                      const choices = selected ? chosen.filter(value => value !== choice.position)
+                        : question.kind === NewsQuestionKind.UniqueChoice ? [choice.position]
+                        : chosen.length < (question.maximumChoices ?? question.choices.length) ? [...chosen, choice.position] : chosen;
+                      setAnswers(current => ({ ...current, [question.id]: { questionId: question.id, choices } }));
+                    }} />;
+                  })}
+                </SchoolCard>
+              ))}
+              {survey.answered && <Typography color="textSecondary">Réponses envoyées</Typography>}
+              {survey.canSubmit && <Button label={sending ? "Envoi…" : "Envoyer mes réponses"} onPress={() => confirmAction(true)} disabled={!ready || sending} />}
+              {!survey.canSubmit && !survey.answered && <Typography color="textSecondary">Pour répondre à ce sondage, ouvrez l’espace Élèves de PRONOTE.</Typography>}
+            </>
+          )}
+        </>
+      )}
+    </SchoolPage>
   );
-};
-
-export default NewsPage;
+}

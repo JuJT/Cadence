@@ -1,8 +1,8 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { differenceInCalendarDays, formatDistanceStrict, startOfDay } from "date-fns";
 import { t } from "i18next";
 import React from 'react';
-import { FlatList } from "react-native";
+import { Pressable, View } from "react-native";
 import * as DateLocale from 'date-fns/locale';
 
 import { Course as SharedCourse, CourseStatus } from "@/services/shared/timetable";
@@ -34,21 +34,18 @@ function getRelativeDayStatus(date: Date): string | null {
 }
 
 const HomeTimeTableWidget = React.memo(({ courses }: { courses: SharedCourse[] }) => {
+  const router = useRouter();
 
   if (courses.length === 0) {
     return null;
   }
 
   return (
-    <FlatList
-      scrollEnabled={false}
-      data={courses.slice(0, 3)}
-      style={{ width: '100%', paddingHorizontal: 10, paddingBottom: 4 }}
-      renderItem={({ item }) => (
-        <Link
-          href={{ pathname: "/(modals)/course/[id]", params: { id: getCourseRouteId(item) } }}
-          asChild
-        >
+    <View style={{ width: '100%', paddingHorizontal: 10, paddingBottom: 4 }}>
+      {courses.slice(0, 3).map(item => (
+        <Pressable key={getCourseRouteId(item)} accessibilityRole="button" accessibilityLabel={getSubjectName(item.subject)}
+          onPress={() => router.push({ pathname: "/(modals)/course/[id]", params: { id: getCourseRouteId(item) } })}>
+          <View pointerEvents="none">
           <Course
             key={item.id}
             id={item.id}
@@ -63,9 +60,10 @@ const HomeTimeTableWidget = React.memo(({ courses }: { courses: SharedCourse[] }
             readonly={!!item.createdByAccount}
             compact={true}
           />
-        </Link>
-      )}
-    />
+          </View>
+        </Pressable>
+      ))}
+    </View>
   );
 });
 

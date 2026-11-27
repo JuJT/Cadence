@@ -1,4 +1,5 @@
 import { Model, Q } from "@nozbe/watermelondb";
+import { addDays } from "date-fns";
 import { useEffect, useState } from "react";
 
 import { getICalCourseById, getICalEventsForWeek } from "@/services/local/ical";
@@ -76,63 +77,44 @@ export function useTimetable(refresh = 0, weekNumber: number | number[] = 0, dat
   return timetable;
 }
 
-export async function addCourseDayToDatabase(courses: SharedCourseDay[]) {
+export async function addCourseDayToDatabase(courses: SharedCourseDay[], authoritative?: { weekStart: Date; serviceIds: string[] }) {
   const db = getDatabaseInstance();
   await safeWrite(
     db,
     async () => {
+      const collection = db.get<Course>('courses');
+      const operations: Model[] = [];
+      const byDay = new Map<number, SharedCourse[]>();
+      if (authoritative) {
+        for (let offset = 0; offset < 7; offset++) byDay.set(addDays(authoritative.weekStart, offset).getTime(), []);
+      }
       for (const day of courses) {
-        const dayTimestamp = day.date.getTime();
-        const oneDayMs = 24 * 60 * 60 * 1000;
-
-        const dbCourses = await db.get<Course>('courses')
+        for (const course of day.courses) {
+          const timestamp = startOfLocalDay(course.from);
+          const existing = byDay.get(timestamp) ?? [];
+          existing.push(course);
+          byDay.set(timestamp, existing);
+        }
+      }
+      for (const [timestamp, dayCourses] of byDay) {
+        const nextDay = addDays(new Date(timestamp), 1).getTime();
+        const dbCourses = await collection
           .query(
-            Q.where('from', Q.between(dayTimestamp, dayTimestamp + oneDayMs))
+            Q.where('from', Q.gte(timestamp)), Q.where('from', Q.lt(nextDay)),
           )
           .fetch();
-
-        const dayCourseIds = new Set(
-          day.courses.map(course => {
-            const oldId = generateId(course.from.toISOString() + course.to.toISOString() + course.subject + course.teacher + course.room + course.createdByAccount);
-            const newId = generateId(course.from.toISOString() + course.to.toISOString() + course.subject + course.teacher + course.createdByAccount);
-            return [oldId, newId];
-          }).flat()
-        );
-        const refreshedServiceIds = new Set(
-          day.courses.map(course => course.createdByAccount)
-        );
-
-        const coursesToDelete = dbCourses.filter(
-          dbCourse =>
-            refreshedServiceIds.has(dbCourse.createdByAccount) &&
-            !dayCourseIds.has(dbCourse.courseId)
-        );
-
-        for (const course of coursesToDelete) {
-          await course.markAsDeleted();
+        const incoming = new Map(dayCourses.map(item => [getCourseRouteId(item), item]));
+        const refreshed = new Set([...(authoritative?.serviceIds ?? []), ...dayCourses.map(item => item.createdByAccount)]);
+        const existing = new Map<string, Course>();
+        for (const record of dbCourses) {
+          if (!refreshed.has(record.createdByAccount)) continue;
+          if (existing.has(record.courseId) || !incoming.has(record.courseId)) operations.push(record.prepareMarkAsDeleted());
+          else existing.set(record.courseId, record);
         }
-
-        for (const item of day.courses) {
-          // MIGRATION TO AVOID DUPES, DO NOT DELETE
-          const oldId = generateId(item.from.toISOString() + item.to.toISOString() + item.subject + item.teacher + item.room + item.createdByAccount);
-          const id = getCourseRouteId(item);
-
-          const oldExistingRecords = await db.get('courses')
-            .query(Q.where('courseId', oldId))
-            .fetch();
-          const existingRecords = await db.get('courses')
-            .query(Q.where('courseId', id))
-            .fetch();
-
-          if (oldId !== id) {
-            for (const oldRecord of oldExistingRecords) {
-              await oldRecord.markAsDeleted();
-            }
-          }
-
-          if (existingRecords.length === 0) {
-            await db.get('courses').create((record: Model) => {
-              const course = record as Course;
+        for (const [id, item] of incoming) {
+          const record = existing.get(id);
+          if (!record) {
+            operations.push(collection.prepareCreate(course => {
               Object.assign(course, {
                 createdByAccount: item.createdByAccount,
                 courseId: id,
@@ -150,11 +132,9 @@ export async function addCourseDayToDatabase(courses: SharedCourseDay[]) {
                 url: item.url,
                 kidName: item.kidName,
               });
-            });
+            }));
           } else {
-            const courseToUpdate = existingRecords[0];
-            await courseToUpdate.update((model: Model) => {
-              const course = model as Course;
+            operations.push(record.prepareUpdate(course => {
               Object.assign(course, {
                 subject: item.subject ?? course.subject,
                 type: item.type ?? course.type,
@@ -172,10 +152,11 @@ export async function addCourseDayToDatabase(courses: SharedCourseDay[]) {
                 url: item.url ?? course.url,
                 kidName: item.kidName ?? course.kidName,
               });
-            });
+            }));
           }
         }
       }
+      if (operations.length) await db.batch(operations);
     },
     15000,
     `add_timetable_${courses.length}_days`

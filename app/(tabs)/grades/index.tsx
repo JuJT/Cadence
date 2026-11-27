@@ -12,7 +12,7 @@ import { getGradeDisplayScale, formatScoreForDisplay, formatGradeScoreForDisplay
 import { getPeriodName, getPeriodNumber, isPeriodWithNumber } from '@/utils/services/periods';
 import { getSubjectName } from '@/utils/subjects/name';
 import { getSubjectEmoji } from '@/utils/subjects/emoji';
-import { Grade, Period, Subject } from '@/services/shared/grade';
+import { gradePeriodKey, Grade, Period, Subject } from '@/services/shared/grade';
 
 import { usePeriodsData } from './hooks/usePeriodsData';
 import { useGradesData } from './hooks/useGradesData';
@@ -74,6 +74,7 @@ const GradesView = () => {
 
   const { periods, currentPeriod, setCurrentPeriod, refresh: refreshPeriods, loading: loadingPeriods, error: periodsError, failures: periodsFailures } = usePeriodsData();
   const { subjects, history, averages, isAverageServiceProvided, refresh: refreshGrades, loading: loadingGrades, error: gradesError, failures: gradesFailures } = useGradesData(currentPeriod);
+  const periodKey = currentPeriod ? gradePeriodKey(currentPeriod) : undefined;
 
   const loading = loadingPeriods || loadingGrades;
   const failure = gradesFailures[0] ?? periodsFailures[0];
@@ -147,14 +148,14 @@ const GradesView = () => {
             icon="Calendar"
             accessibilityLabel={currentPeriod ? periodTitle(currentPeriod) : t('Grades_Periods_None')}
             actions={periods.map(period => ({
-              id: period.id,
+              id: gradePeriodKey(period),
               title: periodTitle(period),
               subtitle: periodSubtitle(period),
               papicon: 'Calendar',
-              state: currentPeriod?.id === period.id ? 'on' : 'off',
+              state: periodKey === gradePeriodKey(period) ? 'on' : 'off',
             }))}
             onPressAction={({ nativeEvent }) => {
-              const period = periods.find(p => p.id === nativeEvent.event);
+              const period = periods.find(p => gradePeriodKey(p) === nativeEvent.event);
               if (period) {
                 setCurrentPeriod(period);
               }
@@ -170,8 +171,8 @@ const GradesView = () => {
             </Stack.Toolbar.Label>
             {periods.map(period => (
               <Stack.Toolbar.MenuAction
-                key={period.id}
-                isOn={currentPeriod?.id === period.id}
+                key={gradePeriodKey(period)}
+                isOn={periodKey === gradePeriodKey(period)}
                 icon={(isPeriodWithNumber(period.name || '') ? `${getPeriodNumber(period.name || '')}.calendar` : 'calendar') as SFSymbol}
                 subtitle={periodSubtitle(period)}
                 onPress={() => setCurrentPeriod(period)}
@@ -258,7 +259,7 @@ const GradesView = () => {
                 <FlatList
                   data={recentGrades}
                   renderItem={({ item: grade }) => (
-                    <Link href={{ pathname: "/(tabs)/grades/[id]", params: { id: grade.id } }} asChild>
+                    <Link href={{ pathname: "/(tabs)/grades/[id]", params: { id: grade.id, period: periodKey } }} asChild>
                       <Link.Preview />
                       <Link.Trigger>
                       <Link.AppleZoom>
@@ -291,7 +292,7 @@ const GradesView = () => {
             return (
             <List.Section key={subject.id} id={subject.id}>
               <List.SectionTitle id={`${subject.id}-title`}>
-                <Link href={{ pathname: "/(tabs)/grades/subject/[id]", params: { id: subject.id, period: currentPeriod?.id } }} asChild>
+                <Link href={{ pathname: "/(tabs)/grades/subject/[id]", params: { id: subject.id, period: periodKey } }} asChild>
                 <Pressable style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 }}>
                   <Typography variant="h4" style={{ marginTop: 0 }} inset>{getSubjectEmoji(subject.name)}</Typography>
 
@@ -324,7 +325,7 @@ const GradesView = () => {
                   <List.Item
                     key={grade.id}
                     id={grade.id}
-                    href={{ pathname: "/(tabs)/grades/[id]", params: { id: grade.id } }}
+                    href={{ pathname: "/(tabs)/grades/[id]", params: { id: grade.id, period: periodKey } }}
                   >
                     <View style={{ flex: 1, flexDirection: 'column', gap: 1 }}>
                       <Typography numberOfLines={1} weight='semibold' variant="title">{grade.description || t("Grade_NoDescription", { subject: getSubjectName(subject.name) })}</Typography>

@@ -3,6 +3,8 @@ import SwiftUI
 import WidgetKit
 
 private let studyBlue = Color(red: 0.10, green: 0.36, blue: 0.84)
+private let studyMeasured = Color(red: 0.03, green: 0.46, blue: 0.52)
+private let studyScheduled = Color(red: 0.40, green: 0.47, blue: 0.58)
 
 private struct CadenzaWidgetEntry: TimelineEntry {
     let date: Date
@@ -21,6 +23,7 @@ private struct CadenzaStudyProvider: TimelineProvider {
 }
 
 private struct CadenzaStudyOverview: View {
+    @Environment(\.widgetFamily) private var family
     let entry: CadenzaWidgetEntry
     let weekly: Bool
 
@@ -32,12 +35,21 @@ private struct CadenzaStudyOverview: View {
             if let data = entry.data {
                 Text(CadenzaDuration.total(weekly ? data.weekSeconds : data.todaySeconds))
                     .font(.title2.bold().monospacedDigit()).lineLimit(1).minimumScaleFactor(0.65)
-                if weekly, let days = data.weekDays, !days.isEmpty {
+                if let breakdown = breakdown(data) {
+                    if weekly, family == .systemMedium, let days = data.weekDays, !days.isEmpty {
+                        HStack(alignment: .center, spacing: 14) {
+                            breakdownRows(breakdown)
+                            chart(Array(days.suffix(7)))
+                        }
+                    } else {
+                        breakdownRows(breakdown)
+                    }
+                } else if weekly, let days = data.weekDays, !days.isEmpty {
                     chart(Array(days.suffix(7)))
                 } else {
                     Text("Cours et révisions").font(.caption).foregroundStyle(.secondary)
                 }
-                if let subject = data.topSubject, weekly, !subject.isEmpty {
+                if let subject = data.topSubject, weekly, family == .systemMedium, !subject.isEmpty {
                     Text(subject).font(.caption).lineLimit(1).foregroundStyle(.secondary)
                 }
             } else {
@@ -50,16 +62,63 @@ private struct CadenzaStudyOverview: View {
         .containerBackground(.fill.tertiary, for: .widget)
     }
 
+    private struct Breakdown {
+        let revisions: Double
+        let measured: Double
+        let scheduled: Double
+    }
+
+    private func breakdown(_ data: CadenzaStudySnapshot) -> Breakdown? {
+        guard let revisions = weekly ? data.weekRevisionSeconds : data.todayRevisionSeconds,
+              let measured = weekly ? data.weekMeasuredCourseSeconds : data.todayMeasuredCourseSeconds,
+              let scheduled = weekly ? data.weekScheduledCourseSeconds : data.todayScheduledCourseSeconds else { return nil }
+        return Breakdown(revisions: revisions, measured: measured, scheduled: scheduled)
+    }
+
+    private func breakdownRows(_ breakdown: Breakdown) -> some View {
+        VStack(spacing: 3) {
+            metric("Révisions", breakdown.revisions, color: studyBlue)
+            metric("Cours mesurés", breakdown.measured, color: studyMeasured)
+            metric("Emploi du temps", breakdown.scheduled, color: studyScheduled)
+        }
+    }
+
+    private func metric(_ title: String, _ seconds: Double, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 5, height: 5).accessibilityHidden(true)
+            Text(title).lineLimit(1)
+            Spacer(minLength: 2)
+            Text(CadenzaDuration.total(seconds)).monospacedDigit().lineLimit(1).layoutPriority(1)
+        }
+        .font(.caption2)
+        .minimumScaleFactor(0.7)
+        .accessibilityElement(children: .combine)
+    }
+
     private func chart(_ days: [CadenzaStudySnapshot.Day]) -> some View {
         let peak = max(60, days.map(\.total).max() ?? 0)
         return HStack(alignment: .bottom, spacing: 5) {
             ForEach(Array(days.enumerated()), id: \.offset) { _, day in
-                Capsule().fill(studyBlue.opacity(day.total > 0 ? 0.88 : 0.2))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: max(3, 31 * day.total / peak))
+                if day.total > 0, let measured = day.measuredCourseSeconds, let scheduled = day.scheduledCourseSeconds {
+                    VStack(spacing: 0) {
+                        bar(seconds: day.revisionSeconds, peak: peak, color: studyBlue)
+                        bar(seconds: measured, peak: peak, color: studyMeasured)
+                        bar(seconds: scheduled, peak: peak, color: studyScheduled)
+                    }.clipShape(RoundedRectangle(cornerRadius: 3))
+                } else {
+                    Capsule().fill(studyBlue.opacity(day.total > 0 ? 0.88 : 0.2))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: max(3, 31 * day.total / peak))
+                }
             }
         }.frame(height: 31, alignment: .bottom)
             .accessibilityLabel("Temps suivi chaque jour de la semaine")
+    }
+
+    @ViewBuilder private func bar(seconds: Double, peak: Double, color: Color) -> some View {
+        if seconds > 0 {
+            Rectangle().fill(color).frame(maxWidth: .infinity).frame(height: 31 * seconds / peak)
+        }
     }
 }
 

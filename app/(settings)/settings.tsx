@@ -109,6 +109,13 @@ export default function SettingsIndex() {
       title: t("Settings_About"),
       content: [
         {
+          title: "Transports",
+          description: "Trajets, prochains passages et titres.",
+          papicon: <Papicons name={"Bus"} />,
+          color: "#2776F8",
+          onPress: () => router.navigate("/(modals)/travel"),
+        },
+        {
           title: "Alertes de l’emploi du temps",
           description: "Être prévenu des changements de cours.",
           icon: <InfoIcon />,

@@ -16,12 +16,20 @@ struct CadenzaStudySnapshot: Codable, Sendable {
         let date: Double
         let courseSeconds: Double
         let revisionSeconds: Double
+        let measuredCourseSeconds: Double?
+        let scheduledCourseSeconds: Double?
         var total: Double { max(0, courseSeconds) + max(0, revisionSeconds) }
     }
 
     let activeSession: Session?
     let todaySeconds: Double
     let weekSeconds: Double
+    let todayRevisionSeconds: Double?
+    let todayMeasuredCourseSeconds: Double?
+    let todayScheduledCourseSeconds: Double?
+    let weekRevisionSeconds: Double?
+    let weekMeasuredCourseSeconds: Double?
+    let weekScheduledCourseSeconds: Double?
     let sessionCount: Int
     let topSubject: String?
     let weekDays: [Day]?

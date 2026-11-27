@@ -21,6 +21,16 @@ export interface Course extends GenericInterface {
   customStatus?: string;
   url?: string;
   resourceId?: string;
+  studyCandidate?: boolean;
+}
+
+export interface LessonSummary extends GenericInterface {
+  id: string;
+  subject: string;
+  title?: string;
+  date: Date;
+  teachers: string[];
+  hasHomework: boolean;
 }
 
 export interface CourseResource {

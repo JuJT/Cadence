@@ -1,8 +1,11 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useRootNavigationState, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef } from "react";
 
+import { CADENZA_RELEASE_KEY } from "@/constants/Cadenza";
 import { getCadenzaPreviewRoute } from "@/modules/cadenza-study";
+import { studyTimerHref } from "@/hooks/useStudyLaunch";
 import { createMockProfile } from "@/services/mock/account";
 import { useSettingsStore } from "@/stores/settings";
 import { addPastStudy, initializeStudy, startStudy, useStudyStore } from "@/stores/study";
@@ -25,7 +28,7 @@ async function preparePreview() {
     welcomeModalSeen: true,
     calendarViewMode: "week",
   });
-  await profile;
+  await Promise.all([profile, AsyncStorage.setItem(CADENZA_RELEASE_KEY, "1")]);
 
   if (screen === "study") {
     await initializeStudy();
@@ -40,7 +43,7 @@ async function preparePreview() {
     }
   }
 
-  router.replace(routes[screen]);
+  router.replace(screen === "study" ? studyTimerHref() : routes[screen]);
   await SplashScreen.hideAsync();
   console.info(`Cadenza simulator preview: ${screen}`);
 }

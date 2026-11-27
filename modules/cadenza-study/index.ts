@@ -12,12 +12,25 @@ export interface StudySurfaceSnapshot {
   } | null;
   todaySeconds: number;
   weekSeconds: number;
+  todayRevisionSeconds?: number;
+  todayMeasuredCourseSeconds?: number;
+  todayScheduledCourseSeconds?: number;
+  weekRevisionSeconds?: number;
+  weekMeasuredCourseSeconds?: number;
+  weekScheduledCourseSeconds?: number;
   sessionCount: number;
   topSubject?: string;
-  weekDays?: { date: number; courseSeconds: number; revisionSeconds: number }[];
+  weekDays?: {
+    date: number;
+    courseSeconds: number;
+    revisionSeconds: number;
+    measuredCourseSeconds?: number;
+    scheduledCourseSeconds?: number;
+  }[];
 }
 
 interface CadenzaStudyNative {
+  importTransitPass(): Promise<boolean>;
   previewRoute(): Promise<string | null>;
   readLegacyStudyState(): Promise<string | null>;
   readLegacyNotificationPreference(): Promise<boolean | null>;
@@ -27,6 +40,11 @@ interface CadenzaStudyNative {
 }
 
 const native = requireOptionalNativeModule<CadenzaStudyNative>("CadenzaStudy");
+
+export async function importTransitPass() {
+  if (!native) throw new Error("Cartes est indisponible.");
+  return await native.importTransitPass();
+}
 
 export async function getCadenzaPreviewRoute() {
   return native ? native.previewRoute() : null;

@@ -1,39 +1,30 @@
-import { useRoute, useTheme } from "expo-router/react-navigation";
-import { router, useNavigation } from "expo-router";
-import * as Device from "expo-device"
+import { useTheme } from "expo-router/react-navigation";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   AccountKind,
   createSessionHandle,
-  DoubleAuthMode,
-  finishLoginManually,
   loginToken,
-  RefreshInformation,
   SecurityError,
-  securitySave,
-  securitySource,
-  SessionHandle,
 } from "@blockshub/pawnote-lts";
-import React, { createRef, RefObject, useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, KeyboardAvoidingView, Modal } from "react-native";
+import { Alert, KeyboardAvoidingView } from "react-native";
 import Reanimated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { formatSchoolName } from '@/utils/format/formatSchoolName';
 import WebView from "react-native-webview";
 import { WebViewErrorEvent, WebViewMessage, WebViewNavigationEvent } from "react-native-webview/lib/WebViewTypes";
 
-import { useAccountStore } from "@/stores/account";
-import { Services } from "@/stores/account/types";
 import ActivityIndicator from "@/ui/components/ActivityIndicator";
 import Stack from "@/ui/components/Stack";
 import Divider from "@/ui/new/Divider";
 import Typography from "@/ui/new/Typography";
-import { URLToBase64 } from "@/utils/attachments/helper";
+import { normalizePronoteAddress } from "@/utils/pronote/address";
+import { setPendingPronoteChallenge } from "@/utils/pronote/challenge";
+import { storePronoteLogin } from "@/utils/pronote/sign-in";
 import { customFetcher } from "@/utils/pronote/fetcher";
-import { GetIdentityFromPronoteUsername } from "@/utils/pronote/name";
 import uuid from "@/utils/uuid/uuid";
 
 import OnboardingWebView from "../../components/OnboardingWebView";
-import { Pronote2FAModal } from "@/components/onboarding/Pronote2FAModal";
 import Button from "@/ui/new/Button";
 import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
 
@@ -41,15 +32,15 @@ export default function PronoteENTLogin() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { params } = useRoute();
-  const { url, school, relinkAccountId, relinkServiceId, relinkDeviceUUID } = (params ?? {}) as {
-    url: string;
-    school?: { name?: string };
+  const { url: givenAddress, schoolName, relinkAccountId, relinkServiceId, relinkDeviceUUID } = useLocalSearchParams<{
+    url?: string;
+    schoolName?: string;
     relinkAccountId?: string;
     relinkServiceId?: string;
     relinkDeviceUUID?: string;
-  };
-  const baseURL = url.split("/pronote")[0];
+  }>();
+  const url = normalizePronoteAddress(givenAddress ?? "");
+  const mobileURL = url ? url + "/mobile.eleve.html" : "";
 
   // UI Logic
   const [browserVisible, setBrowserVisible] = React.useState(false);
@@ -74,20 +65,20 @@ export default function PronoteENTLogin() {
     return () => clearTimeout(timeout);
   }, [browserVisible]);
 
-  const webViewRef: RefObject<WebView<{}> | null> = createRef<WebView>();
+  const webViewRef = useRef<WebView>(null);
 
   // Login logic
   const infoMobileURL = url + "/InfoMobileApp.json?id=0D264427-EEFC-4810-A9E9-346942A862A4";
 
-  const [deviceUUID] = useState(() => relinkDeviceUUID || uuid());
-  const [received, setReceived] = useState<boolean>(false);
-  const deviceName: string = Device.deviceName ?? "Pronote" 
+  const [deviceUUID] = useState(() => relinkDeviceUUID && /^[a-z0-9-]{16,64}$/i.test(relinkDeviceUUID) ? relinkDeviceUUID : uuid());
+  const received = useRef(false);
+  const alive = useRef(true);
+  const hasShownConnectionError = useRef(false);
 
-  const [challengeModalVisible, setChallengeModalVisible] = useState<boolean>(false);
-  const [doubleAuthError, setDoubleAuthError] = useState<SecurityError | null>(null);
-  const [doubleAuthSession, setDoubleAuthSession] = useState<SessionHandle | null>(null);
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [hasShownConnectionErrorAlert, setHasShownConnectionErrorAlert] = useState(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
 
   const PRONOTE_COOKIE_EXPIRED = new Date(0).toUTCString();
   const PRONOTE_COOKIE_VALIDATION_EXPIRES = new Date(
@@ -131,10 +122,10 @@ export default function PronoteENTLogin() {
             document.cookie = "ielang=1036; expires=${PRONOTE_COOKIE_LANGUAGE_EXPIRES}";
           }
 
-          window.location.assign("${url}/mobile.eleve.html?fd=1");
+          window.location.assign(${JSON.stringify(mobileURL + "?fd=1")});
         }
-        catch (error) {
-
+        catch {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: "pronote.connectionError" }));
         }
       })();
     `.trim();
@@ -196,182 +187,90 @@ export default function PronoteENTLogin() {
     })();
     `.trim();
 
+  function onMobilePage(address: string) {
+    try {
+      const page = new URL(address);
+      return page.origin + page.pathname === mobileURL;
+    } catch {
+      return false;
+    }
+  }
+
+  function showConnectionError() {
+    setBrowserVisible(true);
+    if (hasShownConnectionError.current) return;
+    hasShownConnectionError.current = true;
+    const fallback = url && {
+      text: "Identifiants PRONOTE",
+      onPress: () => router.replace({
+        pathname: "/(onboarding)/services/pronote/credentials",
+        params: { url, relinkAccountId, relinkServiceId, relinkDeviceUUID },
+      }),
+    };
+    Alert.alert(
+      "Portail PRONOTE indisponible",
+      "Ce portail n’a pas transmis de connexion PRONOTE Mobile. Essayez les identifiants PRONOTE ou le QR code de l’espace Élèves.",
+      fallback ? [fallback, { text: "Fermer", style: "cancel" }] : undefined,
+    );
+  }
+
   const onWebviewMessage = async ({ nativeEvent }: { nativeEvent: WebViewMessage }) => {
-    let message: { type?: string; data?: any };
+    if (!url || received.current) return;
+    const isMobile = onMobilePage(nativeEvent.url);
+    if (!isMobile && nativeEvent.url !== infoMobileURL) return;
+    let message: { type?: string; data?: { status?: unknown; login?: unknown; mdp?: unknown } };
     try {
       message = JSON.parse(nativeEvent.data);
     } catch {
       return;
     }
-
     if (message.type === "pronote.connectionError") {
-      setBrowserVisible(true);
-      if (!hasShownConnectionErrorAlert) {
-        setHasShownConnectionErrorAlert(true);
-        Alert.alert("Connexion impossible", "La connexion à Pronote est impossible. Cele vient probablement de votre établissement ou d'une erreur de configuration.");
-      }
+      showConnectionError();
       return;
     }
-
-    if (received) { return; }
-
-    if (message.type === "pronote.loginState") {
-
-      if (!message.data) {
-        console.warn("No login data in message");
+    if (!isMobile || message.type !== "pronote.loginState" || message.data?.status !== 0 ||
+        typeof message.data.login !== "string" || typeof message.data.mdp !== "string" ||
+        !message.data.login || !message.data.mdp) return;
+    received.current = true;
+    const session = createSessionHandle(customFetcher);
+    try {
+      const refresh = await loginToken(session, {
+        url, kind: AccountKind.STUDENT, username: message.data.login, token: message.data.mdp, deviceUUID,
+      });
+      if (!alive.current) return;
+      storePronoteLogin(session, refresh, deviceUUID,
+        relinkAccountId && relinkServiceId ? { accountId: relinkAccountId, serviceId: relinkServiceId } : undefined);
+      router.dismissTo("/");
+    } catch (error) {
+      if (!alive.current) return;
+      if (error instanceof SecurityError) {
+        setPendingPronoteChallenge({ session, error, deviceUUID, relinkAccountId, relinkServiceId });
+        router.push("/(onboarding)/services/pronote/challenge");
         return;
       }
-      if (message.data.status !== 0) {
-        console.warn("Login status is not valid:", message.data.status);
-        return;
-      }
-      setReceived(true);
-
-      console.log("Creating session handle...");
-      const session = createSessionHandle(customFetcher);
-
-      let refresh: RefreshInformation | undefined;
-
-      try {
-        refresh = await loginToken(
-          session,
-          {
-            url: url,
-            kind: AccountKind.STUDENT,
-            username: message.data.login,
-            token: message.data.mdp,
-            deviceUUID,
-          },
-        );
-      } catch (error) {
-        if (error instanceof SecurityError && !error.handle.shouldCustomPassword && !error.handle.shouldCustomDoubleAuth) {
-          if (error.handle.shouldEnterSource && !error.handle.shouldEnterPIN) {
-            const mode: DoubleAuthMode = DoubleAuthMode.MGDA_NotificationSeulement;
-            const source = deviceName.length > 30 ? "Pronote" : deviceName;
-            await securitySource(session, source);
-            await securitySave(session, error.handle, { mode, deviceName: source });
-
-            const context = error.handle.context;
-            refresh = await finishLoginManually(
-              session,
-              context.authentication,
-              context.identity,
-              context.initialUsername,
-            );
-          } else {
-            setDoubleAuthError(error);
-            setDoubleAuthSession(session);
-            setDeviceId(deviceUUID);
-            setChallengeModalVisible(true);
-            return;
-          }
-        } else {
-          console.error("La session PRONOTE n’a pas pu être ouverte.");
-          setReceived(false);
-          Alert.alert("Erreur", "Une erreur est survenue lors de la connexion à Pronote. Veuillez réessayer.");
-          return;
-        }
-      }
-
-      if (!refresh) {
-        console.error("No refresh information after login");
-        setReceived(false);
-        Alert.alert("Erreur", "Une erreur est survenue lors de la connexion à Pronote. Veuillez réessayer.");
-        return;
-      }
-
-      try {
-        console.log("Login successful, adding account to store...");
-        const schoolName = session.user.resources[0].establishmentName;
-        const className = session.user.resources[0].className;
-        const { firstName, lastName } = GetIdentityFromPronoteUsername(session.user.name)
-
-        let pp = "";
-        if (session.user.resources[0].profilePicture?.url) {
-          pp = await URLToBase64(session.user.resources[0].profilePicture?.url)
-        }
-
-        const auth = {
-          accessToken: refresh.token,
-          refreshToken: refresh.token,
-          additionals: {
-            ...refresh,
-            instanceURL: refresh.url,
-            deviceUUID,
-          },
-        };
-
-        const store = useAccountStore.getState();
-
-        if (relinkServiceId && relinkAccountId) {
-          store.updateServiceAuthData(relinkServiceId, auth);
-          store.setLastUsedAccount(relinkAccountId);
-        } else {
-          store.addAccount({
-            id: deviceUUID,
-            firstName,
-            lastName,
-            schoolName,
-            className,
-            customisation: {
-              profilePicture: pp,
-              subjects: {}
-            },
-            services: [{
-              id: deviceUUID,
-              auth,
-              serviceId: Services.PRONOTE,
-              createdAt: (new Date()).toISOString(),
-              updatedAt: (new Date()).toISOString(),
-            }],
-            createdAt: (new Date()).toISOString(),
-            updatedAt: (new Date()).toISOString(),
-          });
-          store.setLastUsedAccount(deviceUUID);
-        }
-
-        return router.dismissTo("/");
-      } catch (error) {
-        console.error("Le compte PRONOTE n’a pas pu être enregistré.");
-        setReceived(false);
-        Alert.alert("Erreur", "Une erreur est survenue lors de la création du compte. Veuillez réessayer.");
-        return;
-      }
+      received.current = false;
+      showConnectionError();
     }
   };
 
-  const onWebviewLoadEnd = (e: WebViewNavigationEvent | WebViewErrorEvent) => {
-    const { url } = e.nativeEvent;
-
-    if (url === infoMobileURL) {
-      setBrowserVisible(false);
-    } else {
-      setBrowserVisible(true);
-    }
-
-    webViewRef.current?.injectJavaScript(
-      INJECT_PRONOTE_INITIAL_LOGIN_HOOK,
-    );
-
-    if (url.startsWith(baseURL)) {
-      webViewRef.current?.injectJavaScript(
-        INJECT_PRONOTE_CONNECTION_ERROR_WATCHER,
-      );
-    }
-
-    if (url === infoMobileURL) {
-      console.log("Injecting JSON script for InfoMobileURL");
+  const onWebviewLoadEnd = (event: WebViewNavigationEvent | WebViewErrorEvent) => {
+    const address = event.nativeEvent.url;
+    setBrowserVisible(address !== infoMobileURL);
+    if (address === infoMobileURL) {
       webViewRef.current?.injectJavaScript(INJECT_PRONOTE_JSON);
-    } else if (url.includes("mobile.eleve.html")) {
-      console.log("Injecting login state scripts for student account");
-      webViewRef.current?.injectJavaScript(
-        INJECT_PRONOTE_INITIAL_LOGIN_HOOK,
-      );
-      webViewRef.current?.injectJavaScript(
-        INJECT_PRONOTE_CURRENT_LOGIN_STATE,
-      );
+    } else if (onMobilePage(address)) {
+      webViewRef.current?.injectJavaScript(INJECT_PRONOTE_INITIAL_LOGIN_HOOK);
+      webViewRef.current?.injectJavaScript(INJECT_PRONOTE_CONNECTION_ERROR_WATCHER);
+      webViewRef.current?.injectJavaScript(INJECT_PRONOTE_CURRENT_LOGIN_STATE);
     }
   };
+
+  if (!url) {
+    return <SafeHorizontalView base={20} style={{ flex: 1, justifyContent: "center", gap: 16 }}>
+      <Typography variant="h4">L’adresse du portail PRONOTE doit commencer par https://.</Typography>
+      <Button label="Retour" onPress={() => router.back()} />
+    </SafeHorizontalView>;
+  }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={20}>
@@ -393,7 +292,7 @@ export default function PronoteENTLogin() {
             <Stack vAlign="center" hAlign="center" width={"100%"} gap={3} padding={[0, 20]}>
               <ActivityIndicator />
               <Divider height={12} ghost />
-              <Typography align="center" variant="h4">{t("ONBOARDING_LOGIN_TO")} {school && school.name ? formatSchoolName(school.name) : t("ONBOARDING_YOUR_SCHOOL")}</Typography>
+              <Typography align="center" variant="h4">{t("ONBOARDING_LOGIN_TO")} {schoolName ? formatSchoolName(schoolName) : t("ONBOARDING_YOUR_SCHOOL")}</Typography>
               <Typography align="center" variant="body" color="textSecondary">{t("ONBOARDING_SCHOOLS_SEARCHING_HINT")}</Typography>
 
               {hasLoadingBeenTooLong && (
@@ -414,8 +313,10 @@ export default function PronoteENTLogin() {
         injectedJavaScriptBeforeContentLoaded={INJECT_PRONOTE_HOOK_DEFINITION}
         startInLoadingState
         onOpenWindow={(evt) => {
+          const target = evt.nativeEvent.targetUrl;
+          if (!target.startsWith("https://")) return;
           webViewRef.current?.stopLoading();
-          webViewRef.current?.injectJavaScript(`window.location.assign("${evt.nativeEvent.targetUrl}");`); // Yes, this is tricky, but it's in official documentation
+          webViewRef.current?.injectJavaScript("window.location.assign(" + JSON.stringify(target) + ");");
         }}
         injectedJavaScript={`
         var meta = document.createElement('meta');
@@ -425,14 +326,6 @@ export default function PronoteENTLogin() {
         `}
       />
 
-      <Modal
-        visible={challengeModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setChallengeModalVisible(false)}
-      >
-        <Pronote2FAModal doubleAuthSession={doubleAuthSession} doubleAuthError={doubleAuthError} setChallengeModalVisible={setChallengeModalVisible} deviceId={deviceId} relinkAccountId={relinkAccountId} relinkServiceId={relinkServiceId} />
-      </Modal>
     </KeyboardAvoidingView>
   )
 }

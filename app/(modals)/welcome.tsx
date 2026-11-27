@@ -18,6 +18,7 @@ import { Stack as ExpoStack } from 'expo-router';
 import { AppColors, Colors } from "@/utils/colors";
 import { shouldOfferTimetableAlerts } from "@/services/cadenza/timetable-alerts";
 import { FadeInRight, FadeOutLeft } from "react-native-reanimated";
+import { useTravelStore } from "@/stores/travel";
 
 const WelcomeModal: React.FC = () => {
   const { t } = useTranslation();
@@ -41,6 +42,10 @@ const WelcomeModal: React.FC = () => {
   }, [account, router]);
 
   const finishWelcome = async () => {
+    if (account && !useTravelStore.getState().profiles[account.id]?.configured) {
+      router.replace({ pathname: "/(modals)/travel", params: { onboarding: "1" } });
+      return;
+    }
     if (await shouldOfferTimetableAlerts().catch(() => false)) {
       router.replace({ pathname: "/(modals)/cadenza-alerts", params: { onboarding: "1" } });
     } else {

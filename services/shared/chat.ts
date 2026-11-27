@@ -7,6 +7,7 @@ import { GenericInterface } from "@/services/shared/types";
 export interface Chat extends GenericInterface {
   id: string;
   subject: string;
+  provider?: "pronote";
   recipient?: string;
   creator?: string;
   date: Date;

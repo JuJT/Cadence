@@ -34,6 +34,13 @@ def verify(app, bundle, version, build, report):
     if build:
         check(main["displayName"] == "Cadenza", "Nom d’application Cadenza absent.")
         check(main["liveActivities"], "Live Activities désactivées dans l’IPA.")
+        info = plistlib.loads((app / "Info.plist").read_bytes())
+        launch_storyboard = info.get("UILaunchStoryboardName")
+        check(launch_storyboard == "SplashScreen", "Écran de lancement Expo absent.")
+        check(any(app.rglob(f"{launch_storyboard}.storyboardc")), "Écran de lancement compilé absent.")
+        check("MetalHUDEnabled" not in info and "MTL_HUD_ENABLED" not in info.get("LSEnvironment", {}),
+              "HUD Metal forcé par l’application.")
+        main["launchStoryboard"] = launch_storyboard
     check((app / "main.jsbundle").is_file(), "Bundle JavaScript Release absent de l’IPA.")
     plugins = list((app / "PlugIns").glob("*.appex"))
     check(len(plugins) == 1, f"Une extension Widgets était attendue, {len(plugins)} trouvée(s).")

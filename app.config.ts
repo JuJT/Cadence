@@ -19,7 +19,7 @@ export default {
     userInterfaceStyle: "automatic",
     ios: {
       bundleIdentifier: CADENZA_BUNDLE_IDENTIFIER,
-      buildNumber: "10",
+      buildNumber: "11",
       icon: "./assets/app.icon",
       minimumOSVersion: "17.6",
       deploymentTarget: "17.6",
@@ -126,16 +126,18 @@ export default {
       [
         "expo-splash-screen",
         {
-          backgroundColor: "#FFFFFF",
-          image: "./assets/images/icon.png",
-          imageWidth: 124,
+          backgroundColor: "#F4F8FF",
+          image: "./assets/images/splash-mark.png",
+          imageWidth: 136,
+          dark: { backgroundColor: "#06172F", image: "./assets/images/splash-mark.png" },
         },
       ],
       [
         "expo-image-picker",
         {
           photosPermission:
-            "Cadenza utilise tes photos pour personnaliser ton profil.",
+            "Cadenza accède à tes photos lorsque tu choisis une image de profil ou une carte de transport.",
+          cameraPermission: "Cadenza utilise l’appareil photo quand tu choisis de scanner une carte de transport ou un QR PRONOTE.",
         },
       ],
       "expo-web-browser",
@@ -144,7 +146,7 @@ export default {
         "expo-location",
         {
           locationWhenInUsePermission:
-            "Cadenza utilise ta position pour trouver les établissements proches quand tu choisis Autour de moi.",
+            "Cadenza utilise ta position pour trouver des établissements ou des arrêts quand tu choisis Autour de moi.",
         },
       ],
       [

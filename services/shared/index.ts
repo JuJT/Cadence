@@ -1,4 +1,5 @@
 import * as Network from "expo-network";
+import { addDays, startOfWeek } from "date-fns";
 
 import {
   addAttendanceToDatabase,
@@ -23,8 +24,10 @@ import {
   getRecipientsFromCache,
 } from "@/database/useChat";
 import {
+  cacheGradePeriods,
   cachePeriodGrades,
   addPeriodsToDatabase,
+  getCachedGradePeriods,
   getCachedPeriodGrades,
   getPeriodsFromCache,
 } from "@/database/useGrades";
@@ -36,21 +39,25 @@ import { addKidToDatabase, getKidsFromCache } from "@/database/useKids";
 import { addNewsToDatabase, getNewsFromCache } from "@/database/useNews";
 import {
   addCourseDayToDatabase,
+  getCourseRouteId,
   getCoursesFromCache,
 } from "@/database/useTimetable";
+import { observePronoteWeek } from "@/services/cadenza/timetable-alerts";
 import { Attendance } from "@/services/shared/attendance";
 import {
   Booking,
   BookingDay,
+  CanteenKind,
   CanteenHistoryItem,
   CanteenMenu,
   QRCode,
 } from "@/services/shared/canteen";
 import { Chat, Message, Recipient } from "@/services/shared/chat";
-import { Period, PeriodGrades } from "@/services/shared/grade";
+import { gradePeriodKey, Period, PeriodGrades } from "@/services/shared/grade";
 import { Homework } from "@/services/shared/homework";
-import { News } from "@/services/shared/news";
-import { Course, CourseDay, CourseResource } from "@/services/shared/timetable";
+import { News, SurveyAnswer } from "@/services/shared/news";
+import { Course, CourseDay, CourseResource, CourseStatus, CourseType, LessonSummary } from "@/services/shared/timetable";
+import { getICalEventsForWeek } from "@/services/local/ical";
 import {
   Capabilities,
   FetchOptions,
@@ -244,7 +251,7 @@ export class AccountManager {
       async client => (client.getNews ? await client.getNews() : []),
       {
         multiple: true,
-        fallback: async () => getNewsFromCache(),
+        fallback: async () => (await getNewsFromCache()).filter(item => this.account.services.some(service => service.id === item.createdByAccount)),
         saveToCache: async (data: News[]) => {
           await addNewsToDatabase(data);
         },
@@ -252,38 +259,58 @@ export class AccountManager {
     );
   }
 
+  async getNewsDetail(news: News): Promise<News> {
+    return this.fetchData(Capabilities.NEWS, async client => client.getNewsDetail ? client.getNewsDetail(news) : news, {
+      clientId: news.createdByAccount,
+    });
+  }
+
+  async submitNewsSurvey(news: News, answers: SurveyAnswer[]): Promise<News> {
+    return this.fetchData(Capabilities.NEWS, async client => {
+      if (!client.submitNewsSurvey) throw new Error("Ce sondage doit être rempli dans PRONOTE.");
+      return client.submitNewsSurvey(news, answers);
+    }, { clientId: news.createdByAccount });
+  }
+
   async getGradesForPeriod(
     period: Period,
     clientId: string,
     kid?: Kid
   ): Promise<PeriodGrades> {
+    const key = gradePeriodKey(period, kid?.id);
     return await this.fetchData(
       Capabilities.GRADES,
       async client =>
         client.getGradesForPeriod
           ? await client.getGradesForPeriod(period, kid)
-          : error("Bad Implementation"),
+          : Promise.reject(new Error("Service de notes indisponible.")),
       {
         multiple: false,
         clientId,
-        fallback: async () => getCachedPeriodGrades(`${clientId}:${kid?.id ?? ""}:${period.name}`),
+        fallback: async () => {
+          const cached = getCachedPeriodGrades(key);
+          if (!cached) throw new Error("Les notes de cette période sont indisponibles hors connexion.");
+          return cached;
+        },
         saveToCache: async (data: PeriodGrades) => {
-          cachePeriodGrades(data, `${clientId}:${kid?.id ?? ""}:${period.name}`);
+          cachePeriodGrades(data, key);
         },
       }
     );
   }
 
   async getGradesPeriods(): Promise<Period[]> {
+    const accountId = this.account.id;
+    const serviceIds = new Set(this.account.services.map(service => service.id));
     return await this.fetchData(
       Capabilities.GRADES,
       async client =>
         client.getGradesPeriods ? await client.getGradesPeriods() : [],
       {
         multiple: true,
-        fallback: async () => getPeriodsFromCache(),
+        fallback: async () => getCachedGradePeriods(accountId).filter(period => serviceIds.has(period.createdByAccount)),
         saveToCache: async (data: Period[]) => {
-          await addPeriodsToDatabase(data);
+          cacheGradePeriods(accountId, data);
         },
       }
     );
@@ -343,13 +370,14 @@ export class AccountManager {
     );
   }
 
-  async getChats(): Promise<Chat[]> {
+  async getChats(clientId?: string): Promise<Chat[]> {
     return await this.fetchData(
       Capabilities.CHAT_READ,
       async client => (client.getChats ? await client.getChats() : []),
       {
         multiple: true,
-        fallback: async () => getChatsFromCache(),
+        clientId,
+        fallback: async () => (await getChatsFromCache()).filter(chat => clientId ? chat.createdByAccount === clientId : this.account.services.some(service => service.id === chat.createdByAccount)),
         saveToCache: async (data: Chat[]) => {
           await addChatsToDatabase(data);
         },
@@ -389,32 +417,75 @@ export class AccountManager {
     );
   }
 
-  async getRecipientsAvailableForNewChat(): Promise<Recipient[]> {
+  async canReplyToChat(chat: Chat): Promise<boolean> {
+    if (!this.clients[chat.createdByAccount]?.capabilities.includes(Capabilities.CHAT_REPLY)) return false;
+    return this.fetchData(Capabilities.CHAT_REPLY, async client =>
+      client.canReplyToChat ? await client.canReplyToChat(chat) : Boolean(client.sendMessageInChat), {
+      clientId: chat.createdByAccount,
+    });
+  }
+
+  async getRecipientsAvailableForNewChat(clientId?: string): Promise<Recipient[]> {
     return await this.fetchData(
-      Capabilities.CHAT_READ,
+      Capabilities.CHAT_CREATE,
       async client =>
         client.getRecipientsAvailableForNewChat
           ? await client.getRecipientsAvailableForNewChat()
           : [],
-      { multiple: true }
+      { multiple: true, clientId }
     );
   }
 
   async getWeeklyTimetable(weekNumber: number, date: Date): Promise<CourseDay[]> {
+    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+    const weekEnd = addDays(weekStart, 7);
+    const confirmed = new Map<SchoolServicePlugin, { serviceId: string; days: CourseDay[] }>();
     return await this.fetchData(
       Capabilities.TIMETABLE,
-      async client =>
-        client.getWeeklyTimetable
-          ? await client.getWeeklyTimetable(weekNumber, date)
-          : [],
+      async client => {
+        if (!client.getWeeklyTimetable) return [];
+        const days = await client.getWeeklyTimetable(weekNumber, date);
+        const serviceId = Object.keys(this.clients).find(key => this.clients[key] === client);
+        if (serviceId) confirmed.set(client, { serviceId, days });
+        return days;
+      },
       {
         multiple: true,
         fallback: async () => getCoursesFromCache([weekNumber], date.getFullYear()),
         saveToCache: async (data: CourseDay[]) => {
-          addCourseDayToDatabase(data);
+          if (!confirmed.size) return;
+          await addCourseDayToDatabase(data, { weekStart, serviceIds: [...confirmed.values()].map(value => value.serviceId) });
+          for (const [client, snapshot] of confirmed) {
+            if (client.service === Services.PRONOTE) observePronoteWeek(snapshot.serviceId, date, snapshot.days);
+          }
+          if (this.getAvailableClients(Capabilities.TIMETABLE).some(client => !confirmed.has(client))) return;
+          const accountId = this.account.id;
+          try {
+            const imported = await getICalEventsForWeek(weekStart, weekEnd, true);
+            const lessons = [...data.flatMap(day => day.courses), ...imported].filter(course =>
+              (course.type === CourseType.LESSON || course.studyCandidate) && course.from >= weekStart && course.from < weekEnd);
+            const { syncScheduledStudyWeek } = await import("@/stores/study");
+            await syncScheduledStudyWeek(accountId, weekStart.getTime(), lessons.map(course => ({
+              id: getCourseRouteId(course), subjectName: course.subject,
+              start: course.from.getTime(), end: course.to.getTime(), canceled: course.status === CourseStatus.CANCELED,
+              source: course.createdByAccount.startsWith("ical_") ? "ical" : "school",
+            })));
+          } catch (cause) {
+            warn(`Le suivi des cours n’a pas pu être mis à jour : ${String(cause)}`);
+          }
         },
       }
     );
+  }
+
+  async getLessons(clientId: string): Promise<LessonSummary[]> {
+    return this.fetchData(Capabilities.COURSE_RESOURCES, async client =>
+      client.getLessons ? await client.getLessons() : [], { clientId, multiple: true });
+  }
+
+  async getLesson(lesson: LessonSummary): Promise<CourseResource[]> {
+    return this.fetchData(Capabilities.COURSE_RESOURCES, async client =>
+      client.getLesson ? await client.getLesson(lesson.id) : [], { clientId: lesson.createdByAccount, multiple: true });
   }
 
   async getCourseResources(course: Course): Promise<CourseResource[]> {

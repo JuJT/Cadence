@@ -20,3 +20,15 @@ test("reports future additions and removals and ignores elapsed periods", () => 
   expect(changeAlerts([lesson("SVT"), lesson("Passé", { start: 20, end: 40 })], [lesson("Histoire")], 100)
     .map(change => change.text)).toEqual(["Histoire · cours ajouté", "SVT · cours retiré"]);
 });
+
+test("keeps the same visible lesson when PRONOTE changes the identifier and formatting", () => {
+  expect(changeAlerts([lesson("old", { subject: "HISTOIRE-GEOGRAPHIE", teacher: "MME MARTIN" })],
+    [lesson("new", { subject: "Histoire-géographie", teacher: "Mme. Martin" })], 100)).toEqual([]);
+});
+
+test("pairs a uniquely identified move into one dated change", () => {
+  expect(changeAlerts([lesson("old", { subject: "Français" })],
+    [lesson("new", { subject: "Français", start: 240, end: 340 })], 100)).toEqual([
+    { text: "Français · horaire modifié", time: 240, before: 200, lessonId: "new" },
+  ]);
+});

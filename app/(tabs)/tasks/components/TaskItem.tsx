@@ -1,5 +1,4 @@
 import React, { memo, useMemo } from 'react';
-import { StyleSheet } from 'react-native';
 import Reanimated from 'react-native-reanimated';
 
 import { Homework } from "@/services/shared/homework";
@@ -55,10 +54,10 @@ const TaskItem = memo(
             hasAttachments={item.attachments.length > 0}
             isCustom={item.custom}
             magic={magic}
+            studyAction={!item.isDone ? <StudyTaskAction homework={item} /> : undefined}
             onToggle={() => setAsDone(item, !item.isDone)}
           />
         </Link>
-        {!item.isDone && <StudyTaskAction homework={item} />}
       </Reanimated.View>
     );
   }

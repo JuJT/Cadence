@@ -3,7 +3,6 @@ import { t } from 'i18next';
 import React from 'react';
 import { Platform, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from "expo-router/react-navigation";
 
 import { TipIds } from '@/constants/Tips';
 import Stack from '@/ui/components/Stack';
@@ -20,7 +19,7 @@ const HomeTopBar = ({ height = 56, loading }: { height?: number, loading?: boole
   return (
     <>
       {Platform.OS === "ios" && (
-        <View
+        <View pointerEvents="none"
           style={{
             position: "absolute",
             top: 0,
@@ -43,6 +42,7 @@ const HomeTopBar = ({ height = 56, loading }: { height?: number, loading?: boole
       )}
 
       <SafeAreaView
+        pointerEvents="box-none"
         edges={['left', 'right']}
         style={{
           height: height,
@@ -56,7 +56,7 @@ const HomeTopBar = ({ height = 56, loading }: { height?: number, loading?: boole
           alignItems: 'center',
         }}
       >
-        <View
+        <View pointerEvents="box-none"
           style={{
             width: "100%",
             maxWidth: 670,

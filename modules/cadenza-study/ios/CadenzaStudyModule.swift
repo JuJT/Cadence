@@ -8,6 +8,12 @@ public final class CadenzaStudyModule: Module {
     public func definition() -> ModuleDefinition {
         Name("CadenzaStudy")
 
+        AsyncFunction("importTransitPass") { (promise: Promise) in
+            Task { @MainActor in
+                CadenzaTransitWallet.shared.choosePass(from: self.appContext?.utilities?.currentViewController(), promise: promise)
+            }
+        }
+
         AsyncFunction("previewRoute") { () -> String? in
             #if targetEnvironment(simulator)
             let arguments = ProcessInfo.processInfo.arguments

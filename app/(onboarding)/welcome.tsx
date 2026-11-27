@@ -1,5 +1,5 @@
-import { type ParamListBase, useIsFocused, useTheme } from "expo-router/react-navigation";
-import { type NativeStackNavigationProp, useNavigation, useRouter } from "expo-router";
+import { useIsFocused, useTheme } from "expo-router/react-navigation";
+import { useRouter } from "expo-router";
 import * as WebBrowser from 'expo-web-browser';
 import React from "react";
 import { Image, StatusBar, View } from "react-native";
@@ -12,26 +12,17 @@ import Divider from "@/ui/new/Divider";
 import Typography from "@/ui/new/Typography";
 import SafeHorizontalView from "@/ui/components/SafeHorizontalView";
 import { LinearGradient } from "expo-linear-gradient";
-import * as SplashScreen from "expo-splash-screen";
 import { useTranslation } from "react-i18next";
 
 import { consumeSecurityLogoutNotice } from "@/stores/global/encryption";
 import { CADENZA_SOURCE } from "@/constants/Cadenza";
+import { hideAppSplash } from "@/hooks/useAppInitialization";
 
 export default function Welcome() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const router = useRouter();
-  const navigation = useNavigation();
   const { t } = useTranslation();
-
-  // Without an account, the splash stays up until the redirect from home ends.
-  React.useLayoutEffect(() => {
-    const onboardingNavigation = navigation.getParent<NativeStackNavigationProp<ParamListBase>>();
-    return onboardingNavigation?.addListener("transitionEnd", event => {
-      if (!event.data.closing) SplashScreen.hideAsync();
-    });
-  }, [navigation]);
 
   const openHelpWebPage = () => {
     WebBrowser.openBrowserAsync("https://docs.papillon.bzh/support", {
@@ -69,6 +60,7 @@ export default function Welcome() {
 
   return (
     <View
+      onLayout={hideAppSplash}
       style={{
         flex: 1,
         backgroundColor: "#06172F",

@@ -11,6 +11,6 @@ Pod::Spec.new do |spec|
   spec.swift_version = '5.9'
   spec.static_framework = true
   spec.source_files = '*.swift'
-  spec.frameworks = 'ActivityKit', 'WidgetKit'
+  spec.frameworks = 'ActivityKit', 'WidgetKit', 'PassKit'
   spec.dependency 'ExpoModulesCore'
 end

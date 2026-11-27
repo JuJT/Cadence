@@ -4,21 +4,20 @@ import "@/utils/i18n";
 
 import { Buffer } from 'buffer';
 import React, { useEffect } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
 
 import { AppProviders } from '@/components/AppProviders';
 import { RootNavigator } from '@/components/RootNavigator';
-import { useAppInitialization } from '@/hooks/useAppInitialization';
+import { hideAppSplash, useAppInitialization } from '@/hooks/useAppInitialization';
 import { useCadenzaPreview } from '@/hooks/useCadenzaPreview';
 import { useAccountStore } from '@/stores/account';
 import { useNetworkStore } from '@/stores/logs';
 import uuid from '@/utils/uuid/uuid';
 import { useCalendarWidgetFeed } from '@/utils/widgets/useCalendarWidgetFeed';
 import { usePapillonKitSettingsSync } from '@/utils/widgets/usePapillonKitSettingsSync';
-import { LogBox, View } from 'react-native';
+import { LogBox, useColorScheme, View } from 'react-native';
 
 // Polyfill Buffer
-global.Buffer = Buffer;
+Object.assign(globalThis, { Buffer });
 
 LogBox.ignoreLogs([
   "Require cycle:",
@@ -39,17 +38,25 @@ LogBox.ignoreLogs([
 // From onLayout, not an effect: hiding earlier shows a blank frame.
 const hideSplashIfSignedIn = () => {
   if (useAccountStore.getState().accounts.length > 0) {
-    SplashScreen.hideAsync();
+    hideAppSplash();
   }
 };
 
 export default function RootLayout() {
   const { fontsLoaded } = useAppInitialization();
+  const colorScheme = useColorScheme();
   useCadenzaPreview(fontsLoaded);
   useCalendarWidgetFeed();
   usePapillonKitSettingsSync();
 
   useEffect(() => {
+    if (!fontsLoaded) return;
+    const fallback = setTimeout(hideAppSplash, 1800);
+    return () => clearTimeout(fallback);
+  }, [fontsLoaded]);
+
+  useEffect(() => {
+    if (!__DEV__) return;
     const originalFetch = window.fetch;
 
     window.fetch = async (...args) => {
@@ -85,7 +92,10 @@ export default function RootLayout() {
 
   return (
     <AppProviders>
-      <View style={{ flex: 1 }} onLayout={hideSplashIfSignedIn}>
+      <View
+        style={{ flex: 1, backgroundColor: colorScheme === "dark" ? "#06172F" : "#F4F8FF" }}
+        onLayout={hideSplashIfSignedIn}
+      >
         <RootNavigator />
       </View>
     </AppProviders>

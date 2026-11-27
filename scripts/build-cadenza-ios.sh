@@ -5,7 +5,13 @@ shopt -s nullglob
 
 reports=dist/ios-reports
 mkdir -p "$reports"
+temporary="${RUNNER_TEMP:-$(mktemp -d)}"
+destination="${CADENZA_BUILD_DESTINATION:-both}"
+simulator_draft="${CADENZA_SIMULATOR_DRAFT:-}"
+version="$(node -p 'require("./package.json").version')"
+xcode_application_build=11
 xcodebuild -version | tee "$reports/xcode-version.txt"
+if [[ -z "$simulator_draft" ]]; then
 pod --version
 if [[ "${BOOTSTRAP:-false}" == true ]]; then
   printf '{"POSTHOG_API_KEY":"","POSTHOG_HOST":""}\n' > secrets.json
@@ -23,13 +29,16 @@ scheme="$(basename "${projects[0]}" .xcodeproj)"
 printf 'export NODE_BINARY=%q\n' "$(command -v node)" > ios/.xcode.env.local
 cp ios/Podfile.lock "$reports/Podfile.lock"
 
-temporary="${RUNNER_TEMP:-$(mktemp -d)}"
 settings=(
   -workspace "ios/$scheme.xcworkspace"
   -scheme "$scheme"
   -configuration Release
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM=
 )
+else
+  test "$destination" = simulator
+fi
+
 verify_react_framework() {
   xcrun nm -arch arm64 -gU "$1/Frameworks/React.framework/React" > "$reports/react-exports.log"
   if ! grep -Fq '_OBJC_CLASS_$_RCTStatusBarAppearance' "$reports/react-exports.log"; then
@@ -38,7 +47,6 @@ verify_react_framework() {
   fi
 }
 
-destination="${CADENZA_BUILD_DESTINATION:-both}"
 if [[ "$destination" != simulator ]]; then
 xcodebuild "${settings[@]}" -sdk iphoneos -destination 'generic/platform=iOS' \
   -derivedDataPath "$temporary/cadenza-device" build 2>&1 | tee "$reports/device-build.log"
@@ -54,13 +62,12 @@ if [[ "${BOOTSTRAP:-false}" == true ]]; then
   bundle=xyz.getpapillon.ios
   build=
 else
-  ipa=Cadenza-iPhone-0.8.0.ipa
+  ipa="Cadenza-iPhone-$version.ipa"
   bundle=com.cadence.study
-  build=10
+  build="$xcode_application_build"
 fi
-version="$(node -p 'require("./package.json").version')"
 if [[ -n "$build" ]]; then
-  test "$version" = "0.8.0"
+  test "$version" = "0.9.0"
   verify_react_framework "$app"
 fi
 python3 scripts/verify-cadenza-ios.py "$app" "$bundle" "$version" "$build" "$reports/bundle.json"
@@ -97,13 +104,46 @@ fi
 
 if [[ "$destination" == device || "${BOOTSTRAP:-false}" == true ]]; then exit 0; fi
 
-xcodebuild "${settings[@]}" -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
-  -derivedDataPath "$temporary/cadenza-simulator" build 2>&1 | tee "$reports/simulator-build.log"
-sim_apps=("$temporary"/cadenza-simulator/Build/Products/Release-iphonesimulator/*.app)
+simulator_sha="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+if [[ -n "$simulator_draft" ]]; then
+  previous_sha="$(gh release view "$simulator_draft" --repo "$GITHUB_REPOSITORY" \
+    --json isDraft,targetCommitish,body \
+    --jq 'select(.isDraft and (.body | contains("Résultat : success (simulator)"))) | .targetCommitish')"
+  if [[ ! "$previous_sha" =~ ^[0-9a-f]{40}$ ]]; then
+    printf 'Le brouillon du simulateur ne correspond pas à une compilation validée.\n' >&2
+    exit 1
+  fi
+  if [[ "$previous_sha" != "$simulator_sha" ]]; then
+    gh api "repos/$GITHUB_REPOSITORY/compare/$previous_sha...$simulator_sha" | python3 -c '
+import json, sys
+
+comparison = json.load(sys.stdin)
+allowed = {".github/workflows/cadenza-ios.yml", "scripts/build-cadenza-ios.sh"}
+if comparison["status"] != "ahead" or any(
+    entry["filename"] not in allowed or entry.get("previous_filename", entry["filename"]) not in allowed
+    for entry in comparison["files"]
+):
+    sys.exit("Le brouillon contient un autre code applicatif.")
+'
+    simulator_sha="$previous_sha"
+  fi
+  reuse_dir="$(mktemp -d "$temporary/cadenza-simulator-reuse.XXXXXX")"
+  gh release download "$simulator_draft" --repo "$GITHUB_REPOSITORY" --dir "$reuse_dir" \
+    --pattern Cadenza-simulator.app.zip --pattern Cadenza-iOS-verification.zip
+  unzip -p "$reuse_dir/Cadenza-iOS-verification.zip" ios-reports/simulator-build.log > "$reports/simulator-build.log"
+  ditto -x -k "$reuse_dir/Cadenza-simulator.app.zip" "$reuse_dir/app"
+  sim_apps=("$reuse_dir/app/"*.app)
+else
+  xcodebuild "${settings[@]}" -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+    ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+    -derivedDataPath "$temporary/cadenza-simulator" build 2>&1 | tee "$reports/simulator-build.log"
+  sim_apps=("$temporary"/cadenza-simulator/Build/Products/Release-iphonesimulator/*.app)
+fi
+printf '%s\n' "$simulator_sha" > "$reports/simulator-source.txt"
 test "${#sim_apps[@]}" -eq 1
 verify_react_framework "${sim_apps[0]}"
-ditto -c -k --keepParent "${sim_apps[0]}" dist/Cadenza-simulator.app.zip
+python3 scripts/verify-cadenza-ios.py "${sim_apps[0]}" com.cadence.study "$version" "$xcode_application_build" "$reports/simulator-bundle.json"
+if [[ -z "$simulator_draft" ]]; then ditto -c -k --keepParent "${sim_apps[0]}" dist/Cadenza-simulator.app.zip; fi
 /usr/bin/codesign -d --entitlements :- "${sim_apps[0]}" > "$reports/simulator-entitlements.plist" 2> "$reports/simulator-signature.log" || true
 device_config="$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
@@ -122,6 +162,9 @@ if grep -Fq 'Data Migration Failed' "$reports/simulator-boot.log"; then
 fi
 xcrun simctl install "$device" "${sim_apps[0]}"
 bundle=com.cadence.study
+xcrun simctl privacy "$device" grant location "$bundle"
+xcrun simctl spawn "$device" defaults write NSGlobalDomain AppleLanguages -array fr || true
+xcrun simctl spawn "$device" defaults write NSGlobalDomain AppleLocale -string fr_FR || true
 xcrun simctl status_bar "$device" override --time '9:41' --batteryState charged --batteryLevel 100
 
 collect_launch_logs() {
@@ -159,6 +202,8 @@ preview cadenza-accueil.png --cadenza-preview home
 preview cadenza-cours.png --cadenza-preview courses
 preview cadenza-notes.png --cadenza-preview grades
 preview cadenza-etude.png --cadenza-preview study
+sleep 7
+xcrun simctl io "$device" screenshot "$reports/check-timer-advanced.png"
 collect_launch_logs
 python3 - "$reports" <<'PY'
 import hashlib

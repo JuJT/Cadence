@@ -35,6 +35,7 @@ const Wallpaper = ({ height = 400, dim = true }) => {
 
     return (
       <MaskedView
+        pointerEvents="none"
         style={[styles.container, { height }]}
         maskElement={
           <LinearGradient

@@ -1,5 +1,5 @@
 import { ActualitiesResponse } from "esup-multi.js";
-import { NewsInformation } from "@blockshub/pawnote-lts";
+import { NewsInformation, NewsQuestionKind, NewsSurvey } from "@blockshub/pawnote-lts";
 import { News as SkolengoNews } from "skolengojs";
 
 import { Attachment } from "@/services/shared/attachment";
@@ -16,6 +16,24 @@ import { GenericInterface } from "@/services/shared/types";
  * @property {string} author - The author of the news item.
  * @property {string} category - The category of the news item.
  */
+export interface SurveyQuestion {
+  id: string;
+  title: string;
+  content: string;
+  kind: NewsQuestionKind;
+  required: boolean;
+  maximumLength?: number;
+  maximumChoices?: number;
+  choices: { value: string; position: number; isTextInput?: boolean }[];
+  attachments: Attachment[];
+}
+
+export interface SurveyAnswer {
+  questionId: string;
+  choices?: number[];
+  text?: string;
+}
+
 export interface News extends GenericInterface {
   id: string;
   title?: string;
@@ -26,5 +44,10 @@ export interface News extends GenericInterface {
   author: string;
   category: string;
   question?: boolean;
-  ref?: NewsInformation | SkolengoNews | ActualitiesResponse;
+  type?: "information" | "survey";
+  detailsRequired?: boolean;
+  needsAcknowledgement?: boolean;
+  read?: boolean;
+  survey?: { questions: SurveyQuestion[]; isAnonymous: boolean; canSubmit: boolean; answered: boolean };
+  ref?: NewsInformation | NewsSurvey | SkolengoNews | ActualitiesResponse;
 }

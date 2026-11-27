@@ -1,40 +1,40 @@
-import { Period } from "@/services/shared/grade";
-import { warn } from "@/utils/logger/logger";
+import { gradePeriodKey, type Period } from "@/services/shared/grade";
 
-export function getCurrentPeriod(periods: Period[]): Period | undefined {
-  const now = new Date().getTime();
-  const excludedNames = [
-    "Bac blanc",
-    "Brevet blanc",
-    "Hors période",
-    "Année",
-    "ANNÉE",
-    "ANNEE",
-    "Contrôle en cours de formation",
-    "EPREUVES PONCTUELLES 1ERE SERIE",
-    "EPREUVES PONCTUELLES 2EME SERIE",
-    "MI-SEMESTRE 1",
-    "MI-SEMESTRE 2",
-    "Évaluation spécifique de DNL",
-  ];
+function normalizePeriodName(name: string): string {
+  return name.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
+}
 
-  periods = periods
-    .filter(period => !excludedNames.includes(period.name))
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+const usualPeriod = /^(?:(?:1er|[2-9](?:e|eme))\s+)?(?:trimestre|semestre|periode|term|quarter)(?:\s|$)/;
+const specialPeriod = /\b(annee|hors periode|(?:bac|brevet) blanc|dnl|epreuves? ponctuelles?|controle en cours|mi[- ]semestre)\b/;
 
-  for (const period of periods) {
-    if (period.start.getTime() < now && period.end.getTime() > now) {
-      return period;
-    }
-  }
+export function sortGradePeriods(periods: Period[]): Period[] {
+  const priority = (period: Period) => usualPeriod.test(normalizePeriodName(period.name)) ? 0 : 1;
+  return [...periods].sort((a, b) => priority(a) - priority(b) || a.start.getTime() - b.start.getTime());
+}
 
-  if (periods.length > 0) {
-    warn(
-      "Current period not found. Falling back to the first period in the array."
-    );
-    return periods[0];
-  }
+export function getCurrentPeriod(periods: Period[], now = new Date()): Period | undefined {
+  const dated = periods.filter(period =>
+    Number.isFinite(period.start.getTime()) &&
+    Number.isFinite(period.end.getTime()) &&
+    period.end >= period.start &&
+    !specialPeriod.test(normalizePeriodName(period.name))
+  );
+  const usual = dated.filter(period => usualPeriod.test(normalizePeriodName(period.name)));
+  const candidates = (usual.length > 0 ? usual : dated).sort((a, b) => b.start.getTime() - a.start.getTime());
+  const containsToday = (period: Period) => {
+    const end = new Date(period.end);
+    end.setHours(23, 59, 59, 999);
+    return period.start <= now && now <= end;
+  };
+  return candidates.find(containsToday) ??
+    candidates.find(period => period.start <= now) ??
+    candidates.at(-1) ??
+    sortGradePeriods(periods)[0];
+}
 
-  // No periods yet (fresh account, nothing synced): a normal state, callers handle undefined.
-  return undefined;
+export function findGradePeriod(periods: Period[], key: string): Period | undefined {
+  const exact = periods.find(period => gradePeriodKey(period) === key);
+  if (exact) return exact;
+  const legacy = periods.filter(period => period.id === key);
+  return legacy.length === 1 ? legacy[0] : undefined;
 }

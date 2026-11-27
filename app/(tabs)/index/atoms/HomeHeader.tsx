@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Stack from '@/ui/components/Stack';
 import { getCurrentPeriod } from '@/utils/grades/helper/period';
+import { getManager } from '@/services/shared';
+import { Capabilities } from '@/services/shared/types';
+import { useAccountStore } from '@/stores/account';
 
 import HomeHeaderButton, { HomeHeaderButtonItem } from '../components/HomeHeaderButton';
 import { useHomeHeaderData } from '../hooks/useHomeHeaderData';
@@ -14,6 +17,10 @@ const HomeHeader = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { availableCanteenCards, attendancesPeriods, attendances, absencesCount, news } = useHomeHeaderData();
+  const account = useAccountStore(state => state.accounts.find(item => item.id === state.lastUsedAccount));
+  const manager = getManager(true);
+  const canDiscuss = account?.services.some(service => manager?.clientHasCapatibility(Capabilities.CHAT_READ, service.id));
+  const canReadLessons = account?.services.some(service => manager?.clientHasCapatibility(Capabilities.COURSE_RESOURCES, service.id));
   const currentAttendancePeriod = attendancesPeriods.length > 0
     ? getCurrentPeriod(attendancesPeriods)
     : undefined;
@@ -35,7 +42,7 @@ const HomeHeader = () => {
       icon: "cutlery",
       color: "#46c700",
       description: t("Home_Menu_Button_Description"),
-      route: "/(features)/soon"
+      route: "/(features)/canteen-menu"
     },
     {
       title: t("Home_Attendance_Title"),
@@ -53,14 +60,16 @@ const HomeHeader = () => {
       },
     },
     {
-      title: t("Tab_News"),
+      title: "Informations et sondages",
       image: require("@/assets/shaded_icons/actu.png"),
       icon: "newspaper",
       color: "#0080ff",
-      description: news[0]?.title ?? t("News_Empty_Title"),
+      description: news.reduce<(typeof news)[number] | undefined>((latest, item) => !latest || item.createdAt > latest.createdAt ? item : latest, undefined)?.title ?? t("News_Empty_Title"),
       route: "/(features)/(news)/news"
-    }
-  ], [availableCanteenCards, absencesCount, news, currentAttendancePeriod, attendancesPeriods, attendances, t]);
+    },
+    ...(canDiscuss ? [{ title: "Discussions", icon: "Chat", color: "#3979df", description: "Messages PRONOTE", route: "/(features)/pronote/discussions" }] : []),
+    ...(canReadLessons ? [{ title: "Cahier de textes", icon: "Book", color: "#248985", description: "Contenus des cours", route: "/(features)/pronote/lessons" }] : []),
+  ], [availableCanteenCards, absencesCount, news, currentAttendancePeriod, attendancesPeriods, attendances, canDiscuss, canReadLessons, t]);
 
   return (
     <View style={{ paddingHorizontal: 0, width: "100%", flex: 1, overflow: "visible" }}>

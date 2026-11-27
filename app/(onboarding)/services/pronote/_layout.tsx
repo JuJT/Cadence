@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, PlatformColor, View } from 'react-native';
+import { View } from 'react-native';
 import { useTranslation } from "react-i18next";
 
 import { Stack } from 'expo-router';
@@ -37,6 +37,8 @@ export default function OnboardingLayout() {
           name="url"
           options={{ ...newScreenOptions, title: t("ONBOARDING_HEADER_SCHOOL_URL") }}
         />
+        <Stack.Screen name="credentials" options={{ ...newScreenOptions, title: "Identifiants PRONOTE" }} />
+        <Stack.Screen name="challenge" options={{ ...newScreenOptions, title: "Sécurité PRONOTE" }} />
         <Stack.Screen
           name="browser"
           options={{ ...newScreenOptions, title: t("ONBOARDING_HEADER_ENT_LOGIN"), presentation: "modal", headerStyle: { backgroundColor: "transparent" } }}

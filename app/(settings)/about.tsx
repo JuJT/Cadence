@@ -8,6 +8,7 @@ import { Alert, Linking } from "react-native";
 import SettingsHeader from "@/components/SettingsHeader";
 import { CADENZA_SOURCE } from "@/constants/Cadenza";
 import packageJson from "@/package.json";
+import { installedCadenzaVersionLabel } from "@/services/cadenza/installed-version";
 import { useSettingsStore } from "@/stores/settings";
 import Avatar from "@/ui/components/Avatar";
 import Icon from "@/ui/components/Icon";
@@ -176,7 +177,7 @@ export default function SettingsAbout() {
   const Infos = [
     {
       title: t("Settings_App_Version"),
-      description: packageJson.version,
+      description: installedCadenzaVersionLabel,
       leading: <Papicons name="Butterfly" />,
       onPress: handleVersionTap,
     },

@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { AppState } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 
@@ -15,11 +15,16 @@ import { MAGIC_AVAILABLE } from '@/utils/magic/tflite';
 import { FONT_CONFIG } from '@/constants/LayoutScreenOptions';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 350, fade: true });
+void SplashScreen.preventAutoHideAsync().catch(e => warn(String(e), "SplashScreen"));
+SplashScreen.setOptions({ duration: 200, fade: true });
+
+export function hideAppSplash() {
+  void SplashScreen.hideAsync().catch(e => warn(String(e), "SplashScreen"));
+}
 
 export function useAppInitialization() {
   const [fontsLoaded, fontsError] = useFonts(FONT_CONFIG);
+  const [fontsTimedOut, setFontsTimedOut] = useState(false);
 
   // Settings
   const customLanguage = useSettingsStore(state => state.personalization.language);
@@ -86,12 +91,12 @@ export function useAppInitialization() {
   }, []);
 
   // AppState Monitoring
-  const appState = useRef<AppStateStatus>(AppState.currentState);
+  const appState = useRef(AppState.currentState);
   const lastBackgroundRef = useRef<number | null>(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (appState.current.match(/inactive|background/) && nextAppState === "active") {
+      if (appState.current?.match(/inactive|background/) && nextAppState === "active") {
         if (lastBackgroundRef.current) {
           const now = Date.now();
           const durationMs = now - lastBackgroundRef.current;
@@ -121,15 +126,18 @@ export function useAppInitialization() {
     }
   }, [magicEnabled]);
 
-  // Error Handling for Fonts
-  const handleError = useCallback(() => {
-    if (fontsError) { throw fontsError; }
-  }, [fontsError]);
-
-  useEffect(handleError, [handleError]);
+  useEffect(() => {
+    if (fontsError) {
+      warn(String(fontsError), "Fonts");
+      return;
+    }
+    if (fontsLoaded) return;
+    const fallback = setTimeout(() => setFontsTimedOut(true), 4000);
+    return () => clearTimeout(fallback);
+  }, [fontsError, fontsLoaded]);
 
   return {
-    fontsLoaded,
+    fontsLoaded: fontsLoaded || Boolean(fontsError) || fontsTimedOut,
     fontsError
   };
 }

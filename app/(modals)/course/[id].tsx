@@ -1,17 +1,22 @@
 import { Papicons } from '@getpapillon/papicons';
-import { HeaderBackButton, useTheme } from "expo-router/react-navigation";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { HeaderBackButton } from "expo-router/react-navigation";
+import { useLocalSearchParams, useRootNavigationState, useRouter } from "expo-router";
 import { formatDistanceStrict, formatDistanceToNow } from 'date-fns'
 import * as DateLocale from 'date-fns/locale';
 import i18n, { t } from "i18next";
 import React, { useEffect, useState } from "react";
-import { Alert, Platform, View } from "react-native";
+import { Alert, Platform, Pressable, View } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 
 import ModalOverhead from "@/components/ModalOverhead";
-import { getCourseById, getCourseRouteId } from "@/database/useTimetable";
+import { getCourseById } from "@/database/useTimetable";
+import { useStudyColors } from "@/hooks/useStudyColors";
+import { studyOrigin, studyTimerHref, useStudyLaunch } from "@/hooks/useStudyLaunch";
+import { getManager } from "@/services/shared";
 import { Course as SharedCourse, CourseStatus, CourseType } from "@/services/shared/timetable";
-import { startStudy } from "@/stores/study";
+import { Capabilities } from "@/services/shared/types";
+import { useStudyStore } from "@/stores/study";
+import { getActiveSession } from "@/stores/study/model";
 import ActivityIndicator from "@/ui/components/ActivityIndicator";
 import Icon from "@/ui/components/Icon";
 import List from "@/ui/new/List";
@@ -27,7 +32,6 @@ import type { LiveActivityPreviewMode } from "@getpapillon/papillonkit";
 
 import { getStatusText } from "../../(tabs)/calendar/components/CalendarDay";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Button from "@/ui/new/Button";
 
 interface SubjectInfo {
   name: string;
@@ -38,8 +42,13 @@ interface SubjectInfo {
 
 export default function CourseModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors } = useTheme();
+  const colors = useStudyColors();
   const router = useRouter();
+  const rootState = useRootNavigationState();
+  const tabs = rootState?.routes.find(route => route.name === "(tabs)")?.state;
+  const backTo = studyOrigin(tabs?.routes[tabs.index ?? 0]?.name) ?? "calendar";
+  const { launch, launching } = useStudyLaunch(() => router.dismissTo(studyTimerHref(backTo)));
+  const active = useStudyStore(state => getActiveSession(state.data));
   const insets = useSafeAreaInsets();
   const finalHeaderHeight = Platform.select({
     android: insets.top + 32,
@@ -94,6 +103,7 @@ export default function CourseModal() {
   };
 
   const item = course;
+  const courseLinkAvailable = getManager(true)?.clientHasCapatibility(Capabilities.COURSE_RESOURCES, course.createdByAccount);
   const startTime = Math.floor(course.from.getTime() / 1000);
   const endTime = Math.floor(course.to.getTime() / 1000);
 
@@ -153,14 +163,25 @@ export default function CourseModal() {
         {course.type === CourseType.LESSON && course.status !== CourseStatus.CANCELED && (
           <List.Section>
             <List.Item>
-              <Button label="Chronométrer ce cours" fullWidth onPress={() => {
-                void startStudy({ subjectName: subjectInfo.name, kind: "course", courseId: getCourseRouteId(course) })
-                  .then(() => {
-                    router.dismiss();
-                    router.navigate({ pathname: "/(tabs)/study", params: { section: "timer", open: String(Date.now()) } });
-                  })
-                  .catch(error => Alert.alert("Révision", error instanceof Error ? error.message : "Impossible de démarrer le cours."));
-              }} />
+              <Pressable accessibilityRole="button" accessibilityState={{ disabled: launching }} disabled={launching}
+                testID="cadenza-course-start-timer"
+                onPress={() => { void launch({ subjectName: subjectInfo.name, kind: "course", courseId: id }); }}
+                style={({ pressed }) => ({
+                  alignItems: "center", justifyContent: "center", minHeight: 46, borderRadius: 15, padding: 9,
+                  backgroundColor: colors.tint, opacity: launching ? 0.5 : pressed ? 0.75 : 1,
+                })}
+              >
+                <Typography color="#FFFFFF" weight="semibold">
+                  {active?.courseId === id ? "Ouvrir la séance" : "Chronométrer ce cours"}
+                </Typography>
+              </Pressable>
+            </List.Item>
+          </List.Section>
+        )}
+        {!!courseLinkAvailable && (
+          <List.Section>
+            <List.Item onPress={() => router.push("/(features)/pronote/lessons")}>
+              <Typography variant="title">Cahier de textes</Typography>
             </List.Item>
           </List.Section>
         )}

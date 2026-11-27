@@ -22,8 +22,8 @@ import {
 import { Chat, Message, Recipient } from "@/services/shared/chat";
 import { Period, PeriodGrades } from "@/services/shared/grade";
 import { Homework } from "@/services/shared/homework";
-import { News } from "@/services/shared/news";
-import { Course, CourseDay, CourseResource } from "@/services/shared/timetable";
+import { News, SurveyAnswer } from "@/services/shared/news";
+import { Course, CourseDay, CourseResource, LessonSummary } from "@/services/shared/timetable";
 import { Auth, Services } from "@/stores/account/types";
 
 import { Alise } from "../alise";
@@ -86,6 +86,11 @@ export interface SchoolServicePlugin {
   getChatMessages?: (chat: Chat) => Promise<Message[]>;
   getRecipientsAvailableForNewChat?: () => Promise<Recipient[]>;
   getCourseResources?: (course: Course) => Promise<CourseResource[]>;
+  getLessons?: () => Promise<LessonSummary[]>;
+  getLesson?: (id: string) => Promise<CourseResource[]>;
+  canReplyToChat?: (chat: Chat) => Promise<boolean>;
+  getNewsDetail?: (news: News) => Promise<News>;
+  submitNewsSurvey?: (news: News, answers: SurveyAnswer[]) => Promise<News>;
   getWeeklyTimetable?: (weekNumber: number, date: Date) => Promise<CourseDay[]>;
   sendMessageInChat?: (chat: Chat, content: string) => Promise<void>;
   setNewsAsAcknowledged?: (news: News) => Promise<News>;
@@ -129,6 +134,7 @@ export enum Capabilities {
   CANTEEN_HISTORY,
   CANTEEN_BOOKINGS,
   CANTEEN_QRCODE,
+  COURSE_RESOURCES,
 }
 
 /**

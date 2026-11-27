@@ -1,6 +1,6 @@
 import { Papicons } from '@getpapillon/papicons';
-import { type ParamListBase, useIsFocused } from "expo-router/react-navigation";
-import { type NativeStackNavigationProp, useNavigation, useRouter } from 'expo-router';
+import { useIsFocused } from "expo-router/react-navigation";
+import { useRouter } from 'expo-router';
 import { t } from 'i18next';
 import React from 'react';
 import { FlatList, Platform, RefreshControl, StatusBar, View } from 'react-native';
@@ -22,15 +22,15 @@ import HomeTimeTableWidget from './widgets/timetable';
 import GradesWidget from './widgets/Grades';
 import { usePeriodsData } from '../grades/hooks/usePeriodsData';
 import { useGradesData } from '../grades/hooks/useGradesData';
-import MaskedView from '@react-native-masked-view/masked-view';
-import LinearGradient from 'react-native-linear-gradient';
 import MainTabErrorBoundary from '@/ui/components/MainTabErrorBoundary';
 import { Dynamic } from '@/ui/components/Dynamic';
 import Stack from '@/ui/components/Stack';
 import Typography from '@/ui/components/Typography';
 import Icon from '@/ui/components/Icon';
-import Button from '@/ui/new/Button';
 import { StudyEntry } from '@/components/StudyEntry';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CADENZA_RELEASE_KEY } from '@/constants/Cadenza';
+import { TravelHomeEntry } from '@/components/TravelHomeEntry';
 
 const HomeScreen = () => {
   const insets = useSafeAreaInsets();
@@ -41,11 +41,11 @@ const HomeScreen = () => {
   // Account
   const accounts = useAccountStore((state) => state.accounts);
   const lastUsedAccount = useAccountStore((state) => state.lastUsedAccount);
-  const initializeTransport = useAccountStore((state) => state.initializeTransport);
   const account = accounts.find(a => a.id === lastUsedAccount);
   const router = useRouter();
   const welcomeModalSeen = useSettingsStore(state => state.personalization.welcomeModalSeen);
   const mutateSettings = useSettingsStore(state => state.mutateProperty);
+  const attemptedIntro = React.useRef(false);
 
   React.useEffect(() => {
     if (accounts.length === 0) {
@@ -53,34 +53,27 @@ const HomeScreen = () => {
       return;
     }
 
-    if (account && account.transport === undefined) {
-      initializeTransport(account.schoolName);
-    }
-  }, [account, accounts.length, router, initializeTransport]);
-
-  // iOS refuses a modal during a transition: wait for the tabs to be on screen.
-  const navigation = useNavigation();
-  const [tabsAppeared, setTabsAppeared] = React.useState(false);
-
-  React.useLayoutEffect(() => {
-    let rootNavigation = navigation;
-    while (!rootNavigation.getState()?.routes.some(route => route.name === "(tabs)")) {
-      const parent = rootNavigation.getParent();
-      if (!parent) return;
-      rootNavigation = parent;
-    }
-
-    return (rootNavigation as NativeStackNavigationProp<ParamListBase>).addListener("transitionEnd", event => {
-      if (!event.data.closing) setTabsAppeared(true);
-    });
-  }, [navigation]);
+  }, [accounts.length, router]);
 
   React.useEffect(() => {
-    if (!focused || !tabsAppeared || !account || welcomeModalSeen) return;
-
-    mutateSettings("personalization", { welcomeModalSeen: true });
-    router.navigate("/(modals)/welcome");
-  }, [focused, tabsAppeared, account, welcomeModalSeen, mutateSettings, router]);
+    if (!focused || !account || attemptedIntro.current) return;
+    let cancelled = false;
+    const transition = setTimeout(() => {
+      if (attemptedIntro.current || cancelled) return;
+      attemptedIntro.current = true;
+      if (!welcomeModalSeen) {
+        mutateSettings("personalization", { welcomeModalSeen: true });
+        void AsyncStorage.setItem(CADENZA_RELEASE_KEY, '1').catch(() => {});
+        router.navigate("/(modals)/welcome");
+        return;
+      }
+      void AsyncStorage.getItem(CADENZA_RELEASE_KEY).then(seen => {
+        if (cancelled) attemptedIntro.current = false;
+        else if (!seen) router.push({ pathname: '/changelog', params: { automatic: '1' } });
+      }).catch(() => {});
+    }, 350);
+    return () => { cancelled = true; clearTimeout(transition); };
+  }, [focused, account, welcomeModalSeen, mutateSettings, router]);
 
   const { syncing, refresh } = useHomeData();
   const { courses } = useTimetableWidgetData();
@@ -111,14 +104,14 @@ const HomeScreen = () => {
     {
       icon: <Papicons name={"Calendar"} />,
       title: timetableTitle,
-      redirect: "(tabs)/calendar",
+      redirect: "/(tabs)/calendar",
       hidden: courses.length === 0,
       render: renderTimeTable
     },
     {
       icon: <Papicons name={"Grades"} />,
       title: t("Home_Widget_Grades_Average"),
-      redirect: "(tabs)/grades",
+      redirect: "/(tabs)/grades",
       hidden: gradesWidgetHidden,
       render: renderGrades
     }
@@ -146,6 +139,7 @@ const HomeScreen = () => {
           ListHeaderComponent={
             <View style={{ gap: 8 }}>
               <HomeHeader />
+              <TravelHomeEntry />
               <StudyEntry />
               <StudyEntry statistics />
             </View>
@@ -191,29 +185,9 @@ const HomeEmptyState = React.memo(() => (
 ));
 HomeEmptyState.displayName = "HomeEmptyState";
 
-const HomeViewContainer = ({ children }) => {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <MaskedView
-      maskElement={
-        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-          <LinearGradient
-            colors={['#ff000022', 'white']}
-            locations={[0.5, 1]}
-            style={{ height: insets.top + 68 }}
-          />
-          <View style={{ flex: 1, backgroundColor: 'white' }} />
-        </View>
-      }
-      style={{ flex: 1 }}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
-      {children}
-      </SafeAreaView>
-    </MaskedView>
-  )
-}
+const HomeViewContainer = ({ children }: { children: React.ReactNode }) => (
+  <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>{children}</SafeAreaView>
+);
 
 const HomeScreenWithBoundary = () => (
   <MainTabErrorBoundary>

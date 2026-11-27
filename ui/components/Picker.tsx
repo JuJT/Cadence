@@ -1,79 +1,60 @@
-import { Platform, Switch, TouchableOpacity, View } from "react-native"
-import { useState } from "react";
-import ActionMenu from "./ActionMenu";
-import Typography from "../new/Typography";
-import { ListTouchable } from "../new/List";
-import { LiquidGlassView } from "@sbaiahmed1/react-native-blur";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import { disabled as nativeDisabled, tint } from "@expo/ui/swift-ui/modifiers";
 import { Papicons } from "@getpapillon/papicons";
 import { useTheme } from "expo-router/react-navigation";
+import { Platform, View } from "react-native";
+
+import ActionMenu from "./ActionMenu";
+import Typography from "../new/Typography";
 
 type PickerProps = {
-  options: string[]
-  selectedIndex: number
-  onValueChange: (index: number) => void
-  disabled?: boolean
-}
+  options: string[];
+  selectedIndex: number;
+  onValueChange: (index: number) => void;
+  disabled?: boolean;
+};
 
-const Picker: React.FC<PickerProps> = ({ options, selectedIndex, onValueChange, disabled }) => {
-  const theme = useTheme();
+export default function Picker({ options, selectedIndex, onValueChange, disabled }: PickerProps) {
+  const { colors } = useTheme();
+  const label = options[selectedIndex] ?? "Choisir";
+  const isDisabled = Boolean(disabled || options.length === 0);
 
-  return (
-    <View pointerEvents={disabled ? "none" : "auto"} style={{ marginHorizontal: -12 }}>
-      <PickerContainer>
-        <ActionMenu
-          actions={options.map((option, index) => ({
-            id: option,
-            title: option,
-            onPress: () => onValueChange(index),
-            state: index === selectedIndex ? "on" : "off",
-          }))}
-          onPressAction={(e: NativeActionEvent) => {
-            const index = options.findIndex(option => option === e.nativeEvent.event);
-            if(index !== -1) {
-              onValueChange(index);
-            }
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Typography variant="body1" weight="semibold" color={"primary"}>
-              {options[selectedIndex]}
-            </Typography>
-            <Papicons name="ChevronDown" size={16} color={theme.colors.primary} />
-          </View>
-        </ActionMenu>
-      </PickerContainer>
-    </View>
-  )
-}
-
-const PickerContainer: React.FC<{ children: React.ReactNode }> = (props) => {
-  if(Platform.OS === "android") {
+  if (Platform.OS === "ios") {
     return (
-      <TouchableOpacity
-        style={{
-          marginHorizontal: 12,
-        }}
-      >
-        {props.children}
-      </TouchableOpacity>
-    )
+      <Host matchContents style={{ minHeight: 44, justifyContent: "center" }}>
+        <Menu
+          label={label}
+          systemImage="chevron.down"
+          modifiers={[tint(String(colors.primary)), nativeDisabled(isDisabled)]}
+        >
+          {options.map((option, index) => (
+            <Button
+              key={index}
+              label={option}
+              systemImage={index === selectedIndex ? "checkmark" : undefined}
+              onPress={() => onValueChange(index)}
+            />
+          ))}
+        </Menu>
+      </Host>
+    );
   }
 
   return (
-    <LiquidGlassView
-      glassType="regular"
-      isInteractive={true}
-      glassOpacity={0}
-      style={{
-        borderRadius: 80,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginHorizontal: 6,
-      }}
-    >
-      {props.children}
-    </LiquidGlassView>
-  )
+    <View pointerEvents={isDisabled ? "none" : "auto"}>
+      <ActionMenu
+        actions={options.map((option, index) => ({
+          id: String(index),
+          title: option,
+          state: index === selectedIndex ? "on" : "off",
+        }))}
+        onPressAction={({ nativeEvent }) => onValueChange(Number(nativeEvent.event))}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Typography variant="body1" weight="semibold" color="primary">{label}</Typography>
+          <Papicons name="ChevronDown" size={16} color={String(colors.primary)} />
+        </View>
+      </ActionMenu>
+    </View>
+  );
 }
-
-export default Picker
