@@ -1,18 +1,21 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getCurrentPeriod } from '@/utils/grades/helper/period';
 import { useSchoolManager } from '@/components/pronote/SchoolPage';
 import { Capabilities } from '@/services/shared/types';
 
-import HomeHeaderButton, { HomeHeaderButtonItem } from '../components/HomeHeaderButton';
+import { type HomeHeaderButtonItem } from '@/components/HomeCardContent';
+import HomeHeaderButton from '../components/HomeHeaderButton';
 import { useHomeHeaderData } from '../hooks/useHomeHeaderData';
 
 const HomeHeader = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width, fontScale } = useWindowDimensions();
+  const columns = (width - insets.left - insets.right) / fontScale < 345 ? 1 : 2;
   const { availableCanteenCards, attendancesPeriods, attendances, absencesCount, news } = useHomeHeaderData();
   const { manager } = useSchoolManager();
   const canDiscuss = (manager?.getAvailableClients(Capabilities.CHAT_READ).length ?? 0) > 0;
@@ -72,12 +75,12 @@ const HomeHeader = () => {
     <View style={{ paddingHorizontal: 0, width: "100%", flex: 1, overflow: "visible" }}>
       <View style={{ height: insets.top + 56 + (insets.right > 10 ? 10 : 0) }} />
       <View style={{ width: '100%', gap: 6, overflow: 'visible' }}>
-        {Array.from({ length: Math.ceil(HomeHeaderButtons.length / 2) }, (_, i) => {
-          const row = HomeHeaderButtons.slice(i * 2, i * 2 + 2);
+        {Array.from({ length: Math.ceil(HomeHeaderButtons.length / columns) }, (_, i) => {
+          const row = HomeHeaderButtons.slice(i * columns, (i + 1) * columns);
           return (
             <View key={i} style={{ flexDirection: 'row', gap: 6, width: '100%' }}>
               {row.map(item => <HomeHeaderButton key={item.title} item={item} />)}
-              {row.length === 1 && <View style={{ flex: 1 }} />}
+              {row.length < columns && <View style={{ flex: 1, minWidth: 0 }} />}
             </View>
           );
         })}
