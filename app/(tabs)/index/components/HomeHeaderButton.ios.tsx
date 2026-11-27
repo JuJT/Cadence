@@ -6,7 +6,7 @@ import { Image, type ImageSourcePropType, Pressable, StyleSheet, View } from 're
 import adjust from "@/utils/adjustColor";
 
 import Typography from '@/ui/components/Typography';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export interface HomeHeaderButtonItem {
@@ -26,52 +26,33 @@ interface HomeHeaderButtonProps {
 const HomeHeaderButton: React.FC<HomeHeaderButtonProps> = ({ item }) => {
   const theme = useTheme();
   const { colors } = theme;
+  const router = useRouter();
 
   return (
-    <Link
-      asChild
-      href={{
-        pathname: item.route ?? "/(features)/soon",
-        params: item.params,
-      }}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.title}, ${item.description}`}
+      onPress={() => router.navigate({ pathname: item.route ?? '/(features)/soon', params: item.params })}
+      style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
     >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${item.title}, ${item.description}`}
-          style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.78 }]}
-        >
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <LiquidGlassView glassOpacity={0.4} glassTintColor={adjust(item.color, theme.dark ? -0.8 : 0.9)}
-              glassType="regular" style={{ flex: 1, borderRadius: 22 }} />
-            <LinearGradient colors={[String(colors.background) + (theme.dark ? "00" : "99"), String(colors.background) + (theme.dark ? "99" : "00")]}
-              style={[StyleSheet.absoluteFill, { borderRadius: 22 }]} />
-          </View>
-          {item.image ? (
-            <Image
-              source={item.image}
-              resizeMode="contain"
-              style={styles.image}
-            />
-          ) : (
-            <View
-              style={{
-                backgroundColor: item.color + 30,
-                borderRadius: 50,
-                aspectRatio: 1,
-                width: 42,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Papicons name={item.icon} color={item.color} size={25} />
-            </View>
-          )}
-          <View style={styles.textColumn}>
-            <Typography numberOfLines={2} variant="h6" color={String(colors.text) + "e5"} style={styles.title}>{item.title}</Typography>
-            <Typography numberOfLines={1} variant="title" color={String(colors.text) + "75"} style={styles.subtitle}>{item.description}</Typography>
-          </View>
-        </Pressable>
-    </Link>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <LiquidGlassView glassOpacity={0.4} glassTintColor={adjust(item.color, theme.dark ? -0.8 : 0.9)}
+          glassType="regular" style={{ flex: 1, borderRadius: 22 }} />
+        <LinearGradient colors={[String(colors.background) + (theme.dark ? "00" : "99"), String(colors.background) + (theme.dark ? "99" : "00")]}
+          style={[StyleSheet.absoluteFill, { borderRadius: 22 }]} />
+      </View>
+      {item.image ? (
+        <Image source={item.image} resizeMode="contain" style={styles.image} />
+      ) : (
+        <View style={[styles.icon, { backgroundColor: item.color + '30' }]}>
+          <Papicons name={item.icon} color={item.color} size={25} />
+        </View>
+      )}
+      <View style={styles.textColumn}>
+        <Typography numberOfLines={2} variant="h6" color={String(colors.text) + "e5"} style={styles.title}>{item.title}</Typography>
+        <Typography numberOfLines={1} variant="title" color={String(colors.text) + "75"} style={styles.subtitle}>{item.description}</Typography>
+      </View>
+    </Pressable>
   );
 };
 
@@ -88,7 +69,9 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: "center",
   },
+  pressed: { opacity: 0.78 },
   image: { width: 32, height: 32, flexShrink: 0 },
+  icon: { borderRadius: 50, aspectRatio: 1, width: 42, alignItems: 'center', justifyContent: 'center' },
   textColumn: { flex: 1, minWidth: 0 },
   title: { lineHeight: 21 },
   subtitle: { lineHeight: 20 },
