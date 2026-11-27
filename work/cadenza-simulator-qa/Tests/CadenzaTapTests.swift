@@ -49,6 +49,23 @@ final class CadenzaTapTests: XCTestCase {
         try openHomeControl(buttonIndexFromRight: 1, expected: "Personnaliser le fond")
     }
 
+    func test05HomeControlsInOneLaunch() throws {
+        try openHomeControl(buttonIndexFromRight: 1, expected: "Personnaliser le fond")
+        let palette = try capture()
+        let title = try XCTUnwrap(line(palette, "Personnaliser le fond"))
+        let titleY = 1 - title.bounds.midY
+        point(x: 0.5, y: max(0.12, titleY - 0.12)).tap()
+        let afterTap = try capture()
+        if line(afterTap, "Personnaliser le fond") != nil {
+            point(x: 0.5, y: max(0.12, titleY - 0.035)).press(forDuration: 0.05,
+                thenDragTo: point(x: 0.5, y: min(0.92, titleY + 0.40)))
+        }
+        _ = try waitFor("retour à l’accueil après la palette") {
+            self.line($0, "Camille Martin") != nil && self.line($0, "Personnaliser le fond") == nil
+        }
+        try openHomeControl(buttonIndexFromRight: 0, expected: "Personnalisation")
+    }
+
     func test03CourseStartsAndReducesClock() throws {
         try tapTab("Cours")
         let calendar = try waitFor("titres des cours") { self.courseLine($0) != nil }

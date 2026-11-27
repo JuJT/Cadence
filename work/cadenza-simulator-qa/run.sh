@@ -101,7 +101,9 @@ xcrun simctl privacy "$device" grant location "$bundle"
 result="$temporary/CadenzaTapQA.xcresult"
 status=0
 selection=()
-if [[ "${CADENZA_QA_ONLY_HOME:-}" == 1 ]]; then
+if [[ "${CADENZA_QA_ONLY_HOME:-}" == session ]]; then
+  selection=(-only-testing:CadenzaTapTests/CadenzaTapTests/test05HomeControlsInOneLaunch)
+elif [[ "${CADENZA_QA_ONLY_HOME:-}" == 1 ]]; then
   selection=(
     -only-testing:CadenzaTapTests/CadenzaTapTests/test00HomeCardsAreAlignedAndSeparated
     -only-testing:CadenzaTapTests/CadenzaTapTests/test01SettingsFromHome
