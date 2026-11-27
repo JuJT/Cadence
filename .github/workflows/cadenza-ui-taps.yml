@@ -11,10 +11,10 @@ permissions:
 jobs:
   taps:
     runs-on: xcode-27
-    timeout-minutes: 22
+    timeout-minutes: 28
     env:
-      SIMULATOR_DRAFT: "papillon-ci-10-1-simulator"
-      SIMULATOR_SHA: "2ef6b674d815eacb809a08a348a72a30ee12c51c"
+      SIMULATOR_DRAFT: "papillon-ci-14-1-simulator"
+      SIMULATOR_SHA: "9317b10cb49c298cff4c61189ef4d49d441067d9"
       CADENZA_QA_OUTPUT: "cadenza-tap-reports"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd

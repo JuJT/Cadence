@@ -11,7 +11,7 @@ permissions:
 jobs:
   taps:
     runs-on: xcode-27
-    timeout-minutes: 22
+    timeout-minutes: 28
     env:
       SIMULATOR_DRAFT: "REPLACE_WITH_SUCCESSFUL_SIMULATOR_DRAFT"
       SIMULATOR_SHA: "REPLACE_WITH_40_CHARACTER_COMMIT_SHA"

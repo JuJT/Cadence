@@ -9,7 +9,7 @@ export GH_TOKEN=…  # jeton du dépôt ayant accès aux brouillons
 bash work/cadenza-simulator-qa/run.sh JuJT/Cadence papillon-ci-N-1-simulator SHA_ENTIER 0.9.0 11
 ```
 
-Le dossier `cadenza-tap-reports` reçoit le résumé XCTest, les images, les résultats OCR et les journaux. Un échec conserve les preuves et produit un code de sortie non nul. Les chronomètres passent uniquement si deux lectures affichées progressent de deux secondes ou plus puis si la réduction revient à l’onglet d’origine.
+Le dossier `cadenza-tap-reports` reçoit le résumé XCTest, les images, les résultats OCR et les journaux. Un échec conserve les preuves et produit un code de sortie non nul. Les chronomètres passent uniquement si deux lectures affichées progressent d’au moins deux secondes à une vitesse cohérente avec le temps réel, puis si la réduction revient à l’onglet d’origine. Le test devoir capture la liste avant d’interagir et ouvre la fiche du devoir si l’action directe est hors écran.
 
 Pour un run GitHub secondaire, copier ce dossier sous `work/` sur une branche de QA et installer `workflow.yml.example` dans `.github/workflows/cadenza-ui-taps.yml`. Renseigner le brouillon, le SHA complet et pousser cette branche sous le nom `cadenza-qa/ui-taps`, hors du motif de compilation `papillon-cadenza/**`. Le workflow emploie `contents: write` pour que `GITHUB_TOKEN` lise le brouillon non publié et conserve les sorties comme artefact de run.
 

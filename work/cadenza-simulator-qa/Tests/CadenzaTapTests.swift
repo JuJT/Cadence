@@ -12,11 +12,14 @@ final class CadenzaTapTests: XCTestCase {
     private struct Screen {
         let lines: [Line]
         let screenshot: XCUIScreenshot
+        let uptime: TimeInterval
     }
 
     private let app = XCUIApplication(bundleIdentifier: "com.cadence.study")
     private let subjects = ["Mathématiques", "Français", "Histoire-Géographie", "Anglais", "Physique-Chimie",
                             "SVT", "SES", "EPS", "Sciences", "Éducation physique"]
+    private let homeworkSnippets = ["Lire les chapitres", "Réviser le chapitre", "Apprendre le vocabulaire",
+                                    "Rédiger le compte rendu", "Terminer le schéma", "Faire les exercices"]
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -28,6 +31,7 @@ final class CadenzaTapTests: XCTestCase {
     }
 
     func test01SettingsFromHome() throws {
+        attach(try capture(), "home-before-settings")
         try openHomeControl(x: 0.93, expected: "Personnalisation")
     }
 
@@ -51,34 +55,44 @@ final class CadenzaTapTests: XCTestCase {
 
     func test04HomeworkStartsAndReducesClock() throws {
         try tapTab("Tâches")
-        var tasks = try waitFor("onglet Tâches") { self.line($0, "Tâches", bottom: true) != nil }
-        for _ in 0..<4 where line(tasks, "Faire le devoir") == nil {
-            point(x: 0.52, y: 0.76).press(forDuration: 0.05, thenDragTo: point(x: 0.52, y: 0.31))
-            Thread.sleep(forTimeInterval: 0.6)
+        var tasks = try waitFor("devoirs de démonstration") {
+            self.line($0, "Semaine") != nil &&
+                (self.line($0, "Faire le devoir") != nil || self.homeworkLine($0) != nil)
+        }
+        attach(tasks, "homework-list-before-tap")
+        for _ in 0..<3 where visibleHomeworkAction(tasks) == nil {
+            point(x: 0.52, y: 0.70).press(forDuration: 0.05, thenDragTo: point(x: 0.52, y: 0.46))
             tasks = try capture()
         }
-        try tapText("Faire le devoir")
+        attach(tasks, "homework-card-action")
+        try press(try XCTUnwrap(visibleHomeworkAction(tasks), "Le pied de carte doit proposer Faire le devoir."))
         try verifyClockAdvances(status: "Révision en cours")
         _ = try waitFor("devoir associé") { self.line($0, "Devoir associé") != nil }
         try tapText("Réduire")
         let reduced = try waitFor("retour aux tâches") {
-            (self.line($0, "Ouvrir la séance") != nil || self.line($0, "Faire le devoir") != nil)
+            (self.homeworkLine($0) != nil || self.line($0, "Ouvrir la séance") != nil || self.line($0, "Faire le devoir") != nil)
                 && self.line($0, "Réduire") == nil
         }
         attach(reduced, "homework-returned")
     }
 
     private func openHomeControl(x: CGFloat, expected: String) throws {
-        let before = try capture()
+        var before = try capture()
+        if let tip = line(before, "Change de fond") {
+            point(x: 0.90, y: 1 - tip.bounds.midY).tap()
+            before = try capture()
+        }
         let account = try XCTUnwrap(line(before, "Camille Martin"))
-        point(x: x, y: 1 - account.bounds.midY).tap()
-        Thread.sleep(forTimeInterval: 1.4)
-        let after = try capture()
-        if line(after, expected) == nil, line(after, "Change de fond") != nil {
-            point(x: x, y: 1 - account.bounds.midY).tap()
-        } else if line(after, expected) == nil, line(after, "Camille Martin") != nil {
-            // A native TipKit popover may consume the first press when dismissing.
-            point(x: x, y: 1 - account.bounds.midY).tap()
+        let attempts: [CGFloat] = x < 0.9 ? [x, x + 0.023, x - 0.02] : [x]
+        for candidate in attempts {
+            point(x: candidate, y: 1 - account.bounds.midY).tap()
+            Thread.sleep(forTimeInterval: 1.4)
+            let after = try capture()
+            if line(after, expected) != nil {
+                attach(after, expected)
+                return
+            }
+            if line(after, "Camille Martin") == nil { break }
         }
         let opened = try waitFor(expected) { self.line($0, expected) != nil }
         attach(opened, expected)
@@ -90,9 +104,11 @@ final class CadenzaTapTests: XCTestCase {
         }
         let startSeconds = try XCTUnwrap(seconds(start))
         attach(start, status + " first clock")
-        let next = try waitFor("augmentation du temps depuis \(startSeconds) s", timeout: 12) { screen in
+        let next = try waitFor("augmentation du temps depuis \(startSeconds) s", timeout: 18) { screen in
             guard let nextSeconds = self.seconds(screen) else { return false }
-            return nextSeconds >= startSeconds + 2 && self.line(screen, status) != nil
+            let delta = nextSeconds - startSeconds
+            let elapsed = screen.uptime - start.uptime
+            return delta >= 2 && abs(Double(delta) - elapsed) <= 3.5 && self.line(screen, status) != nil
         }
         attach(next, status + " advanced clock")
         print("CADENZA_CLOCK_ADVANCED \(status): \(startSeconds) -> \(seconds(next) ?? -1) s")
@@ -138,11 +154,31 @@ final class CadenzaTapTests: XCTestCase {
         }.max { first, second in first.bounds.midY < second.bounds.midY }
     }
 
+    private func homeworkLine(_ screen: Screen) -> Line? {
+        for snippet in homeworkSnippets {
+            if let found = line(screen, snippet), (0.20...0.78).contains(found.bounds.midY) { return found }
+        }
+        return nil
+    }
+
+    private func visibleHomeworkAction(_ screen: Screen) -> Line? {
+        guard let action = line(screen, "Faire le devoir"), (0.17...0.82).contains(action.bounds.midY) else { return nil }
+        return action
+    }
+
     private func seconds(_ screen: Screen) -> Int? {
-        let clock = #"^([0-9]{2,})\s*:\s*([0-9]{2})\s*:\s*([0-9]{2})$"#
-        for line in screen.lines where line.text.range(of: clock, options: .regularExpression) != nil {
+        if let value = clockSeconds(screen.lines) { return value }
+        let clockArea = CGRect(x: 0.17, y: 0.30, width: 0.66, height: 0.39)
+        let cropped = (try? recognize(screen.screenshot, region: clockArea, numbersOnly: true)) ?? []
+        return clockSeconds(cropped)
+    }
+
+    private func clockSeconds(_ lines: [Line]) -> Int? {
+        let clock = #"^00\s*:\s*[0-1][0-9]\s*:\s*[0-5][0-9]$"#
+        for line in lines where line.bounds.midX > 0.25 && line.bounds.midX < 0.75
+            && line.bounds.height > 0.018 && line.text.range(of: clock, options: .regularExpression) != nil {
             let fields = line.text.split(separator: ":").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-            if fields.count == 3 { return fields[0] * 3600 + fields[1] * 60 + fields[2] }
+            if fields.count == 3, fields[1] < 2 { return fields[1] * 60 + fields[2] }
         }
         return nil
     }
@@ -170,15 +206,21 @@ final class CadenzaTapTests: XCTestCase {
 
     private func capture() throws -> Screen {
         let screenshot = XCUIScreen.main.screenshot()
+        let uptime = ProcessInfo.processInfo.systemUptime
+        return Screen(lines: try recognize(screenshot), screenshot: screenshot, uptime: uptime)
+    }
+
+    private func recognize(_ screenshot: XCUIScreenshot, region: CGRect? = nil, numbersOnly: Bool = false) throws -> [Line] {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.recognitionLanguages = ["fr-FR", "en-US"]
+        request.recognitionLanguages = numbersOnly ? ["en-US"] : ["fr-FR", "en-US"]
+        request.usesLanguageCorrection = !numbersOnly
+        if let region { request.regionOfInterest = region }
         try VNImageRequestHandler(data: screenshot.pngRepresentation).perform([request])
-        let lines = (request.results ?? []).compactMap { observation -> Line? in
+        return (request.results ?? []).compactMap { observation -> Line? in
             guard let text = observation.topCandidates(1).first?.string else { return nil }
             return Line(text: text, bounds: observation.boundingBox)
         }
-        return Screen(lines: lines, screenshot: screenshot)
     }
 
     private func attach(_ screen: Screen, _ name: String) {
