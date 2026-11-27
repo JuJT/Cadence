@@ -5,7 +5,7 @@ import { formatHTML } from '@/utils/format/html';
 import { useTheme } from "expo-router/react-navigation";
 import { useStudyColors } from "@/hooks/useStudyColors";
 import adjust from '@/utils/adjustColor';
-import { Platform, Pressable, Text } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatDistanceStrict, startOfDay } from 'date-fns';
 import * as DateLocale from 'date-fns/locale';
@@ -76,7 +76,8 @@ const Task: React.FC<TaskProps> = React.memo(({
   const formattedDescription = useMemo(() => formatHTML(description), [description]);
 
   return (
-    <Stack card radius={20} style={{ borderColor: colors.text + "32", borderWidth: Platform.OS === "android" ? 0 : 1, backgroundColor: (Platform.OS === 'android' && !theme.dark) ? "#FFF" : colors.item, elevation: 2, overflow: "hidden" }}>
+    <View style={[styles.card, { borderColor: colors.text + "32", borderWidth: Platform.OS === "android" ? 0 : 1,
+      backgroundColor: (Platform.OS === 'android' && !theme.dark) ? "#FFF" : colors.item }]}>
       <Pressable {...openPress} accessibilityRole={onPress ? "link" : undefined} disabled={!onPress}>
         {/* The card above already clips to its corners: a second rounded clip
             here would cost another offscreen pass per row, on every row the
@@ -136,69 +137,44 @@ const Task: React.FC<TaskProps> = React.memo(({
         </Stack>
       </Pressable>
 
-      <Stack padding={[16, 10]} gap={6}>
-          {/* Bottom */}
-            <Stack inline flex hAlign='start' vAlign='center'>
-              {/* Magic */}
-              {magic && (
-                <Dynamic animated>
-                  <Stack
-                    animated
-                    direction="horizontal"
-                    gap={6}
-                    hAlign='center'
-                    vAlign='center'
-                    padding={[12, 6]}
-                    radius={12}
-                    backgroundColor={tintedColor + "20"}
-                  >
-                    <Papicons name='sparkles' size={22} color={tintedColor} style={{ marginLeft: -2 }} />
-                    <Typography color={tintedColor} variant='body1' weight='semibold'>
-                      {magic}
-                    </Typography>
-                  </Stack>
-                </Dynamic>
-              )}
-            </Stack>
-          <Stack animated layout={Animation(LinearTransition, "list")} direction="horizontal" gap={8} hAlign='center' style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-            {studyAction ?? <Stack flex />}
-            <Stack animated layout={Animation(LinearTransition, "list")} radius={300} inline hAlign='end' vAlign='center' style={{ overflow: Platform.OS === "android" ? "hidden" : undefined }}>
-              <Pressable {...togglePress}
-                accessibilityRole="button" accessibilityLabel={completed ? "Remettre à faire" : "Valider le devoir"}
-                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, minHeight: 44, justifyContent: "center" })}>
-                <Stack
-                  animated
-                  layout={Animation(LinearTransition, "list")}
-                  card
-                  backgroundColor={completed ? tintedColor : undefined}>
-                  <Stack
-                    animated
-                    layout={Animation(LinearTransition, "list")}
-                    padding={[completed ? 12 : 8, 8]}
-                    direction='horizontal'
-                    gap={6}
-                    radius={100}
-                    hAlign='center'
-                    style={{ overflow: "hidden" }}
-                  >
-                    <Icon size={24} opacity={completed ? 1 : 0.5} fill={completed ? "#FFF" : undefined}>
-                      <Papicons name='check' />
-                    </Icon>
-                    {completed &&
-                      <Dynamic animated>
-                        <Typography color='#FFF'>
-                          Terminé
-                        </Typography>
-                      </Dynamic>
-                    }
-                  </Stack>
-                </Stack>
-              </Pressable>
-            </Stack>
-          </Stack>
-      </Stack>
-    </Stack>
+      <View style={styles.footer}>
+        {magic && (
+          <Dynamic animated>
+            <View style={[styles.magic, { backgroundColor: tintedColor + "20" }]}>
+              <Papicons name='sparkles' size={22} color={tintedColor} />
+              <Typography color={tintedColor} variant='body1' weight='semibold'>{magic}</Typography>
+            </View>
+          </Dynamic>
+        )}
+        <View style={styles.actions}>
+          {studyAction}
+          <Pressable {...togglePress} accessibilityRole="button"
+            accessibilityLabel={completed ? "Remettre à faire" : "Valider le devoir"}
+            style={({ pressed }) => [styles.toggle, {
+              paddingHorizontal: completed ? 12 : 9,
+              backgroundColor: completed ? tintedColor : colors.item,
+              borderColor: completed ? 'transparent' : colors.border,
+              opacity: pressed ? 0.6 : 1,
+            }]}>
+            <Icon size={24} opacity={completed ? 1 : 0.5} fill={completed ? "#FFF" : undefined}>
+              <Papicons name='check' />
+            </Icon>
+            {completed && <Typography color='#FFF'>Terminé</Typography>}
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
+});
+
+const styles = StyleSheet.create({
+  card: { width: '100%', borderRadius: 20, borderCurve: 'continuous', elevation: 2, overflow: 'hidden' },
+  footer: { paddingHorizontal: 16, paddingBottom: 10, gap: 6 },
+  actions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  toggle: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44,
+    borderWidth: StyleSheet.hairlineWidth, borderRadius: 22 },
+  magic: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
 });
 
 Task.displayName = "Task";
