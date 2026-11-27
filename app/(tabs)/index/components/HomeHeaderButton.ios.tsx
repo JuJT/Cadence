@@ -1,13 +1,23 @@
+import { Papicons } from '@getpapillon/papicons';
 import { useTheme } from "expo-router/react-navigation";
 import { LiquidGlassView } from '@sbaiahmed1/react-native-blur';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image, type ImageSourcePropType, Pressable, StyleSheet, View } from 'react-native';
 import adjust from "@/utils/adjustColor";
 
+import Typography from '@/ui/components/Typography';
 import { Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { HomeCardContent, type HomeHeaderButtonItem } from '@/components/HomeCardContent';
+export interface HomeHeaderButtonItem {
+  title: string;
+  icon: string;
+  color: string;
+  description: string;
+  route?: string;
+  params?: Record<string, string>;
+  image?: ImageSourcePropType;
+}
 
 interface HomeHeaderButtonProps {
   item: HomeHeaderButtonItem;
@@ -21,7 +31,7 @@ const HomeHeaderButton: React.FC<HomeHeaderButtonProps> = ({ item }) => {
     <Link
       asChild
       href={{
-        pathname: item.route,
+        pathname: item.route ?? "/(features)/soon",
         params: item.params,
       }}
     >
@@ -30,13 +40,36 @@ const HomeHeaderButton: React.FC<HomeHeaderButtonProps> = ({ item }) => {
           accessibilityLabel={`${item.title}, ${item.description}`}
           style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.78 }]}
         >
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.background]}>
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
             <LiquidGlassView glassOpacity={0.4} glassTintColor={adjust(item.color, theme.dark ? -0.8 : 0.9)}
               glassType="regular" style={{ flex: 1, borderRadius: 22 }} />
             <LinearGradient colors={[String(colors.background) + (theme.dark ? "00" : "99"), String(colors.background) + (theme.dark ? "99" : "00")]}
               style={[StyleSheet.absoluteFill, { borderRadius: 22 }]} />
           </View>
-          <HomeCardContent item={item} />
+          {item.image ? (
+            <Image
+              source={item.image}
+              resizeMode="contain"
+              style={styles.image}
+            />
+          ) : (
+            <View
+              style={{
+                backgroundColor: item.color + 30,
+                borderRadius: 50,
+                aspectRatio: 1,
+                width: 42,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Papicons name={item.icon} color={item.color} size={25} />
+            </View>
+          )}
+          <View style={styles.textColumn}>
+            <Typography numberOfLines={2} variant="h6" color={String(colors.text) + "e5"} style={styles.title}>{item.title}</Typography>
+            <Typography numberOfLines={1} variant="title" color={String(colors.text) + "75"} style={styles.subtitle}>{item.description}</Typography>
+          </View>
         </Pressable>
     </Link>
   );
@@ -44,9 +77,10 @@ const HomeHeaderButton: React.FC<HomeHeaderButtonProps> = ({ item }) => {
 
 const styles = StyleSheet.create({
   headerBtn: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     minWidth: 0,
-    minHeight: 60,
     flexDirection: "row",
     borderCurve: "circular",
     borderRadius: 20,
@@ -54,7 +88,10 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: "center",
   },
-  background: { borderRadius: 20, overflow: 'hidden' },
+  image: { width: 32, height: 32, flexShrink: 0 },
+  textColumn: { flex: 1, minWidth: 0 },
+  title: { lineHeight: 21 },
+  subtitle: { lineHeight: 20 },
 });
 
 export default HomeHeaderButton;
