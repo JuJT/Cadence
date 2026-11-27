@@ -1,14 +1,11 @@
-import { LiquidGlassContainer } from '@sbaiahmed1/react-native-blur';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Stack from '@/ui/components/Stack';
 import { getCurrentPeriod } from '@/utils/grades/helper/period';
-import { getManager } from '@/services/shared';
+import { useSchoolManager } from '@/components/pronote/SchoolPage';
 import { Capabilities } from '@/services/shared/types';
-import { useAccountStore } from '@/stores/account';
 
 import HomeHeaderButton, { HomeHeaderButtonItem } from '../components/HomeHeaderButton';
 import { useHomeHeaderData } from '../hooks/useHomeHeaderData';
@@ -17,10 +14,10 @@ const HomeHeader = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { availableCanteenCards, attendancesPeriods, attendances, absencesCount, news } = useHomeHeaderData();
-  const account = useAccountStore(state => state.accounts.find(item => item.id === state.lastUsedAccount));
-  const manager = getManager(true);
-  const canDiscuss = account?.services.some(service => manager?.clientHasCapatibility(Capabilities.CHAT_READ, service.id));
-  const canReadLessons = account?.services.some(service => manager?.clientHasCapatibility(Capabilities.COURSE_RESOURCES, service.id));
+  const { manager } = useSchoolManager();
+  const canDiscuss = (manager?.getAvailableClients(Capabilities.CHAT_READ).length ?? 0) > 0;
+  const canReadLessons = (manager?.getAvailableClients(Capabilities.COURSE_RESOURCES).length ?? 0) > 0;
+  const canReadNews = (manager?.getAvailableClients(Capabilities.NEWS).length ?? 0) > 0;
   const currentAttendancePeriod = attendancesPeriods.length > 0
     ? getCurrentPeriod(attendancesPeriods)
     : undefined;
@@ -59,38 +56,32 @@ const HomeHeader = () => {
         attendances: JSON.stringify(attendances),
       },
     },
-    {
+    ...(canReadNews || news.length > 0 ? [{
       title: "Informations et sondages",
       image: require("@/assets/shaded_icons/actu.png"),
       icon: "newspaper",
       color: "#0080ff",
       description: news.reduce<(typeof news)[number] | undefined>((latest, item) => !latest || item.createdAt > latest.createdAt ? item : latest, undefined)?.title ?? t("News_Empty_Title"),
       route: "/(features)/(news)/news"
-    },
-    ...(canDiscuss ? [{ title: "Discussions", icon: "Chat", color: "#3979df", description: "Messages PRONOTE", route: "/(features)/pronote/discussions" }] : []),
-    ...(canReadLessons ? [{ title: "Cahier de textes", icon: "Book", color: "#248985", description: "Contenus des cours", route: "/(features)/pronote/lessons" }] : []),
-  ], [availableCanteenCards, absencesCount, news, currentAttendancePeriod, attendancesPeriods, attendances, canDiscuss, canReadLessons, t]);
+    }] : []),
+    ...(canDiscuss ? [{ title: "Discussions", icon: "TextBubble", color: "#3979df", description: "Messages PRONOTE", route: "/(features)/pronote/discussions" }] : []),
+    ...(canReadLessons ? [{ title: "Cahier de textes", icon: "Paper", color: "#248985", description: "Contenus des cours", route: "/(features)/pronote/lessons" }] : []),
+  ], [availableCanteenCards, absencesCount, news, currentAttendancePeriod, attendancesPeriods, attendances, canDiscuss, canReadLessons, canReadNews, t]);
 
   return (
     <View style={{ paddingHorizontal: 0, width: "100%", flex: 1, overflow: "visible" }}>
       <View style={{ height: insets.top + 56 + (insets.right > 10 ? 10 : 0) }} />
-      <LiquidGlassContainer spacing={8} style={{ overflow: "visible" }}>
-        <Stack inline flex width={"100%"} style={{ overflow: "visible" }}>
-          <View style={{ width: '100%', gap: 6, overflow: "visible" }}>
-            {Array.from({ length: Math.ceil(HomeHeaderButtons.length / 2) }).map((_, i) => (
-
-              <View key={i} style={{ flexDirection: 'row', gap: 6, width: '100%' }}>
-                {HomeHeaderButtons.slice(i * 2, i * 2 + 2).map((item) => (
-                  <HomeHeaderButton
-                    key={item.title} item={item}
-                  />
-                ))}
-                {HomeHeaderButtons.slice(i * 2, i * 2 + 2).length === 1 && <View style={{ flex: 1 }} />}
-              </View>
-            ))}
-          </View>
-        </Stack>
-      </LiquidGlassContainer>
+      <View style={{ width: '100%', gap: 6, overflow: 'visible' }}>
+        {Array.from({ length: Math.ceil(HomeHeaderButtons.length / 2) }, (_, i) => {
+          const row = HomeHeaderButtons.slice(i * 2, i * 2 + 2);
+          return (
+            <View key={i} style={{ flexDirection: 'row', gap: 6, width: '100%' }}>
+              {row.map(item => <HomeHeaderButton key={item.title} item={item} />)}
+              {row.length === 1 && <View style={{ flex: 1 }} />}
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 };

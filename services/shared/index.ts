@@ -43,6 +43,7 @@ import {
   getCoursesFromCache,
 } from "@/database/useTimetable";
 import { observePronoteWeek } from "@/services/cadenza/timetable-alerts";
+import { AssessmentPeriod, AssessmentSection, ReportCard, SkillEvaluation } from "@/services/shared/assessment";
 import { Attendance } from "@/services/shared/attendance";
 import {
   Booking,
@@ -476,6 +477,29 @@ export class AccountManager {
         },
       }
     );
+  }
+
+  async getAssessmentPeriods(section: AssessmentSection, clientId: string): Promise<AssessmentPeriod[]> {
+    const capability = section === "skills" ? Capabilities.SKILLS : Capabilities.REPORT_CARDS;
+    return this.fetchData(capability, async client =>
+      client.getAssessmentPeriods ? client.getAssessmentPeriods(section) : [], { clientId, multiple: true });
+  }
+
+  async getSkillEvaluations(period: AssessmentPeriod): Promise<SkillEvaluation[]> {
+    return this.fetchData(Capabilities.SKILLS, async client =>
+      client.getSkillEvaluations ? client.getSkillEvaluations(period.id) : [], { clientId: period.serviceId, multiple: true });
+  }
+
+  async getReportCard(period: AssessmentPeriod): Promise<ReportCard | null> {
+    return this.fetchData(Capabilities.REPORT_CARDS, async client =>
+      client.getReportCard ? client.getReportCard(period.id) : null, { clientId: period.serviceId });
+  }
+
+  async getReportCardPDF(period: AssessmentPeriod): Promise<string> {
+    return this.fetchData(Capabilities.REPORT_CARDS, async client => {
+      if (!client.getReportCardPDF) throw new Error("Le document est indisponible.");
+      return client.getReportCardPDF(period.id);
+    }, { clientId: period.serviceId });
   }
 
   async getLessons(clientId: string): Promise<LessonSummary[]> {

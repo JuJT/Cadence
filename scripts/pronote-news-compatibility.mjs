@@ -154,23 +154,93 @@ const artifacts = [
     file: "index.mjs",
     aliases: {},
     exportCode: "export {__cadenzaNewsDetail as cadenzaNewsDetail};",
+    bulletin: { readName: "_s", pdfName: "xs", exportCode: "export {cadenzaGradebookOverview};" },
   },
   {
     file: "index.js",
     aliases: {ft:"xs", le:"te", De:"ue", ne:"W", ae:"Y", Q:"G"},
     exportCode: "exports.cadenzaNewsDetail=__cadenzaNewsDetail;",
+    bulletin: { readName: "exports.gradebook", pdfName: "as", exportCode: "exports.cadenzaGradebookOverview=cadenzaGradebookOverview;" },
   },
 ];
-for (const { file, aliases, exportCode } of artifacts) {
+// The bulletin service list can omit class statistics and group titles when
+// the school hides them. PRONOTE's public 2026.2.8 demo exercises that case.
+export const gradebookOverviewDecoder = String.raw`
+function __cadenzaDecodeGradebook(data) {
+  if (!data || Object.keys(data).length === 0 || data.message) return null;
+  const subjects = data.ListeServices?.V;
+  const remarks = data.ObjetListeAppreciations?.V?.ListeAppreciations?.V;
+  if (!Array.isArray(subjects) && !Array.isArray(remarks)) {
+    throw new Error("UnsupportedGradebookFormat");
+  }
+  function optionalNumber(wrapper) {
+    const raw = wrapper?.V;
+    if (typeof raw !== "number" && (typeof raw !== "string" || !raw.trim())) return undefined;
+    const value = Number(String(raw).trim().replace(",", "."));
+    return Number.isFinite(value) ? value : undefined;
+  }
+  return {
+    overall: (Array.isArray(remarks) ? remarks : []).flatMap(remark =>
+      typeof remark?.L === "string" && remark.L.trim()
+        ? [{ name: typeof remark.Intitule === "string" ? remark.Intitule : "", value: remark.L }]
+        : []
+    ),
+    subjects: (Array.isArray(subjects) ? subjects : []).flatMap(subject => {
+      if (!subject || typeof subject !== "object") return [];
+      const name = [subject.Matiere?.V?.L, subject.L, subject.SurMatiere?.V?.L]
+        .find(value => typeof value === "string" && value.trim());
+      if (!name) return [];
+      const group = subject.SurMatiere?.V?.L;
+      return [{
+        name,
+        group: typeof group === "string" ? group : undefined,
+        average: optionalNumber(subject.MoyenneEleve),
+        classAverage: optionalNumber(subject.MoyenneClasse),
+        assessments: (Array.isArray(subject.ListeAppreciations?.V) ? subject.ListeAppreciations.V : [])
+          .flatMap(line => typeof line?.L === "string" && line.L.trim() ? [line.L] : []),
+      }];
+    }),
+  };
+}
+`;
+
+// Separate read-only PageBulletins from generation of a PDF, leaving the
+// published gradebook() API and PDF behavior unchanged for existing callers.
+export function separateGradebookPDF(source, readName, pdfName) {
+  const separator = readName + '=async(e,s)=>';
+  const readStart = source.indexOf(separator);
+  const pageStart = source.indexOf('"PageBulletins"', readStart);
+  const decoder = "return await(async(e,s,t)=>{";
+  const decoderStart = source.indexOf(decoder, pageStart);
+  const pdf = "url:await " + pdfName + "(e,s)";
+  const pdfStart = source.indexOf(pdf, decoderStart);
+  if (readStart < 0 || pageStart < 0 || decoderStart < 0 || pdfStart < 0 || pdfStart - readStart > 1500) {
+    throw new Error("Pawnote 1.6.4 bulletin code changed");
+  }
+  return source.slice(0, readStart) + readName + "=async(e,s,withPDF=true)=>" +
+    source.slice(readStart + separator.length, decoderStart + decoder.length) +
+    "if(!withPDF)return __cadenzaDecodeGradebook(t);" +
+    source.slice(decoderStart + decoder.length);
+}
+
+for (const { file, aliases, exportCode, bulletin } of artifacts) {
   const path = join(sdkRoot, file);
   const source = readFileSync(path, "utf8");
-  if (source.includes(exportCode)) continue;
-  const bindAliases = code => Object.entries(aliases).reduce((value, [from, to]) =>
-    value.replace(new RegExp('\\b' + from + '\\b', 'g'), to), code);
-  const expected = bindAliases(before);
-  if (source.split(expected).length !== 2) {
-    throw new Error("Pawnote 1.6.4 news code changed in " + file);
+  let installed = source;
+  if (!installed.includes(exportCode)) {
+    const bindAliases = code => Object.entries(aliases).reduce((value, [from, to]) =>
+      value.replace(new RegExp('\\b' + from + '\\b', 'g'), to), code);
+    const expected = bindAliases(before);
+    if (installed.split(expected).length !== 2) {
+      throw new Error("Pawnote 1.6.4 news code changed in " + file);
+    }
+    installed = installed.replace(expected, bindAliases(after)) + "\n" +
+      bindAliases(newsCompatibilityHelpers) + "\n" + exportCode + "\n";
   }
-  const installed = source.replace(expected, bindAliases(after));
-  writeFileSync(path, installed + "\n" + bindAliases(newsCompatibilityHelpers) + "\n" + exportCode + "\n");
+  if (!installed.includes(bulletin.exportCode)) {
+    installed = separateGradebookPDF(installed, bulletin.readName, bulletin.pdfName) + "\n" + gradebookOverviewDecoder +
+      "\nconst cadenzaGradebookOverview=(session,period)=>" + bulletin.readName + "(session,period,false);\n" +
+      bulletin.exportCode + "\n";
+  }
+  if (installed !== source) writeFileSync(path, installed);
 }

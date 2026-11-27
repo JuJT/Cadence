@@ -24,7 +24,7 @@ const chat = { id: "thread", subject: "Cours", date: new Date(), createdByAccoun
 const thread = { participantsMessageID: chat.id } as Awaited<ReturnType<typeof discussions>>["items"][number];
 
 describe("PRONOTE discussions", () => {
-  beforeEach(() => jest.resetAllMocks());
+  beforeEach(() => { jest.resetAllMocks(); });
 
   it("opens a thread without marking it read", async () => {
     jest.mocked(discussions).mockResolvedValue({ folders: [], items: [thread] });

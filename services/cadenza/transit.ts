@@ -1,21 +1,23 @@
 const api = "https://api.transitous.org/api/v1/";
 const contact = "Cadenza/0.9.0 (https://github.com/JuJT/Cadence)";
 
-export type TransitStop = { id: string; name: string; area?: string; tz?: string };
-export type TransitDeparture = { id: string; line: string; mode: string; headsign: string; time: string; scheduled?: string; live: boolean; cancelled: boolean };
-export type TransitLeg = { mode: string; line: string; from: string; to: string; departure: string; arrival: string; direction?: string; live: boolean; cancelled: boolean };
+export type TransitOperator = { name?: string; url: string };
+export type TransitStop = { id: string; name: string; area?: string; tz?: string; lat?: number; lon?: number; operator?: TransitOperator };
+export type TransitDeparture = { id: string; line: string; mode: string; headsign: string; time: string; scheduled?: string; live: boolean; cancelled: boolean; operator?: TransitOperator };
+export type TransitLeg = { mode: string; line: string; from: string; to: string; departure: string; arrival: string; direction?: string; live: boolean; cancelled: boolean; fromTz?: string; toTz?: string; operator?: TransitOperator };
 export type TransitJourney = { id: string; departure: string; arrival: string; transfers: number; legs: TransitLeg[] };
 export type TransitNetwork = { id: string; name: string; area: string; url: string; realtimePublished: boolean };
 
-type RawStop = { id?: string; type?: string; name?: string; country?: string; tz?: string; areas?: { name: string; default?: boolean; adminLevel?: number }[] };
-type RawDeparture = {
+type RawStop = { id?: string; type?: string; name?: string; country?: string; tz?: string; lat?: number; lon?: number; areas?: { name: string; default?: boolean; adminLevel?: number }[] };
+type RawAgency = { agencyName?: string; agencyUrl?: string };
+type RawDeparture = RawAgency & {
   tripId?: string; mode?: string; headsign?: string; routeShortName?: string; displayName?: string; realTime?: boolean;
   cancelled?: boolean; tripCancelled?: boolean;
   place?: { departure?: string; scheduledDeparture?: string; cancelled?: boolean; departureTimestampReason?: string };
 };
-type RawLeg = {
-  mode: string; routeShortName?: string; headsign?: string; from?: { name?: string; departureTimestampReason?: string };
-  to?: { name?: string }; startTime: string; endTime: string; realTime?: boolean; cancelled?: boolean;
+type RawLeg = RawAgency & {
+  mode: string; routeShortName?: string; headsign?: string; from?: { name?: string; tz?: string; departureTimestampReason?: string };
+  to?: { name?: string; tz?: string }; startTime: string; endTime: string; realTime?: boolean; cancelled?: boolean;
 };
 type RawJourney = { id?: string; startTime: string; endTime: string; transfers?: number; legs: RawLeg[] };
 type RawNetwork = { id: string | number; title: string; type: string; page_url: string; covered_area?: { nom: string }[]; resources?: { format: string; is_available?: boolean }[] };
@@ -49,6 +51,31 @@ function endpoint(path: string, parameters: Record<string, string>) {
 
 const frenchRegions = new Set(["FR", "GP", "MQ", "GF", "RE", "YT", "PM", "BL", "MF", "WF", "PF", "NC", "TF"]);
 
+export function verifiedTransitOperator(name?: string, url?: string): TransitOperator | undefined {
+  if (!url) return;
+  try {
+    const link = new URL(url);
+    const host = link.hostname.toLowerCase();
+    if (link.protocol !== "https:" || link.username || link.password || link.port ||
+      !/\.[a-z][a-z0-9-]*$/.test(host) || /\.(?:local|localhost|internal|test|example|invalid|onion)$/.test(host)) return;
+    return { name: typeof name === "string" ? name.trim() || undefined : undefined, url: link.toString() };
+  } catch { return undefined; }
+}
+
+export function appleTransitDirections(from: TransitStop, to: TransitStop, legacy = false) {
+  const place = (stop: TransitStop) => {
+    if (typeof stop.lat === "number" && Math.abs(stop.lat) <= 90 && typeof stop.lon === "number" && Math.abs(stop.lon) <= 180) {
+      return `${stop.lat},${stop.lon}`;
+    }
+    return [stop.name, stop.area].filter(Boolean).join(", ");
+  };
+  const source = place(from);
+  const destination = place(to);
+  const parameters: Record<string, string> = legacy ? { saddr: source, daddr: destination, dirflg: "r" } : { source, destination, mode: "transit" };
+  const query = new URLSearchParams(parameters);
+  return `https://maps.apple.com/${legacy ? "" : "directions"}?${query}`;
+}
+
 export async function findTransitStops(text: string, near?: { latitude: number; longitude: number }): Promise<TransitStop[]> {
   const query = text.trim().slice(0, 110);
   if (!near && query.length < 2) return [];
@@ -56,7 +83,7 @@ export async function findTransitStops(text: string, near?: { latitude: number; 
     ? await request<RawStop[]>(endpoint("reverse-geocode", { place: `${near.latitude.toFixed(3)},${near.longitude.toFixed(3)}`, type: "STOP", language: "fr" }), 180_000)
     : await request<RawStop[]>(endpoint("geocode", { text: query, type: "STOP", language: "fr" }), 180_000);
   return hits.filter(stop => stop.type === "STOP" && stop.id && stop.name && (!stop.country || frenchRegions.has(stop.country)))
-    .slice(0, 16).map(stop => ({ id: stop.id!, name: stop.name!, tz: stop.tz,
+    .slice(0, 16).map(stop => ({ id: stop.id!, name: stop.name!, tz: stop.tz, lat: stop.lat, lon: stop.lon,
       area: stop.areas?.find(area => area.default)?.name ?? stop.areas?.find(area => area.adminLevel === 8)?.name }));
 }
 
@@ -68,7 +95,8 @@ export async function nextTransitDepartures(stop: TransitStop): Promise<TransitD
     return [{ id: `${item.tripId ?? index}/${time}`, line: item.routeShortName || item.displayName || "Transport",
       mode: item.mode ?? "TRANSIT", headsign: item.headsign ?? "", time, scheduled: item.place?.scheduledDeparture,
       live: item.realTime === true && item.place?.departureTimestampReason !== "NO_RT_DATA",
-      cancelled: !!(item.cancelled || item.tripCancelled || item.place?.cancelled) }];
+      cancelled: !!(item.cancelled || item.tripCancelled || item.place?.cancelled),
+      operator: verifiedTransitOperator(item.agencyName, item.agencyUrl) }];
   });
 }
 
@@ -82,6 +110,7 @@ export async function planTransitJourney(from: TransitStop, to: TransitStop, tim
     return [{ id: item.id ?? `${item.startTime}/${index}`, departure: item.startTime, arrival: item.endTime, transfers: item.transfers ?? 0,
       legs: item.legs.map(leg => ({ mode: leg.mode, line: leg.routeShortName ?? "", from: leg.from?.name ?? from.name,
         to: leg.to?.name ?? to.name, departure: leg.startTime, arrival: leg.endTime, direction: leg.headsign,
+        fromTz: leg.from?.tz, toTz: leg.to?.tz, operator: verifiedTransitOperator(leg.agencyName, leg.agencyUrl),
         live: leg.realTime === true && leg.from?.departureTimestampReason !== "NO_RT_DATA", cancelled: !!leg.cancelled })) }];
   });
 }

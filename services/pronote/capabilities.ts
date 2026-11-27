@@ -18,6 +18,8 @@ export function pronoteCapabilities(session: SessionHandle): Capabilities[] {
     [TabLocation.Notebook]: [Capabilities.ATTENDANCE, Capabilities.ATTENDANCE_PERIODS],
     [TabLocation.News]: [Capabilities.NEWS],
     [TabLocation.Menus]: [Capabilities.CANTEEN_MENU],
+    [TabLocation.Evaluations]: [Capabilities.SKILLS],
+    [TabLocation.Gradebook]: [Capabilities.REPORT_CARDS],
     [TabLocation.Resources]: [Capabilities.COURSE_RESOURCES],
     [TabLocation.Timetable]: [Capabilities.TIMETABLE],
   };

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import * as api from '@blockshub/pawnote-lts';
-import {newsCompatibilityHelpers} from './pronote-news-compatibility.mjs';
+import {gradebookOverviewDecoder, newsCompatibilityHelpers, separateGradebookPDF} from './pronote-news-compatibility.mjs';
 
 function setup(payload,detailReply){
   const calls=[],session={user:{id:'demo-student',kind:4}};
@@ -181,5 +181,48 @@ test('both installed SDK entrypoints expose the same detail capability', async (
   for (const build of [api, commonJS]) {
     assert.equal(typeof build.cadenzaNewsDetail, 'function');
     await assert.rejects(build.cadenzaNewsDetail({}, 'uncached-row'), /MissingResource/);
+  }
+});
+
+test("PRONOTE bulletins tolerate statistics and group data that the school did not publish", async () => {
+  const fixture = {
+    ObjetListeAppreciations: { V: { ListeAppreciations: { V: [{ Intitule: "Synthèse", L: "Appréciation fictive" }] } } },
+    ListeServices: { V: [
+      { Matiere: { V: { L: "Mathématiques" } }, MoyenneEleve: { V: "15,50" }, ListeAppreciations: { V: [{ L: "Exemple" }] } },
+      { L: "Sport", MoyenneEleve: { V: " " }, MoyenneClasse: { V: null } },
+    ] },
+  };
+  const requests = [];
+  const scope = vm.createContext({
+    ne: () => ({ signature: "signature", data: "data" }),
+    Is: period => period, Q: { Gradebook: 13 },
+    ae: class {
+      constructor(_session, name) { requests.push(name); }
+      async send() { return { data: { data: fixture } }; }
+    },
+    xs: () => { throw new Error("The overview must never invoke PDF generation"); },
+  });
+  const readPatchedSDK = vm.runInContext(gradebookOverviewDecoder + "\n(" + api.gradebook.toString() + ")", scope);
+  assert.deepEqual(plain(await readPatchedSDK({}, {}, false)), {
+    overall: [{ name: "Synthèse", value: "Appréciation fictive" }],
+    subjects: [{ name: "Mathématiques", average: 15.5, assessments: ["Exemple"] }, { name: "Sport", assessments: [] }],
+  });
+  assert.deepEqual(requests, ["PageBulletins"]);
+});
+
+test("unused report periods stay unavailable rather than receiving fabricated data", () => {
+  const decode = vm.runInNewContext(gradebookOverviewDecoder + "\n__cadenzaDecodeGradebook");
+  assert.equal(decode({}), null);
+  assert.equal(decode({ message: "Pas de publication" }), null);
+  assert.equal(decode(null), null);
+  assert.throws(() => decode({ unknown: true }), /UnsupportedGradebookFormat/);
+  assert.throws(() => separateGradebookPDF("unexpected code", "_s", "xs"), /bulletin code changed/);
+});
+
+test("both module formats expose the report overview separately from the PDF", () => {
+  const commonJS = createRequire(import.meta.url)("@blockshub/pawnote-lts");
+  for (const build of [commonJS, api]) {
+    assert.equal(typeof build.cadenzaGradebookOverview, "function");
+    assert.equal(typeof build.gradebookPDF, "function");
   }
 });

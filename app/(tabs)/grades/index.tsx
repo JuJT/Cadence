@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Link, Stack, useTheme } from 'expo-router';
+import { Link, Stack, useRouter, useTheme } from 'expo-router';
 import { t } from 'i18next';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
@@ -13,6 +13,8 @@ import { getPeriodName, getPeriodNumber, isPeriodWithNumber } from '@/utils/serv
 import { getSubjectName } from '@/utils/subjects/name';
 import { getSubjectEmoji } from '@/utils/subjects/emoji';
 import { gradePeriodKey, Grade, Period, Subject } from '@/services/shared/grade';
+import { Capabilities } from '@/services/shared/types';
+import { SchoolRow, useSchoolManager } from '@/components/pronote/SchoolPage';
 
 import { usePeriodsData } from './hooks/usePeriodsData';
 import { useGradesData } from './hooks/useGradesData';
@@ -68,6 +70,10 @@ const sortSubjects = (subjects: Subject[], method: SortMethod): Subject[] => {
 
 const GradesView = () => {
   const displayScale = getGradeDisplayScale(useSettingsStore(state => state.personalization.gradesDisplayScale));
+  const router = useRouter();
+  const { manager } = useSchoolManager();
+  const showSkills = (manager?.getAvailableClients(Capabilities.SKILLS).length ?? 0) > 0;
+  const showReportCards = (manager?.getAvailableClients(Capabilities.REPORT_CARDS).length ?? 0) > 0;
   const theme = useTheme();
   const resize = useResizable();
   const { width: screenWidth } = useWindowDimensions();
@@ -255,6 +261,17 @@ const GradesView = () => {
                 <SafeHorizontalView base={16}>
                   <Averages history={history} realAverage={isAverageServiceProvided ? averages.student?.value : undefined} color={theme.colors.primary} displayScale={displayScale} />
                 </SafeHorizontalView>
+
+                {(showSkills || showReportCards) && <SafeHorizontalView base={16}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {showSkills && <View style={{ flex: 1, minWidth: 132 }}>
+                      <SchoolRow title="Compétences" onPress={() => router.push('/(features)/pronote/skills')} />
+                    </View>}
+                    {showReportCards && <View style={{ flex: 1, minWidth: 132 }}>
+                      <SchoolRow title="Bulletins" onPress={() => router.push('/(features)/pronote/report-cards')} />
+                    </View>}
+                  </View>
+                </SafeHorizontalView>}
 
                 <FlatList
                   data={recentGrades}

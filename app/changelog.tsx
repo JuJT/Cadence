@@ -12,9 +12,29 @@ import Typography from "@/ui/new/Typography";
 
 const changes = [
   {
+    icon: "Clock",
+    title: "Un chronomètre plein écran",
+    description: "Lance une séance depuis un cours, un devoir ou l’onglet Révision. Réduis le chronomètre pour naviguer pendant la séance.",
+  },
+  {
+    icon: "Grades",
+    title: "Des statistiques de travail plus précises",
+    description: "Retrouve séparément les révisions, les cours chronométrés et les heures issues de ton emploi du temps.",
+  },
+  {
     icon: "Calendar",
     title: "Tes notes de la période en cours",
     description: "Cadenza ouvre les notes du trimestre ou du semestre en cours. Tu peux consulter une autre période depuis le calendrier des notes.",
+  },
+  {
+    icon: "Paper",
+    title: "Plus de services PRONOTE",
+    description: "Retrouve le cahier de textes dans Cours, les discussions et les sondages sur l’accueil, et les compétences et bulletins dans Notes selon les droits de ton compte.",
+  },
+  {
+    icon: "MapPin",
+    title: "Tes trajets et tes arrêts favoris",
+    description: "Consulte les prochains passages et prépare l’aller ou le retour du lycée selon ton emploi du temps et ton domicile du jour.",
   },
   {
     icon: "Palette",

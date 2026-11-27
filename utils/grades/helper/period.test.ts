@@ -1,3 +1,5 @@
+import { describe, expect, it } from "@jest/globals";
+
 import { gradePeriodKey, type Period } from "@/services/shared/grade";
 import { findGradePeriod, getCurrentPeriod } from "./period";
 

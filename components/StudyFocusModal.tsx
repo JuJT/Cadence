@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo, Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 import { StudyClock } from "@/components/StudyEntry";
@@ -39,6 +39,7 @@ export default function StudyFocusModal({ session, subjectName, visible, onReduc
   const reduced = useReduceMotion();
   const paused = isPaused(session);
   const { width, height, fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const diameter = Math.min(width - 54, Math.max(226, height * 0.4), 350);
   const orbit = useRef(new Animated.Value(0)).current;
 
@@ -56,8 +57,9 @@ export default function StudyFocusModal({ session, subjectName, visible, onReduc
 
   return (
     <Modal visible={visible} animationType={reduced ? "none" : "fade"} presentationStyle="fullScreen" onRequestClose={onReduce}>
-      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} accessibilityViewIsModal>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top,
+        paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]} accessibilityViewIsModal>
+        <ScrollView contentInsetAdjustmentBehavior="never" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <Pressable accessibilityRole="button" accessibilityLabel="Réduire le chronomètre" onPress={onReduce}
             testID="cadenza-study-reduce" style={[styles.control, { alignSelf: "flex-start" }]}>
             <ArrowDown size={19} color={colors.tint} />
@@ -113,7 +115,7 @@ export default function StudyFocusModal({ session, subjectName, visible, onReduc
             )}
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

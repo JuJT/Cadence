@@ -10,6 +10,7 @@ import { Client as TurboselfClient } from "turboself-api";
 import { Appscho } from "@/services/appscho";
 import type { MockData } from "@/services/mock";
 import { Pronote } from "@/services/pronote";
+import { AssessmentPeriod, AssessmentSection, ReportCard, SkillEvaluation } from "@/services/shared/assessment";
 import { Attendance } from "@/services/shared/attendance";
 import {
   Booking,
@@ -86,6 +87,10 @@ export interface SchoolServicePlugin {
   getChatMessages?: (chat: Chat) => Promise<Message[]>;
   getRecipientsAvailableForNewChat?: () => Promise<Recipient[]>;
   getCourseResources?: (course: Course) => Promise<CourseResource[]>;
+  getAssessmentPeriods?: (section: AssessmentSection) => Promise<AssessmentPeriod[]>;
+  getSkillEvaluations?: (periodId: string) => Promise<SkillEvaluation[]>;
+  getReportCard?: (periodId: string) => Promise<ReportCard | null>;
+  getReportCardPDF?: (periodId: string) => Promise<string>;
   getLessons?: () => Promise<LessonSummary[]>;
   getLesson?: (id: string) => Promise<CourseResource[]>;
   canReplyToChat?: (chat: Chat) => Promise<boolean>;
@@ -135,6 +140,8 @@ export enum Capabilities {
   CANTEEN_BOOKINGS,
   CANTEEN_QRCODE,
   COURSE_RESOURCES,
+  SKILLS,
+  REPORT_CARDS,
 }
 
 /**

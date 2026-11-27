@@ -13,7 +13,7 @@ function session(
   return {
     user: { authorizations: { tabs, ...permissions } },
     userResource: { tabs: new Map(resourceTabs.map(tab => [tab, { location: tab, periods: [] }])) },
-  } as SessionHandle;
+  } as unknown as SessionHandle;
 }
 
 describe("PRONOTE account and resource tabs", () => {

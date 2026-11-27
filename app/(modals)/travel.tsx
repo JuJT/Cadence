@@ -11,8 +11,8 @@ import { getWeekNumberFromDate } from "@/database/useHomework";
 import { useTimetable } from "@/database/useTimetable";
 import { importTransitPass } from "@/modules/cadenza-study";
 import { shouldOfferTimetableAlerts } from "@/services/cadenza/timetable-alerts";
-import { findTransitStops, getFrenchTransitNetworks, nextTransitDepartures, planTransitJourney,
-  type TransitDeparture, type TransitJourney, type TransitNetwork, type TransitStop } from "@/services/cadenza/transit";
+import { appleTransitDirections, findTransitStops, getFrenchTransitNetworks, nextTransitDepartures, planTransitJourney, verifiedTransitOperator,
+  type TransitDeparture, type TransitJourney, type TransitNetwork, type TransitOperator, type TransitStop } from "@/services/cadenza/transit";
 import { dayKey, selectTravelHome, travelTime, type TransitHome } from "@/services/cadenza/travel-schedule";
 import { CourseStatus, CourseType } from "@/services/shared/timetable";
 import { useAccountStore } from "@/stores/account";
@@ -25,9 +25,20 @@ const workdays = [1, 2, 3, 4, 5];
 const days = [[1, "Lun."], [2, "Mar."], [3, "Mer."], [4, "Jeu."], [5, "Ven."], [6, "Sam."], [0, "Dim."]] as const;
 const modeLabels: Record<string, string> = { WALK: "À pied", BUS: "Bus", TRAM: "Tram", SUBWAY: "Métro", RAIL: "Train", REGIONAL_RAIL: "Train", FERRY: "Bateau" };
 const walletHelp = "https://support.apple.com/fr-fr/118581";
+const [iosMajor, iosMinor = 0] = String(Platform.Version).split(".").map(Number);
+const legacyAppleMaps = Platform.OS === "ios" && (iosMajor < 18 || (iosMajor === 18 && iosMinor < 4));
+type ResultStatus = "idle" | "ready" | "empty" | "unavailable";
 
 function timeLabel(time: string | Date, tz?: string) {
-  return new Date(time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: tz });
+  const date = new Date(time);
+  const options = { hour: "2-digit", minute: "2-digit" } as const;
+  try { return date.toLocaleTimeString("fr-FR", { ...options, timeZone: tz }); }
+  catch { return date.toLocaleTimeString("fr-FR", options); }
+}
+
+function onlyOperator(items: { operator?: TransitOperator }[]) {
+  const operators = new Map(items.flatMap(item => item.operator ? [[item.operator.url, item.operator] as const] : []));
+  return operators.size === 1 ? operators.values().next().value : undefined;
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -64,6 +75,7 @@ export default function TravelScreen() {
   const [search, setSearch] = useState("");
   const [hits, setHits] = useState<TransitStop[]>([]);
   const [loadingStops, setLoadingStops] = useState(false);
+  const [searched, setSearched] = useState(false);
   const searchRequest = useRef(0);
   const [editing, setEditing] = useState<TransitHome>();
   const [dateOffset, setDateOffset] = useState(0);
@@ -71,6 +83,8 @@ export default function TravelScreen() {
   const [requestedTime, setRequestedTime] = useState("");
   const [departures, setDepartures] = useState<TransitDeparture[]>([]);
   const [journeys, setJourneys] = useState<TransitJourney[]>([]);
+  const [journeyStatus, setJourneyStatus] = useState<ResultStatus>("idle");
+  const [departureStatus, setDepartureStatus] = useState<ResultStatus>("idle");
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [refreshed, setRefreshed] = useState<Date>();
   const [networks, setNetworks] = useState<TransitNetwork[]>([]);
@@ -79,15 +93,22 @@ export default function TravelScreen() {
   const [error, setError] = useState("");
   const travelDate = addDays(new Date(), dateOffset);
   const home = selectTravelHome(config, travelDate);
+  const originStop = direction === "outbound" ? home?.stop : config.school;
+  const destinationStop = direction === "outbound" ? config.school : home?.stop;
+  const fallbackOperator = verifiedTransitOperator(originStop?.operator?.name, originStop?.operator?.url);
+  const journeysRequest = useRef(0);
   const timetable = useTimetable(0, getWeekNumberFromDate(travelDate), travelDate);
 
   useEffect(() => {
     setJourneys([]);
     setDepartures([]);
+    setJourneyStatus("idle");
+    setDepartureStatus("idle");
     setRefreshed(undefined);
     setError("");
     setLoadingRoutes(false);
-  }, [home?.id, config.school?.id, direction, dateOffset]);
+    return () => { journeysRequest.current++; };
+  }, [profile, home?.id, originStop?.id, destinationStop?.id, direction, dateOffset]);
 
   useEffect(() => {
     if (section !== "networks") return;
@@ -108,11 +129,11 @@ export default function TravelScreen() {
 
   const chooseStop = (kind: "school" | "home") => {
     searchRequest.current++;
-    setError(""); setHits([]); setSearch(""); setSearchFor(kind);
+    setError(""); setHits([]); setSearch(""); setSearched(false); setLoadingStops(false); setSearchFor(kind);
   };
   const searchStops = async (nearby = false) => {
     const requestId = ++searchRequest.current;
-    setLoadingStops(true); setError("");
+    setLoadingStops(true); setSearched(false); setError("");
     try {
       let location;
       if (nearby) {
@@ -121,7 +142,7 @@ export default function TravelScreen() {
         location = (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })).coords;
       }
       const list = await findTransitStops(search, location);
-      if (requestId === searchRequest.current) setHits(list);
+      if (requestId === searchRequest.current) { setHits(list); setSearched(true); }
     } catch (cause) {
       if (requestId === searchRequest.current) setError(cause instanceof Error ? cause.message : "La recherche a échoué.");
     } finally {
@@ -141,10 +162,8 @@ export default function TravelScreen() {
       ? old.homes.map(item => item.id === saved.id ? saved : item) : [...old.homes, saved] }));
     setEditing(undefined);
   };
-  const journeysRequest = useRef(0);
-  useEffect(() => () => { journeysRequest.current++; }, [home?.id, config.school?.id, direction, dateOffset]);
   const loadRoutes = async () => {
-    if (!home || !config.school) return;
+    if (!home || !originStop || !destinationStop) return;
     const requestId = ++journeysRequest.current;
     setLoadingRoutes(true); setError("");
     const services = new Set(account?.services.map(service => service.id));
@@ -161,15 +180,32 @@ export default function TravelScreen() {
     }
     const time = custom ? new Date(travelDate) : suggested.time;
     if (custom) time.setHours(Number(custom[1]), Number(custom[2]), 0, 0);
-    const [from, to] = direction === "outbound" ? [home.stop, config.school] : [config.school, home.stop];
-    const [routes, next] = await Promise.allSettled([planTransitJourney(from, to, time, !custom && suggested.arriveBy),
-      dateOffset === 0 ? nextTransitDepartures(from) : Promise.resolve([])]);
+    const [routes, next] = await Promise.allSettled([planTransitJourney(originStop, destinationStop, time, !custom && suggested.arriveBy),
+      dateOffset === 0 ? nextTransitDepartures(originStop) : Promise.resolve([])]);
     if (requestId !== journeysRequest.current) return;
-    setJourneys(routes.status === "fulfilled" ? routes.value : []);
-    setDepartures(next.status === "fulfilled" ? next.value : []);
-    setRefreshed(new Date());
-    if (routes.status === "rejected" || next.status === "rejected") setError("Certaines données de ce trajet sont indisponibles. Réessaie ou consulte le réseau dans le catalogue.");
-    else if (!routes.value.length) setError("Aucun itinéraire trouvé à cette heure.");
+    if (routes.status === "fulfilled") {
+      setJourneys(routes.value);
+      setJourneyStatus(routes.value.length ? "ready" : "empty");
+    } else setJourneyStatus("unavailable");
+    if (dateOffset === 0) {
+      if (next.status === "fulfilled") {
+        setDepartures(next.value);
+        setDepartureStatus(next.value.length ? "ready" : "empty");
+      } else setDepartureStatus("unavailable");
+    }
+    if (routes.status === "fulfilled" || (dateOffset === 0 && next.status === "fulfilled")) setRefreshed(new Date());
+    const board = next.status === "fulfilled" ? next.value : [];
+    const boardingLegs = routes.status === "fulfilled" ? routes.value.flatMap(item => {
+      const leg = item.legs.find(entry => entry.mode !== "WALK");
+      return leg?.from === originStop.name ? [leg] : [];
+    }) : [];
+    const operator = onlyOperator([...board, ...boardingLegs]);
+    if (operator && (operator.url !== originStop.operator?.url || operator.name !== originStop.operator?.name)) {
+      change(profile, old => direction === "outbound" ? {
+        homes: old.homes.map(item => item.id === home.id && item.stop.id === originStop.id
+          ? { ...item, stop: { ...item.stop, operator } } : item),
+      } : old.school?.id === originStop.id ? { school: { ...old.school, operator } } : {});
+    }
     setLoadingRoutes(false);
   };
 
@@ -227,6 +263,7 @@ export default function TravelScreen() {
           <Choice title="Annuler" onPress={() => { searchRequest.current++; setSearchFor(undefined); setLoadingStops(false); }} />
         </View>
         {loadingStops && <ActivityIndicator color={colors.primary} />}
+        {searched && hits.length === 0 && <Typography color="textSecondary">Aucun arrêt trouvé. Essaie le nom de la gare ou ajoute la ville.</Typography>}
         {hits.map(stop => <Choice key={stop.id} title={stop.area ? `${stop.name} · ${stop.area}` : stop.name} onPress={() => acceptStop(stop)} />)}
       </Card>}
       {editing && <Card title="Domicile">
@@ -259,16 +296,30 @@ export default function TravelScreen() {
           <Button label={loadingRoutes ? "Recherche…" : "Calculer le trajet"} onPress={() => { if (!loadingRoutes) void loadRoutes(); }} />
         </> : <Button label="Ouvrir la configuration" onPress={() => showSection("setup")} />}
       </Card>
-      {departures.length > 0 && <Card title="Prochains passages">{departures.map(item => <View key={item.id} style={styles.departure}>
+      {(departures.length > 0 || departureStatus === "empty" || departureStatus === "unavailable") && <Card title="Prochains passages">
+        {departureStatus === "empty" && <Typography color="textSecondary">Aucun passage publié pour cet arrêt.</Typography>}
+        {departureStatus === "unavailable" && <Typography color="textSecondary">{departures.length
+          ? "Actualisation impossible. Derniers passages reçus ci-dessous."
+          : "Les prochains passages sont temporairement indisponibles."}</Typography>}
+        {departures.map(item => <View key={item.id} style={styles.departure}>
         <View style={{ flex: 1 }}><Typography variant="title">{item.line} {item.headsign}</Typography>
           <Typography color="textSecondary" variant="caption">{item.cancelled ? "Supprimé" : item.live ? "Temps réel" : "Horaire théorique"}</Typography></View>
-        <Typography weight="bold">{timeLabel(item.time, (direction === "outbound" ? home?.stop : config.school)?.tz)}</Typography>
+        <Typography weight="bold">{timeLabel(item.time, originStop?.tz)}</Typography>
       </View>)}</Card>}
-      {journeys.map(item => <Card key={item.id} title={`${timeLabel(item.departure, home?.stop.tz)} → ${timeLabel(item.arrival, config.school?.tz)}`}>
+      {originStop && destinationStop && journeyStatus !== "idle" && (journeyStatus !== "ready" || departureStatus === "unavailable") && <Card title="Autre moyen de préparer le trajet">
+        {journeyStatus === "empty" && <Typography color="textSecondary">Aucun itinéraire trouvé à l’heure demandée.</Typography>}
+        {journeyStatus === "unavailable" && <Typography color="textSecondary">{journeys.length
+          ? "Actualisation impossible. Derniers itinéraires reçus ci-dessous."
+          : "Le calcul d’itinéraire est temporairement indisponible."}</Typography>}
+        {fallbackOperator
+          ? <Choice title={fallbackOperator.name ? `Site officiel · ${fallbackOperator.name}` : "Site officiel du réseau"} onPress={() => openLink(fallbackOperator.url)} />
+          : <Choice title="Itinéraire en transports dans Plans" onPress={() => openLink(appleTransitDirections(originStop, destinationStop, legacyAppleMaps))} />}
+      </Card>}
+      {journeys.map(item => <Card key={item.id} title={`${timeLabel(item.departure, originStop?.tz)} → ${timeLabel(item.arrival, destinationStop?.tz)}`}>
         <Typography color="textSecondary">{item.transfers > 0 ? `${item.transfers} correspondance${item.transfers > 1 ? "s" : ""}` : "Trajet direct"}</Typography>
         {item.legs.map((leg, index) => <View key={`${leg.departure}-${index}`}>
           <Typography variant="title">{leg.line || modeLabels[leg.mode] || "Transport"} · {leg.from} → {leg.to}</Typography>
-          <Typography variant="caption" color="textSecondary">{timeLabel(leg.departure, home?.stop.tz)} – {timeLabel(leg.arrival, config.school?.tz)}{leg.direction ? ` · Direction ${leg.direction}` : ""}
+          <Typography variant="caption" color="textSecondary">{timeLabel(leg.departure, leg.fromTz ?? originStop?.tz)} – {timeLabel(leg.arrival, leg.toTz ?? destinationStop?.tz)}{leg.direction ? ` · Direction ${leg.direction}` : ""}
             {leg.mode !== "WALK" ? ` · ${leg.cancelled ? "Supprimé" : leg.live ? "Temps réel" : "Horaire théorique"}` : ""}</Typography>
         </View>)}
       </Card>)}

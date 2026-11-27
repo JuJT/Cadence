@@ -2,6 +2,7 @@ import { SessionHandle } from "@blockshub/pawnote-lts";
 
 import { assertSessionUsable, getAuthState, reportSessionError } from "@/services/auth/coordinator";
 import { AuthStep } from "@/services/auth/types";
+import { fetchAssessmentPeriods, fetchReportCard, fetchReportCardPDF, fetchSkillEvaluations } from "@/services/pronote/assessment";
 import { fetchPronoteAttendance, fetchPronoteAttendancePeriods } from "@/services/pronote/attendance";
 import { pronoteCapabilities } from "@/services/pronote/capabilities";
 import { fetchPronoteCanteenMenu } from "@/services/pronote/canteen";
@@ -19,6 +20,7 @@ import { fetchPronoteHomeworks, setPronoteHomeworkAsDone } from "@/services/pron
 import { fetchPronoteNews, fetchPronoteNewsDetail, setPronoteNewsAsAcknowledged, submitPronoteSurvey } from "@/services/pronote/news";
 import { refreshPronoteAccount } from "@/services/pronote/refresh";
 import { fetchPronoteCourseResources, fetchPronoteLesson, fetchPronoteLessons, fetchPronoteWeekTimetable } from "@/services/pronote/timetable";
+import { AssessmentPeriod, AssessmentSection, ReportCard, SkillEvaluation } from "@/services/shared/assessment";
 import { Attendance } from "@/services/shared/attendance";
 import { CanteenMenu } from "@/services/shared/canteen";
 import { Chat, Message, Recipient } from "@/services/shared/chat";
@@ -142,6 +144,22 @@ export class Pronote implements SchoolServicePlugin {
 
   getCourseResources(course: Course): Promise<CourseResource[]> {
     return this.withSession(session => fetchPronoteCourseResources(session, this.accountId, course));
+  }
+
+  getAssessmentPeriods(section: AssessmentSection): Promise<AssessmentPeriod[]> {
+    return this.withSession(async session => fetchAssessmentPeriods(session, this.accountId, section));
+  }
+
+  getSkillEvaluations(periodId: string): Promise<SkillEvaluation[]> {
+    return this.withSession(session => fetchSkillEvaluations(session, periodId));
+  }
+
+  getReportCard(periodId: string): Promise<ReportCard | null> {
+    return this.withSession(session => fetchReportCard(session, periodId));
+  }
+
+  getReportCardPDF(periodId: string): Promise<string> {
+    return this.withSession(session => fetchReportCardPDF(session, periodId), { retryOnExpired: false });
   }
 
   getLessons(): Promise<LessonSummary[]> {
