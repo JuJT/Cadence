@@ -11,6 +11,7 @@ import {
   translateToWeekNumber,
 } from "@blockshub/pawnote-lts";
 
+import { hasPronoteTab } from "@/services/pronote/capabilities";
 import { Course, CourseDay, CourseResource, CourseStatus, CourseType, LessonSummary } from "@/services/shared/timetable";
 import { error } from "@/utils/logger/logger";
 
@@ -108,7 +109,7 @@ const mapCourses = (
 };
 
 export async function fetchPronoteLessons(session: SessionHandle, accountId: string): Promise<LessonSummary[]> {
-  if (!session.userResource?.tabs.has(TabLocation.Resources)) {
+  if (!hasPronoteTab(session, TabLocation.Resources)) {
     throw new Error("Le cahier de textes est indisponible pour ce compte.");
   }
 
@@ -156,8 +157,7 @@ export async function fetchPronoteCourseResources(
 export async function fetchPronoteLesson(
   session: SessionHandle, accountId: string, id: string,
 ): Promise<CourseResource[]> {
-  const tabs = session.userResource?.tabs;
-  if (!id || (!tabs?.has(TabLocation.Resources) && !tabs?.has(TabLocation.Timetable))) {
+  if (!id || (!hasPronoteTab(session, TabLocation.Resources) && !hasPronoteTab(session, TabLocation.Timetable))) {
     throw new Error("Cette leçon est indisponible pour ce compte.");
   }
   const { contents } = await resource(session, id);

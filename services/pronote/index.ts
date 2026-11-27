@@ -1,8 +1,9 @@
-import { SessionHandle, TabLocation } from "@blockshub/pawnote-lts";
+import { SessionHandle } from "@blockshub/pawnote-lts";
 
 import { assertSessionUsable, getAuthState, reportSessionError } from "@/services/auth/coordinator";
 import { AuthStep } from "@/services/auth/types";
 import { fetchPronoteAttendance, fetchPronoteAttendancePeriods } from "@/services/pronote/attendance";
+import { pronoteCapabilities } from "@/services/pronote/capabilities";
 import { fetchPronoteCanteenMenu } from "@/services/pronote/canteen";
 import {
   canReplyToPronoteChat,
@@ -28,34 +29,6 @@ import { Course, CourseDay, CourseResource, LessonSummary } from "@/services/sha
 import { Capabilities, SchoolServicePlugin } from "@/services/shared/types";
 import { Auth, Services } from "@/stores/account/types";
 import { error } from "@/utils/logger/logger";
-
-export function pronoteCapabilities(session: SessionHandle): Capabilities[] {
-  const capabilities = [Capabilities.REFRESH];
-  const tabs = session.userResource?.tabs;
-  const permissions = session.user?.authorizations;
-  const byTab: Partial<Record<TabLocation, Capabilities[]>> = {
-    [TabLocation.Assignments]: [Capabilities.HOMEWORK],
-    [TabLocation.Grades]: [Capabilities.GRADES],
-    [TabLocation.Notebook]: [Capabilities.ATTENDANCE, Capabilities.ATTENDANCE_PERIODS],
-    [TabLocation.News]: [Capabilities.NEWS],
-    [TabLocation.Menus]: [Capabilities.CANTEEN_MENU],
-    [TabLocation.Resources]: [Capabilities.COURSE_RESOURCES],
-    [TabLocation.Timetable]: [Capabilities.TIMETABLE],
-  };
-  for (const tab of tabs?.keys() ?? []) {
-    capabilities.push(...(byTab[tab] ?? []));
-  }
-  if (tabs?.has(TabLocation.Discussions) && permissions?.canReadDiscussions) {
-    capabilities.push(Capabilities.CHAT_READ);
-    if (permissions.canDiscuss) {
-      capabilities.push(Capabilities.CHAT_REPLY);
-      if (permissions.canDiscussWithTeachers || permissions.canDiscussWithStaff) {
-        capabilities.push(Capabilities.CHAT_CREATE);
-      }
-    }
-  }
-  return capabilities;
-}
 
 const PRONOTE_TOKEN_TTL_MS = 5 * 60 * 1000;
 

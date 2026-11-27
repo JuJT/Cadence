@@ -11,6 +11,7 @@ import {
   TabLocation,
 } from "@blockshub/pawnote-lts";
 
+import { hasPronoteTab } from "@/services/pronote/capabilities";
 import { News, SurveyAnswer } from "@/services/shared/news";
 import { Attachment } from "@/services/shared/attachment";
 
@@ -24,7 +25,7 @@ const supportedSurveyKinds = new Set<NewsQuestionKind>([
 ]);
 
 function requireNews(session: SessionHandle) {
-  if (!session.userResource.tabs.has(TabLocation.News)) {
+  if (!hasPronoteTab(session, TabLocation.News)) {
     throw new Error("Les actualités sont indisponibles pour ce compte.");
   }
 }

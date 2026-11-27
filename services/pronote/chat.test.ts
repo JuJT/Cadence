@@ -17,8 +17,8 @@ jest.mock("@blockshub/pawnote-lts", () => ({
 }));
 
 const session = {
-  user: { authorizations: { canReadDiscussions: true, canDiscuss: true, canDiscussWithTeachers: true } },
-  userResource: { tabs: new Map([[TabLocation.Discussions, {}]]) },
+  user: { authorizations: { tabs: [TabLocation.Discussions], canReadDiscussions: true, canDiscuss: true, canDiscussWithTeachers: true } },
+  userResource: { tabs: new Map() },
 } as unknown as SessionHandle;
 const chat = { id: "thread", subject: "Cours", date: new Date(), createdByAccount: "test" };
 const thread = { participantsMessageID: chat.id } as Awaited<ReturnType<typeof discussions>>["items"][number];

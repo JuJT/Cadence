@@ -11,11 +11,12 @@ import {
   TabLocation,
 } from "@blockshub/pawnote-lts";
 
+import { hasPronoteTab } from "@/services/pronote/capabilities";
 import { Chat, Message, Recipient } from "@/services/shared/chat";
 
 function requireChatPermission(session: SessionHandle, write = false) {
-  const permissions = session.user.authorizations;
-  if (!session.userResource.tabs.has(TabLocation.Discussions) || !permissions.canReadDiscussions ||
+  const permissions = session.user?.authorizations;
+  if (!hasPronoteTab(session, TabLocation.Discussions) || !permissions?.canReadDiscussions ||
       (write && !permissions.canDiscuss)) {
     throw new Error("Cette action est indisponible pour ce compte PRONOTE.");
   }
